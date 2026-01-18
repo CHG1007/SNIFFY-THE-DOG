@@ -1,1 +1,8 @@
 rootProject.name = 'sniffythedog'
+
+include 'domain'
+include 'application'
+include 'bootstrap'
+include 'adapter:in:http'
+include 'adapter:out:rdb'
+
