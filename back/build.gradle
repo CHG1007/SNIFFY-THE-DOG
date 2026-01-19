@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '4.0.1'
+    id 'org.springframework.boot' version '3.5.9'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -8,6 +8,12 @@ group = 'com.a407'
 version = '0.0.1-SNAPSHOT'
 description = 'back'
 
+repositories {
+    mavenCentral()
+}
+
+bootJar.enabled = false
+jar.enabled = true
 
 subprojects {
     apply plugin: 'java'
