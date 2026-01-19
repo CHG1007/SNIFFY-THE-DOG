@@ -1,0 +1,29 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - appnet
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - appnet
+    restart: unless-stopped
+
+networks:
+  appnet:
