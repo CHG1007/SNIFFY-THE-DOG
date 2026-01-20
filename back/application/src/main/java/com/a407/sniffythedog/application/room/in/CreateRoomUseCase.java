@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.application.port.in.room;
+package com.a407.sniffythedog.application.room.in;
 
 public interface CreateRoomUseCase {
     CreateRoomResult createRoom(CreateRoomCommand command);

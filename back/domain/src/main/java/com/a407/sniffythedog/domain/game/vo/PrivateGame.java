@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.domain.game.enums;
+package com.a407.sniffythedog.domain.game.vo;
 
 import java.util.UUID;
 
