@@ -12,6 +12,7 @@ import com.a407.sniffythedog.application.report.in.CreateReportUseCase;
 import com.a407.sniffythedog.application.report.in.GetReportListResult;
 import com.a407.sniffythedog.application.report.in.GetReportListUseCase;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,16 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
+@RequiredArgsConstructor
 public class ReportController {
 
     private final CreateReportUseCase createReportUseCase;
     private final GetReportListUseCase getReportListUseCase;
-
-    public ReportController(CreateReportUseCase createReportUseCase,
-                            GetReportListUseCase getReportListUseCase) {
-        this.createReportUseCase = createReportUseCase;
-        this.getReportListUseCase = getReportListUseCase;
-    }
 
     @PostMapping("/api/reports")
     public ApiResponse<CreateReportResponse> createReport(

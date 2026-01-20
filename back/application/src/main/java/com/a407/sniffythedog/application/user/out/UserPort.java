@@ -10,4 +10,6 @@ public interface UserPort {
     Map<UserId, User> findByIds(Set<UserId> userIds);
 
     User findById(UserId userId);
+
+    User save(User user);
 }
