@@ -1,5 +1,3 @@
-stages: [deploy]
-
 deploy_develop:
   stage: deploy
   image: alpine:latest
@@ -24,3 +22,5 @@ deploy_develop:
   needs:
     - backend_test
     - frontend_build
+  tags:
+    - ssafy-ec2-runner

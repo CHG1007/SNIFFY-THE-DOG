@@ -1,5 +1,3 @@
-stages: [test, build]
-
 backend_test:
   stage: test
   image: gradle:8.14-jdk21
@@ -8,6 +6,8 @@ backend_test:
     - gradle test
   only:
     - develop
+  tags:
+    - ssafy-ec2-runner
 
 frontend_build:
   stage: build
@@ -18,3 +18,5 @@ frontend_build:
     - npm run build
   only:
     - develop
+  tags:
+    - ssafy-ec2-runner
