@@ -1,8 +1,8 @@
 package com.a407.sniffythedog.adapter.in.http.common.exception;
 
 import com.a407.sniffythedog.adapter.in.http.common.response.ApiResponse;
-import com.a407.sniffythedog.application.exception.ApplicationException;
-import com.a407.sniffythedog.application.exception.ExceptionType;
+import com.a407.sniffythedog.application.common.exception.ApplicationException;
+import com.a407.sniffythedog.application.common.exception.ExceptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
