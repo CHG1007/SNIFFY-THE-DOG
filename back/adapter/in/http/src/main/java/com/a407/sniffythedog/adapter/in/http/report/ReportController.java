@@ -12,8 +12,6 @@ import com.a407.sniffythedog.application.report.in.CreateReportUseCase;
 import com.a407.sniffythedog.application.report.in.GetReportListResult;
 import com.a407.sniffythedog.application.report.in.GetReportListUseCase;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,7 +33,7 @@ public class ReportController {
     }
 
     @PostMapping("/api/reports")
-    public ResponseEntity<ApiResponse<CreateReportResponse>> createReport(
+    public ApiResponse<CreateReportResponse> createReport(
         @Valid @RequestBody CreateReportRequest request
         // TODO: @AuthenticationPrincipal 로 현재 로그인 사용자 ID 주입
     ) {
@@ -55,13 +53,11 @@ public class ReportController {
             result.createdAt()
         );
 
-        return ResponseEntity
-            .status(HttpStatus.CREATED)
-            .body(ApiResponse.success(response));
+        return ApiResponse.success(response);
     }
 
     @GetMapping("/api/admin/reports")
-    public ResponseEntity<ApiResponse<PageResponse<ReportListItemResponse>>> getReportList(
+    public ApiResponse<PageResponse<ReportListItemResponse>> getReportList(
         @RequestParam(required = false) Integer page,
         @RequestParam(required = false) Integer size,
         @RequestParam(required = false) String status,
@@ -80,6 +76,6 @@ public class ReportController {
 
         PageResponse<ReportListItemResponse> pageResponse = PageResponse.of(items, result.pageInfo());
 
-        return ResponseEntity.ok(ApiResponse.success(pageResponse));
+        return ApiResponse.success(pageResponse);
     }
 }

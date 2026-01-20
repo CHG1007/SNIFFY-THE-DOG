@@ -29,4 +29,11 @@ public class UserRepositoryAdapter implements UserPort {
             .map(UserMapper::toDomain)
             .collect(Collectors.toMap(User::getId, user -> user));
     }
+
+    @Override
+    public User findById(UserId userId) {
+        return userJpaRepository.findById(userId.value())
+            .map(UserMapper::toDomain)
+            .orElse(null);
+    }
 }

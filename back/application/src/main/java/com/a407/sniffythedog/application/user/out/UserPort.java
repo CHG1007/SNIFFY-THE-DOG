@@ -8,4 +8,6 @@ import java.util.Set;
 
 public interface UserPort {
     Map<UserId, User> findByIds(Set<UserId> userIds);
+
+    User findById(UserId userId);
 }
