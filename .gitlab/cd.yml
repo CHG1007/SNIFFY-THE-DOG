@@ -7,15 +7,11 @@ deploy_develop:
     - cp "$DEPLOY_KEY" ~/.ssh/id_ed25519
     - chmod 600 ~/.ssh/id_ed25519
     - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
-    - head -n 1 ~/.ssh/id_ed25519
-
   script:
     - |
-      test -n "$DEPLOY_PATH"
-      ssh -i ~/.ssh/id_ed25519 \
-          -o IdentitiesOnly=yes \
-          -o StrictHostKeyChecking=yes \
-          "$DEPLOY_USER@$DEPLOY_HOST" "
+      echo "SSH TARGET: $DEPLOY_USER@$DEPLOY_HOST"
+      echo "DEPLOY_PATH: $DEPLOY_PATH"
+      ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" "
         set -e
         cd '$DEPLOY_PATH'
         git fetch --all
