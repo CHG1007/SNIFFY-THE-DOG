@@ -1,0 +1,26 @@
+stages: [deploy]
+
+deploy_develop:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh
+    - mkdir -p ~/.ssh
+    - printf "%s" "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
+  script:
+    - |
+      ssh $DEPLOY_USER@$DEPLOY_HOST "
+        set -e
+        cd $DEPLOY_PATH
+        git fetch --all
+        git checkout develop
+        git reset --hard origin/develop
+        sudo docker-compose up -d --build
+      "
+  only:
+    - develop
+  needs:
+    - backend_test
+    - frontend_build
