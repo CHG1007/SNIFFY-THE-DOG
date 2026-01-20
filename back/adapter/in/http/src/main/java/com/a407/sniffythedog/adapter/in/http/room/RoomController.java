@@ -1,8 +1,8 @@
-package com.a407.sniffythedog.adapter.in.http.controller;
+package com.a407.sniffythedog.adapter.in.http.room;
 
 import com.a407.sniffythedog.adapter.in.http.common.response.ApiResponse;
-import com.a407.sniffythedog.adapter.in.http.dto.request.CreateRoomRequest;
-import com.a407.sniffythedog.adapter.in.http.dto.response.CreateRoomResponse;
+import com.a407.sniffythedog.adapter.in.http.room.request.CreateRoomRequest;
+import com.a407.sniffythedog.adapter.in.http.room.response.CreateRoomResponse;
 import com.a407.sniffythedog.application.port.in.room.CreateRoomCommand;
 import com.a407.sniffythedog.application.port.in.room.CreateRoomResult;
 import com.a407.sniffythedog.application.port.in.room.CreateRoomUseCase;
