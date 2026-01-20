@@ -42,9 +42,9 @@ public class RoomService implements CreateRoomUseCase, GetPublicRoomUseCase {
     }
     @Override
     @Transactional(readOnly = true)
-    public List<GetPublicRoomResult> getPublicRooms() {
+    public List<GetPublicRoomResult> getPublicRooms(int page, int size) {
 
-        List<RoomSession> sessions = roomPort.loadPublicRooms();
+        List<RoomSession> sessions = roomPort.loadPublicRooms(page, size);
 
         return sessions.stream()
                 .map(room -> new GetPublicRoomResult(

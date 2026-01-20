@@ -7,5 +7,5 @@ import java.util.List;
 public interface RoomPort {
 
     void saveRoom(RoomSession roomSession);
-    List<RoomSession> loadPublicRooms();
+    List<RoomSession> loadPublicRooms(int page, int size);
 }
