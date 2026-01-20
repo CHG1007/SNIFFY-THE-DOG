@@ -3,15 +3,14 @@ package com.a407.sniffythedog.adapter.in.http.room;
 import com.a407.sniffythedog.adapter.in.http.common.response.ApiResponse;
 import com.a407.sniffythedog.adapter.in.http.room.request.CreateRoomRequest;
 import com.a407.sniffythedog.adapter.in.http.room.response.CreateRoomResponse;
-import com.a407.sniffythedog.application.port.in.room.CreateRoomCommand;
-import com.a407.sniffythedog.application.port.in.room.CreateRoomResult;
-import com.a407.sniffythedog.application.port.in.room.CreateRoomUseCase;
+import com.a407.sniffythedog.adapter.in.http.room.response.RoomSummaryResponse;
+import com.a407.sniffythedog.application.room.in.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -19,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class RoomController {
 
     private final CreateRoomUseCase createRoomUseCase;
+    private final GetPublicRoomUseCase getAllRoomUseCase;
 
     @PostMapping
     public ApiResponse<CreateRoomResponse> createRoom(@RequestBody @Valid CreateRoomRequest request
@@ -38,6 +38,27 @@ public class RoomController {
                 result.roomId(),
                 result.inviteCode()
         );
+
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping()
+    public ApiResponse<List<RoomSummaryResponse>> getRoomInfo(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "6") int size
+            //todo:@Authentication 추가
+    ) {
+        List<GetPublicRoomResult> results = getAllRoomUseCase.getPublicRooms(page, size);
+
+        List<RoomSummaryResponse> response = results.stream()
+                .map(result -> RoomSummaryResponse.builder()
+                        .roomId(result.roomId())
+                        .title(result.title())
+                        .currentCount(result.currentCount())
+                        .capacity(result.capacity())
+                        .isPrivate(result.isPrivate())
+                        .build())
+                .collect(Collectors.toList());
 
         return ApiResponse.success(response);
     }

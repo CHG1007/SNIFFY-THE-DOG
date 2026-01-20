@@ -1,9 +1,7 @@
-package com.a407.sniffythedog.application.service.room;
+package com.a407.sniffythedog.application.room;
 
-import com.a407.sniffythedog.application.port.in.room.CreateRoomCommand;
-import com.a407.sniffythedog.application.port.in.room.CreateRoomResult;
-import com.a407.sniffythedog.application.port.in.room.CreateRoomUseCase;
-import com.a407.sniffythedog.application.port.out.room.RoomPort;
+import com.a407.sniffythedog.application.room.in.*;
+import com.a407.sniffythedog.application.room.out.RoomPort;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
@@ -12,11 +10,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class RoomService implements CreateRoomUseCase {
+public class RoomService implements CreateRoomUseCase, GetPublicRoomUseCase {
 
     private final RoomPort roomPort;
 
@@ -39,5 +39,21 @@ public class RoomService implements CreateRoomUseCase {
         roomPort.saveRoom(roomSession);
 
         return new CreateRoomResult(roomId.value(), roomSession.getInviteCode());
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public List<GetPublicRoomResult> getPublicRooms(int page, int size) {
+
+        List<RoomSession> sessions = roomPort.loadPublicRooms(page, size);
+
+        return sessions.stream()
+                .map(room -> new GetPublicRoomResult(
+                        room.getId().value(),
+                        room.getTitle().value(),
+                        room.getPlayerCount(),
+                        room.getCapacity(),
+                        room.isPrivate()
+                ))
+                .collect(Collectors.toList());
     }
 }
