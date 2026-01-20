@@ -6,10 +6,14 @@ import com.a407.sniffythedog.adapter.in.http.user.request.ChangeNicknameRequest;
 import com.a407.sniffythedog.adapter.in.http.user.request.GetUserGameHistoryRequest;
 import com.a407.sniffythedog.adapter.in.http.user.response.GameHistoryItemResponse;
 import com.a407.sniffythedog.adapter.in.http.user.response.GetMyInfoResponse;
+import com.a407.sniffythedog.adapter.in.http.user.response.GetUserBadgesResponse;
 import com.a407.sniffythedog.application.user.in.ChangeNicknameCommand;
 import com.a407.sniffythedog.application.user.in.ChangeNicknameUseCase;
 import com.a407.sniffythedog.application.user.in.GetMyInfoResult;
 import com.a407.sniffythedog.application.user.in.GetMyInfoUseCase;
+import com.a407.sniffythedog.application.user.in.GetUserBadgesQuery;
+import com.a407.sniffythedog.application.user.in.GetUserBadgesResult;
+import com.a407.sniffythedog.application.user.in.GetUserBadgesUseCase;
 import com.a407.sniffythedog.application.user.in.GetUserGameHistoryResult;
 import com.a407.sniffythedog.application.user.in.GetUserGameHistoryUseCase;
 import jakarta.validation.Valid;
@@ -29,6 +33,7 @@ public class UserController {
     private final GetMyInfoUseCase getMyInfoUseCase;
     private final ChangeNicknameUseCase changeNicknameUseCase;
     private final GetUserGameHistoryUseCase getUserGameHistoryUseCase;
+    private final GetUserBadgesUseCase getUserBadgesUseCase;
 
     @GetMapping("/api/users/me")
     public ApiResponse<GetMyInfoResponse> getMyInfo(
@@ -78,5 +83,17 @@ public class UserController {
         PageResponse<GameHistoryItemResponse> pageResponse = PageResponse.of(items, result.pageInfo());
 
         return ApiResponse.success(pageResponse);
+    }
+
+    @GetMapping("/api/users/me/badges")
+    public ApiResponse<GetUserBadgesResponse> getUserBadges(
+        // TODO: @AuthenticationPrincipal 로 현재 로그인 사용자 ID 주입
+    ) {
+        // TODO: 실제 로그인 사용자 ID로 교체 필요
+        Long userId = 1L;
+
+        GetUserBadgesResult result = getUserBadgesUseCase.execute(GetUserBadgesQuery.of(userId));
+
+        return ApiResponse.success(GetUserBadgesResponse.from(result));
     }
 }
