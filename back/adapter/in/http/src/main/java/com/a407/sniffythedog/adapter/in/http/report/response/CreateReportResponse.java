@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.adapter.in.http.dto.response;
+package com.a407.sniffythedog.adapter.in.http.report.response;
 
 import java.time.Instant;
 

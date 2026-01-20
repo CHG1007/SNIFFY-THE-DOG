@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.application.exception;
+package com.a407.sniffythedog.application.common.exception;
 
 /**
  * 비즈니스 로직 예외의 기본 클래스

@@ -1,7 +1,7 @@
-package com.a407.sniffythedog.application.port.in.report;
+package com.a407.sniffythedog.application.report.in;
 
-import com.a407.sniffythedog.application.exception.ApplicationException;
-import com.a407.sniffythedog.application.exception.ExceptionType;
+import com.a407.sniffythedog.application.common.exception.ApplicationException;
+import com.a407.sniffythedog.application.common.exception.ExceptionType;
 
 public record CreateReportCommand(
     Long reporterId,

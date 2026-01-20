@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.application.exception;
+package com.a407.sniffythedog.application.common.exception;
 
 public enum ExceptionType {
 

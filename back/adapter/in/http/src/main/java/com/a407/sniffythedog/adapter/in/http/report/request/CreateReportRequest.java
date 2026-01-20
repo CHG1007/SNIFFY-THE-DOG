@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.adapter.in.http.dto.request;
+package com.a407.sniffythedog.adapter.in.http.report.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
