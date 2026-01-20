@@ -1,0 +1,20 @@
+stages: [test, build]
+
+backend_test:
+  stage: test
+  image: gradle:8.14-jdk21
+  script:
+    - cd back
+    - gradle test
+  only:
+    - develop
+
+frontend_build:
+  stage: build
+  image: node:20.19-alpine
+  script:
+    - cd front
+    - npm ci
+    - npm run build
+  only:
+    - develop
