@@ -1,4 +1,4 @@
-package com.a407.snffiythedog.bootstrap;
+package com.a407.sniffiythedog.bootstrap;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
