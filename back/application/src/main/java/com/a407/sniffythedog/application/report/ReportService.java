@@ -17,6 +17,7 @@ import com.a407.sniffythedog.domain.report.enums.ReportStatus;
 import com.a407.sniffythedog.domain.report.vo.ReportReason;
 import com.a407.sniffythedog.domain.user.entity.User;
 import com.a407.sniffythedog.domain.user.vo.UserId;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,15 +28,11 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class ReportService implements CreateReportUseCase, GetReportListUseCase {
 
     private final ReportPort reportPort;
     private final UserPort userPort;
-
-    public ReportService(ReportPort reportPort, UserPort userPort) {
-        this.reportPort = reportPort;
-        this.userPort = userPort;
-    }
 
     @Override
     public CreateReportResult execute(CreateReportCommand command) {

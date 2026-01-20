@@ -11,11 +11,18 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
 @Entity
 @Table(name = "users")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class UserEntity {
 
     @Id
@@ -48,57 +55,4 @@ public class UserEntity {
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
-
-    protected UserEntity() {
-    }
-
-    public UserEntity(Long id, SocialProvider socialProvider, String socialUuid,
-                      String nickname, UserRole role, UserStatus status,
-                      Instant createdAt, Instant updatedAt, Instant deletedAt) {
-        this.id = id;
-        this.socialProvider = socialProvider;
-        this.socialUuid = socialUuid;
-        this.nickname = nickname;
-        this.role = role;
-        this.status = status;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-        this.deletedAt = deletedAt;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public SocialProvider getSocialProvider() {
-        return socialProvider;
-    }
-
-    public String getSocialUuid() {
-        return socialUuid;
-    }
-
-    public String getNickname() {
-        return nickname;
-    }
-
-    public UserRole getRole() {
-        return role;
-    }
-
-    public UserStatus getStatus() {
-        return status;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public Instant getDeletedAt() {
-        return deletedAt;
-    }
 }

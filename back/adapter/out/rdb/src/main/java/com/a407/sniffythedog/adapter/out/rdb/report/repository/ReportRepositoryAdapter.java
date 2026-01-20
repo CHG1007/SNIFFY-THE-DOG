@@ -11,19 +11,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository
+@RequiredArgsConstructor
 public class ReportRepositoryAdapter implements ReportPort {
 
     private final ReportJpaRepository reportJpaRepository;
-
-    public ReportRepositoryAdapter(ReportJpaRepository reportJpaRepository) {
-        this.reportJpaRepository = reportJpaRepository;
-    }
 
     @Override
     public Report save(Report report) {
