@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.application.port.in.report;
+package com.a407.sniffythedog.application.report.in;
 
 import java.time.Instant;
 
