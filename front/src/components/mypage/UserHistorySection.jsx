@@ -37,6 +37,13 @@ const UserHistorySection = () => {
         <h3 className="text-[#ff8a00] text-2xl font-black mb-3">전적</h3>
         <GameHistoryTable /> {/* 여기서 기존 부품을 호출! */}
       </div>
+
+      <div className="mt-5 w-full text-right">
+        <button className="text-orange-100/40 text-sm cursor-pointer hover:text-orange-100 transition-all">
+          회원탈퇴
+        </button>
+      </div>
+
     </div>
   );
 };

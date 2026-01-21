@@ -23,7 +23,7 @@ const GameHistoryTable = () => {
       </div>
 
       {/* 데이터 행들 (간격을 좁게 설정) */}
-      <div className="flex flex-col max-h-[30vh] overflow-y-auto pr-0 custom-scrollbar">
+      <div className="flex flex-col h-[280px] overflow-y-auto pr-2 custom-scrollbar">
         {historyData.map((game) => (
           <GameHistoryRow key={game.id} game={game} />
         ))}
