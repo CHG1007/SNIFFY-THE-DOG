@@ -39,7 +39,6 @@ const CreateGameModal = ({ isOpen, onClose, initialData, isEdit = false }) => {
     }
   };
 
-
   const changeCapacity = (num) => {
     const nextValue = capacity + num;
     if (nextValue >= 6 && nextValue <= 8) {
@@ -83,6 +82,7 @@ const CreateGameModal = ({ isOpen, onClose, initialData, isEdit = false }) => {
               className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] rounded-lg text-2xl hover:bg-[#3a3a3a] cursor-pointer"
             >+</button>
           </div>
+          <span className="text-gray-500 text-sm">(6~8명 선택 가능)</span>
         </div>
 
         {/* 3. 비공개 토글 섹션 */}
