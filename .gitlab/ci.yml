@@ -28,30 +28,29 @@ build_images:
   stage: build
   image: docker:27.3.1
   services:
-    - name: docker:27.3.1-dind # 도커 이미지 빌드 하기 위해 docker:dind 씀
-      command: ["--tls=false"] # TLS 암호화 없이 도커 데몬 실행해라
+    - name: docker:27.3.1-dind
+      command: ["--tls=false"]
   variables:
     DOCKER_TLS_CERTDIR: ""
-    IMAGE_TAG: "$CI_COMMIT_SHORT_SHA" # 이미지 태그 해시로 붙이겠다
+    IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
   script:
-    - docker version
-    - mkdir -p dist # 결과 담을 폴더 만들기
+    - |
+      set -e
+      docker version
+      mkdir -p dist
 
-    # 1) backend build + save tar를 나중에 EC2에서 docker load -i로 넣을 수 있다
-    - echo "Build backend: $BACKEND_IMAGE:$IMAGE_TAG"
-    - docker build -t "$BACKEND_IMAGE:$IMAGE_TAG" -f back/Dockerfile back
-    - docker save "$BACKEND_IMAGE:$IMAGE_TAG" -o "dist/backend_${IMAGE_TAG}.tar"
+      echo "Build backend: $BACKEND_IMAGE:$IMAGE_TAG"
+      docker build -t "$BACKEND_IMAGE:$IMAGE_TAG" -f back/Dockerfile back
+      docker save "$BACKEND_IMAGE:$IMAGE_TAG" -o "dist/backend_${IMAGE_TAG}.tar"
 
-    # 2) nginx build + save
-    - echo "Build nginx: $NGINX_IMAGE:$IMAGE_TAG"
-    - docker build -t "$NGINX_IMAGE:$IMAGE_TAG" -f nginx/Dockerfile .
-    - docker save "$NGINX_IMAGE:$IMAGE_TAG" -o "dist/nginx_${IMAGE_TAG}.tar"
+      echo "Build nginx: $NGINX_IMAGE:$IMAGE_TAG"
+      docker build -t "$NGINX_IMAGE:$IMAGE_TAG" -f nginx/Dockerfile .
+      docker save "$NGINX_IMAGE:$IMAGE_TAG" -o "dist/nginx_${IMAGE_TAG}.tar"
 
-    # 3) docker-compose , nginx tar파일 만들어서 ec2에 보내라 !!
-    - cp docker-compose.yml dist/docker-compose.yml
-    - cp nginx/nginx.conf dist/nginx.conf
+      cp docker-compose.yml dist/docker-compose.yml
+      cp nginx/nginx.conf dist/nginx.conf
 
-    - ls -al dist
+      ls -al dist
   artifacts:
     expire_in: 1 day
     paths:
