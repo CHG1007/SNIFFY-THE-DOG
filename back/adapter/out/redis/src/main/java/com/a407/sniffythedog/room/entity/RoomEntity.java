@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.adapter.out.rdb.room.entity;
+package com.a407.sniffythedog.room.entity;
 
 import com.a407.sniffythedog.domain.game.enums.RoomStatus;
 import jakarta.persistence.Id;

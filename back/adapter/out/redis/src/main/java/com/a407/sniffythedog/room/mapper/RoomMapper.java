@@ -1,12 +1,12 @@
-package com.a407.sniffythedog.adapter.out.rdb.room.mapper;
+package com.a407.sniffythedog.room.mapper;
 
-import com.a407.sniffythedog.adapter.out.rdb.room.entity.RoomEntity;
 import com.a407.sniffythedog.domain.game.entity.PlayerState;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.vo.GameState;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
 import com.a407.sniffythedog.domain.game.vo.RoomTitle;
+import com.a407.sniffythedog.room.entity.RoomEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

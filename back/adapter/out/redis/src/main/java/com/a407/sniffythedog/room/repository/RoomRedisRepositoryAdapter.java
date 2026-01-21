@@ -1,9 +1,11 @@
-package com.a407.sniffythedog.adapter.out.rdb.room.repository;
+package com.a407.sniffythedog.room.repository;
 
-import com.a407.sniffythedog.adapter.out.rdb.room.entity.RoomEntity;
-import com.a407.sniffythedog.adapter.out.rdb.room.mapper.RoomMapper;
+
+import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.application.room.out.RoomPort;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
+import com.a407.sniffythedog.room.entity.RoomEntity;
+import com.a407.sniffythedog.room.mapper.RoomMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -20,7 +22,7 @@ import java.util.stream.StreamSupport;
 @Primary
 @Repository
 @RequiredArgsConstructor
-public class RoomRedisRepositoryAdapter implements RoomPort {
+public class RoomRedisRepositoryAdapter implements RedisRoomPort {
 
     private static final String PUBLIC_ROOMS_KEY = "room:public";
 
