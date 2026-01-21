@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import ModifyBtn from './ModifyBtn';
-import GameHistoryTable from './GameHistoryTable'; // 기존에 만든 Table 불러오기
+import GameHistoryTable from './GameHistoryTable'; 
+import LastBeggingModal from '../modals/LastBeggingModal';
 
 const UserHistorySection = () => {
   const [nickname, setNickname] = useState("유저");
   const [isEditing, setIsEditing] = useState(false);
+  const [isQuitModalOpen, setIsQuitModalOpen] = useState(false);
+
+  const handleQuitConfirm = () => {
+    console.log("회원 탈퇴 처리 로직 실행");
+    setIsQuitModalOpen(false);
+  };
 
   const handleEditClick = () => {
     if (isEditing) console.log("저장됨:", nickname);
@@ -39,10 +46,20 @@ const UserHistorySection = () => {
       </div>
 
       <div className="mt-5 w-full text-right">
-        <button className="text-orange-100/40 text-sm cursor-pointer hover:text-orange-100 transition-all">
+        <button onClick={() => setIsQuitModalOpen(true)} className="text-orange-100/40 text-sm cursor-pointer hover:text-orange-100 transition-all">
           회원탈퇴
         </button>
       </div>
+      
+      {/* 회원 탈퇴 확인 모달 */}
+      {isQuitModalOpen && (
+        <LastBeggingModal 
+          isOpen={isQuitModalOpen}
+          onClose={() => setIsQuitModalOpen(false)}
+          onConfirm={handleQuitConfirm}
+          message={`채연입니다님\n탈퇴하시겠습니까?`}
+        />
+      )}
 
     </div>
   );
