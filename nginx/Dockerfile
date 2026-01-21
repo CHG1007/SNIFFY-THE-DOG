@@ -5,7 +5,7 @@ COPY nginx/nginx.conf /etc/nginx/nginx.conf
 RUN apk add --no-cache nodejs npm
 
 WORKDIR /tmp/front
-COPY frontend/package*.json ./
+COPY front/package*.json ./
 RUN npm ci
 COPY front .
 RUN npm run build
