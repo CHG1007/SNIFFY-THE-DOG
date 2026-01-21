@@ -1,8 +1,6 @@
 services:
   backend:
-    build:
-      context: ./back
-      dockerfile: Dockerfile
+    image: "${BACKEND_IMAGE}:${IMAGE_TAG}"
     container_name: backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -13,9 +11,7 @@ services:
     restart: unless-stopped
 
   nginx:
-    build:
-      context: .
-      dockerfile: nginx/Dockerfile
+    image: "${NGINX_IMAGE}:${IMAGE_TAG}"
     container_name: nginx
     ports:
       - "80:80"
