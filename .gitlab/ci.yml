@@ -6,6 +6,7 @@ backend_test:
   image: gradle:8.7-jdk17
   script:
     - cd back
+    - chmod +x gradlew
     - ./gradlew test
   only:
     - develop
