@@ -1,8 +1,111 @@
-stages:
-  - test
-  - build
-  - deploy
+stages: [test, deploy]
 
-include:
-  - local: .gitlab/ci.yml
-  - local: .gitlab/cd.yml
+backend_test:
+  stage: test
+  image: gradle:8.7-jdk21
+  script:
+    - cd back
+    - chmod +x gradlew
+    - ./gradlew test
+  only:
+    - develop
+
+docker_build_check:
+  stage: test
+  image: docker:27.3.1
+  services:
+    - name: docker:27.3.1-dind
+      command: ["--tls=false"]
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - set -e
+    - docker version
+    - echo "== Build check backend =="
+    - docker build -t backend:ci -f back/Dockerfile back
+    - echo "== Build check nginx (includes front build) =="
+    - docker build -t nginx:ci -f nginx/Dockerfile .
+  only:
+    - develop
+
+deploy_develop:
+  stage: deploy
+  image: docker:27.3.1
+  services:
+    - name: docker:27.3.1-dind
+      command: ["--tls=false"]
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+
+  before_script:
+    - apk add --no-cache openssh-client rsync bash
+    - mkdir -p ~/.ssh
+    - printf "%s" "$DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+  script:
+    - |
+      set -euo pipefail
+      echo "SSH TARGET: $DEPLOY_USER@$DEPLOY_HOST"
+      echo "DEPLOY_PATH: $DEPLOY_PATH"
+      echo "BACKEND_IMAGE: $BACKEND_IMAGE  TAG: $IMAGE_TAG"
+      echo "NGINX_IMAGE:   $NGINX_IMAGE    TAG: $IMAGE_TAG"
+
+      docker version
+
+      rm -rf dist && mkdir -p dist
+
+      echo "== Build backend image =="
+      docker build -t "$BACKEND_IMAGE:$IMAGE_TAG" -f back/Dockerfile back
+      docker save "$BACKEND_IMAGE:$IMAGE_TAG" -o "dist/backend_${IMAGE_TAG}.tar"
+
+      echo "== Build nginx image (includes front build) =="
+      docker build -t "$NGINX_IMAGE:$IMAGE_TAG" -f nginx/Dockerfile .
+      docker save "$NGINX_IMAGE:$IMAGE_TAG" -o "dist/nginx_${IMAGE_TAG}.tar"
+
+      # 배포에 필요한 파일 복사
+      cp docker-compose.yml dist/docker-compose.yml
+      cp nginx/nginx.conf dist/nginx.conf
+
+      echo "== Local dist contents =="
+      ls -al dist
+
+      # 원격 폴더 준비
+      ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
+
+      # EC2로 전송 (tar + compose + conf)
+      rsync -avz --delete -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
+        dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+
+      # EC2에서 load + up
+      ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" "
+        set -e
+        cd '$DEPLOY_PATH'
+
+        docker load -i backend_${IMAGE_TAG}.tar
+        docker load -i nginx_${IMAGE_TAG}.tar
+
+        export BACKEND_IMAGE='$BACKEND_IMAGE'
+        export NGINX_IMAGE='$NGINX_IMAGE'
+        export IMAGE_TAG='$IMAGE_TAG'
+
+        if command -v docker-compose >/dev/null 2>&1; then
+          docker-compose -f docker-compose.yml up -d
+        else
+          docker compose -f docker-compose.yml up -d
+        fi
+
+        docker image prune -f
+      "
+
+  only:
+    - develop
+
+  needs:
+    - backend_test
+    - docker_build_check
+
+  tags:
+    - ssafy-ec2-runner
