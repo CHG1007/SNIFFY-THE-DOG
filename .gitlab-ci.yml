@@ -39,10 +39,10 @@ deploy_develop:
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
 
   before_script:
-    - apk add --no-cache openssh-client rsync bash
+    - apk add --no-cache openssh-client rsync bash coreutils
     - mkdir -p ~/.ssh
-    - printf "%s" "$DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
-    - chmod 600 ~/.ssh/id_ed25519
+    - echo "$DEPLOY_KEY_B64" | tr -d '\r\n' | base64 -d > ~/.ssh/id_key
+    - chmod 600 ~/.ssh/id_key
     - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
   script:
