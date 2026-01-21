@@ -21,9 +21,7 @@ docker_build_check:
   script:
     - set -e
     - docker version
-    - echo "== Build check backend =="
     - docker build -t backend:ci -f back/Dockerfile back
-    - echo "== Build check nginx (includes front build) =="
     - docker build -t nginx:ci -f nginx/Dockerfile .
   only:
     - develop
@@ -39,73 +37,49 @@ deploy_develop:
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
 
   before_script:
-    - apk add --no-cache openssh-client rsync bash coreutils
+    - apk add --no-cache openssh-client rsync bash
     - mkdir -p ~/.ssh
-    - echo "$DEPLOY_KEY_B64" | tr -d '\r\n' | base64 -d > ~/.ssh/id_key
-    - chmod 600 ~/.ssh/id_key
+    - echo "$DEPLOY_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
   script:
     - |
       set -euo pipefail
-      echo "SSH TARGET: $DEPLOY_USER@$DEPLOY_HOST"
-      echo "DEPLOY_PATH: $DEPLOY_PATH"
-      echo "BACKEND_IMAGE: $BACKEND_IMAGE  TAG: $IMAGE_TAG"
-      echo "NGINX_IMAGE:   $NGINX_IMAGE    TAG: $IMAGE_TAG"
-
-      docker version
 
       rm -rf dist && mkdir -p dist
 
-      echo "== Build backend image =="
       docker build -t "$BACKEND_IMAGE:$IMAGE_TAG" -f back/Dockerfile back
       docker save "$BACKEND_IMAGE:$IMAGE_TAG" -o "dist/backend_${IMAGE_TAG}.tar"
 
-      echo "== Build nginx image (includes front build) =="
       docker build -t "$NGINX_IMAGE:$IMAGE_TAG" -f nginx/Dockerfile .
       docker save "$NGINX_IMAGE:$IMAGE_TAG" -o "dist/nginx_${IMAGE_TAG}.tar"
 
-      # 배포에 필요한 파일 복사
       cp docker-compose.yml dist/docker-compose.yml
       cp nginx/nginx.conf dist/nginx.conf
 
-      echo "== Local dist contents =="
-      ls -al dist
+      ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
 
-      # 원격 폴더 준비
-      ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
-
-      # EC2로 전송 (tar + compose + conf)
-      rsync -avz --delete -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
+      rsync -avz -e "ssh -i ~/.ssh/id_rsa" \
         dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
 
-      # EC2에서 load + up
-      ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" "
-        set -e
+      ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "
         cd '$DEPLOY_PATH'
-
         docker load -i backend_${IMAGE_TAG}.tar
         docker load -i nginx_${IMAGE_TAG}.tar
-
         export BACKEND_IMAGE='$BACKEND_IMAGE'
         export NGINX_IMAGE='$NGINX_IMAGE'
         export IMAGE_TAG='$IMAGE_TAG'
-
-        if command -v docker-compose >/dev/null 2>&1; then
-          docker-compose -f docker-compose.yml up -d
-        else
-          docker compose -f docker-compose.yml up -d
-        fi
-
+        docker compose up -d
         docker image prune -f
       "
-
-  only:
-    - develop
 
   needs:
     - backend_test
     - docker_build_check
+
+  only:
+    - develop
 
   tags:
     - ssafy-ec2-runner
