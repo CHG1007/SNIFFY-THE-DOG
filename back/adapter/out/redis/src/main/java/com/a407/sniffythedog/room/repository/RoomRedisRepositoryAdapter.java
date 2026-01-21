@@ -2,7 +2,6 @@ package com.a407.sniffythedog.room.repository;
 
 
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
-import com.a407.sniffythedog.application.room.out.RoomPort;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.room.entity.RoomEntity;
 import com.a407.sniffythedog.room.mapper.RoomMapper;

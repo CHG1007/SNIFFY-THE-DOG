@@ -1,7 +1,7 @@
 package com.a407.sniffythedog.application.room;
 
 import com.a407.sniffythedog.application.room.in.*;
-import com.a407.sniffythedog.application.room.out.RoomPort;
+import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RoomService implements CreateRoomUseCase, GetPublicRoomUseCase {
 
-    private final RoomPort roomPort;
+    private final RedisRoomPort redisRoomPort;
 
     @Override
     @Transactional
@@ -36,7 +36,7 @@ public class RoomService implements CreateRoomUseCase, GetPublicRoomUseCase {
                 command.hostDisplayName()
         );
 
-        roomPort.saveRoom(roomSession);
+        redisRoomPort.saveRoom(roomSession);
 
         return new CreateRoomResult(roomId.value(), roomSession.getInviteCode());
     }
@@ -44,7 +44,7 @@ public class RoomService implements CreateRoomUseCase, GetPublicRoomUseCase {
     @Transactional(readOnly = true)
     public List<GetPublicRoomResult> getPublicRooms(int page, int size) {
 
-        List<RoomSession> sessions = roomPort.loadPublicRooms(page, size);
+        List<RoomSession> sessions = redisRoomPort.loadPublicRooms(page, size);
 
         return sessions.stream()
                 .map(room -> new GetPublicRoomResult(
