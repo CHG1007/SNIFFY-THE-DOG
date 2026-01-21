@@ -3,7 +3,7 @@
 # 백엔드 소스 코드 실행합니다!!
 backend_test:
   stage: test
-  image: gradle:8.7-jdk17
+  image: gradle:8.7-jdk21
   script:
     - cd back
     - chmod +x gradlew
