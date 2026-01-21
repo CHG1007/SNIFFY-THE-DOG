@@ -23,8 +23,9 @@ import ConfirmBtn from "../common/ConfirmBtn";
 
   // 3. 인원 조절 함수 (4명 ~ 8명 제한)
   const changePlayers = (num) => {
-    if (maxPlayers + num >= 4 && maxPlayers + num <= 8) {
-      setMaxPlayers(maxPlayers + num);
+    const nextValue = maxPlayers + num;
+    if (nextValue >= 6 && nextValue <= 8) {
+      setMaxPlayers(nextValue);
     }
   };
 
@@ -62,6 +63,7 @@ import ConfirmBtn from "../common/ConfirmBtn";
               className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] rounded-lg text-2xl hover:bg-[#3a3a3a] cursor-pointer"
             >+</button>
           </div>
+          <span className="text-gray-500 text-sm">(6~8명 선택 가능)</span>
         </div>
 
         {/* 3. 비공개 토글 섹션 */}

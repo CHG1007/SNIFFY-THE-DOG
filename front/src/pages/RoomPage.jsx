@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import FindGameModal from '../components/modals/FindGameModal'; // 위에서 만든 파일 임포트
+import FindGameModal from '../components/modals/FindGameModal'; 
 import CreateGameModal from '../components/modals/CreateGameModal';
 
 const RoomPage = () => {
