@@ -4,8 +4,7 @@ import com.a407.sniffythedog.domain.game.entity.RoomSession;
 
 import java.util.List;
 
-public interface RoomPort {
-
+public interface RedisRoomPort {
     void saveRoom(RoomSession roomSession);
     List<RoomSession> loadPublicRooms(int page, int size);
 }
