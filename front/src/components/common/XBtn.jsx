@@ -1,12 +1,7 @@
-const XBtn = ({ onClick }) => {
-  return (
-    <button 
-      onClick={onClick}
-      className="text-gray-400 hover:text-white transition-colors cursor-pointer text-2xl"
-    >
-      ✕
-    </button>
-  );
-};
+const XBtn = () => {
+    return (
+        <div>XBtn</div>
+    )
+}
 
 export default XBtn;
