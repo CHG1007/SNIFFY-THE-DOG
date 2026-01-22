@@ -36,3 +36,6 @@ bin/
 .vscode/
 
 **/claude.md
+
+### Docker ###
+docker-compose.local.yml
