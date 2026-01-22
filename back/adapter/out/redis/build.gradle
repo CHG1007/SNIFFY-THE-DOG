@@ -1,0 +1,9 @@
+dependencies {
+    //redis 추가
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    // Jackson Databind
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+
+    compileOnly project(":domain")
+    compileOnly project(":application")
+}

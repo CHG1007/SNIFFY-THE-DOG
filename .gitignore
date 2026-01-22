@@ -22,7 +22,6 @@ bin/
 *.iws
 *.iml
 *.ipr
-out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 
@@ -35,3 +34,5 @@ out/
 
 ### VS Code ###
 .vscode/
+
+**/claude.md

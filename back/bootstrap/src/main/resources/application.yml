@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: bootstrap
+  profiles:
+    include: rdb

@@ -9,11 +9,18 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
 @Entity
 @Table(name = "reports")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class ReportEntity {
 
     @Id
@@ -38,46 +45,4 @@ public class ReportEntity {
 
     @Column(name = "processed_at")
     private Instant processedAt;
-
-    protected ReportEntity() {
-    }
-
-    public ReportEntity(Long id, Long reporterId, Long reportedUserId, String reason,
-                        ReportStatus status, Instant createdAt, Instant processedAt) {
-        this.id = id;
-        this.reporterId = reporterId;
-        this.reportedUserId = reportedUserId;
-        this.reason = reason;
-        this.status = status;
-        this.createdAt = createdAt;
-        this.processedAt = processedAt;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getReporterId() {
-        return reporterId;
-    }
-
-    public Long getReportedUserId() {
-        return reportedUserId;
-    }
-
-    public String getReason() {
-        return reason;
-    }
-
-    public ReportStatus getStatus() {
-        return status;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getProcessedAt() {
-        return processedAt;
-    }
 }
