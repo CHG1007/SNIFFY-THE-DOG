@@ -37,7 +37,7 @@ deploy_develop:
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
 
   before_script:
-    - apk add --no-cache openssh-client rsync bash coreutils
+    - apk add --no-cache openssh-client rsync bash coreutils gettext
     - mkdir -p ~/.ssh
     - printf "%s" "$DEPLOY_KEY64" | base64 -d > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
@@ -56,7 +56,18 @@ deploy_develop:
       docker save "$NGINX_IMAGE:$IMAGE_TAG" -o "dist/nginx_${IMAGE_TAG}.tar"
 
       cp docker-compose.yml dist/docker-compose.yml
-      cp nginx/nginx.conf dist/nginx.conf
+      export SERVER_NAME="$SERVER_NAME"
+      envsubst '${SERVER_NAME}' < nginx/nginx.conf > dist/nginx.conf
+
+      cat > dist/.env << EOF
+      BACKEND_IMAGE=$BACKEND_IMAGE
+      NGINX_IMAGE=$NGINX_IMAGE
+      IMAGE_TAG=$IMAGE_TAG
+      MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+      MYSQL_DATABASE=$MYSQL_DATABASE
+      MYSQL_USER=$MYSQL_USER
+      MYSQL_PASSWORD=$MYSQL_PASSWORD
+      EOF
 
       ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
 
@@ -67,13 +78,6 @@ deploy_develop:
         cd '$DEPLOY_PATH'
         docker load -i backend_${IMAGE_TAG}.tar
         docker load -i nginx_${IMAGE_TAG}.tar
-        export BACKEND_IMAGE='$BACKEND_IMAGE'
-        export NGINX_IMAGE='$NGINX_IMAGE'
-        export IMAGE_TAG='$IMAGE_TAG'
-        export MYSQL_ROOT_PASSWORD='$MYSQL_ROOT_PASSWORD'
-        export MYSQL_DATABASE='$MYSQL_DATABASE'
-        export MYSQL_USER='$MYSQL_USER'
-        export MYSQL_PASSWORD='$MYSQL_PASSWORD'
         docker compose up -d --no-recreate mysql redis
         docker rm -f backend nginx 2>/dev/null || true
         docker compose up -d --no-deps backend nginx
