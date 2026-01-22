@@ -1,0 +1,11 @@
+bootJar.enabled = true
+jar.enabled = false
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+
+    runtimeOnly project(":domain")
+    runtimeOnly project(":application")
+    runtimeOnly project(":adapter:in:http")
+    runtimeOnly project(":adapter:out:rdb")
+}
