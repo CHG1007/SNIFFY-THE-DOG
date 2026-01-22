@@ -1,11 +1,20 @@
 import { useState } from 'react';
-import FindGameModal from '../components/modals/FindGameModal'; // 위에서 만든 파일 임포트
+import { useNavigate } from 'react-router-dom';
+import FindGameModal from '../components/modals/FindGameModal'; 
 import CreateGameModal from '../components/modals/CreateGameModal';
 
 const RoomPage = () => {
+  const navigate = useNavigate();
   // 로직: 모달의 열림/닫힘 상태를 관리 (초기값은 false)
   const [isFindGameOpen, setIsFindGameOpen] = useState(false);
   const [isCreateGameOpen, setIsCreateGameOpen] = useState(false);
+
+  const handleQuickJoin = () => {
+    // 실제로는 API(3-2) 호출: POST /api/v1/rooms/quick-join
+    const mockRoomId = "r_quick_123";
+    console.log("빠른 입장 시도 중...");
+    navigate(`/rooms/${mockRoomId}`); // 유저 대기방 경로로 이동
+  };
 
   return (
     <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center gap-6">
@@ -28,7 +37,8 @@ const RoomPage = () => {
           게임 생성
         </button>
 
-        <button className="px-8 py-4 bg-[#ff8a00] text-white rounded-xl font-bold hover:bg-[#ffaa44] transition-all cursor-pointer">
+        <button onClick={handleQuickJoin} 
+        className="px-8 py-4 bg-[#ff8a00] text-white rounded-xl font-bold hover:bg-[#ffaa44] transition-all cursor-pointer">
           게임 시작
         </button>
       </div>
