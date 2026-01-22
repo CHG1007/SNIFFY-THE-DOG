@@ -1,7 +1,8 @@
 import WaitingLayout from '../components/waiting/WaitingLayout';
 import WaitingGrid from '../components/waiting/WaitingGrid';
+import WaitingSidebar from '../components/waiting/WaitingSidebar';
 
-const UserWaitingPage = ({ roomData }) => {
+const CreatorWaitingPage = ({ roomData } ) => {
   
   return (
     <WaitingLayout title={roomData.title}>
@@ -14,8 +15,18 @@ const UserWaitingPage = ({ roomData }) => {
         }))} 
         myId={1} 
       />
+      
+      {/* 오른쪽: 사이드바 (isHost=true 전달) */}
+      <WaitingSidebar 
+        roomInfo={{
+          title: roomData.title,
+          capacity: roomData.capacity,
+          inviteCode: roomData.inviteCode
+        }} 
+        isHost={true} 
+      />
     </WaitingLayout>
   );
 };
 
-export default UserWaitingPage;
+export default CreatorWaitingPage;
