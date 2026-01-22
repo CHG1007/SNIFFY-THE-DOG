@@ -67,6 +67,8 @@ deploy_develop:
       MYSQL_DATABASE=$MYSQL_DATABASE
       MYSQL_USER=$MYSQL_USER
       MYSQL_PASSWORD=$MYSQL_PASSWORD
+      OPENVIDU_SECRET=$OPENVIDU_SECRET
+      SERVER_NAME=$SERVER_NAME
       EOF
 
       ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
@@ -78,7 +80,7 @@ deploy_develop:
         cd '$DEPLOY_PATH'
         docker load -i backend_${IMAGE_TAG}.tar
         docker load -i nginx_${IMAGE_TAG}.tar
-        docker compose up -d --no-recreate mysql redis
+        docker compose up -d --no-recreate mysql redis openvidu
         docker rm -f backend nginx 2>/dev/null || true
         docker compose up -d --no-deps backend nginx
         docker image prune -f

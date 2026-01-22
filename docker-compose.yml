@@ -71,6 +71,21 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done'"
     restart: unless-stopped
 
+  openvidu:
+    image: openvidu/openvidu-dev:2.30.0
+    container_name: openvidu
+    environment:
+      OPENVIDU_SECRET: ${OPENVIDU_SECRET}
+      DOMAIN_OR_PUBLIC_IP: ${SERVER_NAME}
+    ports:
+      - "4443:4443"
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "40000-40100:40000-40100/udp"
+    networks:
+      - appnet
+    restart: unless-stopped
+
 networks:
   appnet:
 
