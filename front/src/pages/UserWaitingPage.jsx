@@ -1,21 +1,7 @@
-import WaitingLayout from '../components/waiting/WaitingLayout';
-import WaitingGrid from '../components/waiting/WaitingGrid';
-
-const UserWaitingPage = ({ roomData }) => {
-  
-  return (
-    <WaitingLayout title={roomData.title}>
-      {/* 왼쪽: 플레이어 그리드 */}
-      <WaitingGrid 
-        players={roomData.players.map(p => ({
-          id: p.userId,
-          name: p.displayName,
-          isReady: p.ready
-        }))} 
-        myId={1} 
-      />
-    </WaitingLayout>
-  );
-};
+const UserWaitingPage = () => {
+    return (
+        <div>UserWaitingPage</div>
+    )
+}
 
 export default UserWaitingPage;
