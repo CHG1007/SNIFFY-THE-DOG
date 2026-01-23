@@ -7,10 +7,16 @@ import MyPage from './pages/MyPage';
 import AdminPage from './pages/AdminPage';
 import Header from './components/common/Header';
 import WaitingRoomPage from './pages/WaitingRoomPage';
+import AiTestLauncher from './components/aitest/AiTestLauncher';
 
 function App() {
   return (
     <BrowserRouter>
+
+      {/*===== AI 테스트 =====*/}
+      <AiTestLauncher/>
+      {/*====================*/}
+
       <Routes>
         {/* 헤더가 없는 온보딩/튜토리얼 페이지 */}
         <Route path="/" element={<OnboardingPage />} />

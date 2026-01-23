@@ -1,0 +1,3 @@
+export const AUDIO_THRESHOLDS = {
+  SILENCE_VOLUME: 0.02,
+};
