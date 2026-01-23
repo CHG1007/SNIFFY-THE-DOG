@@ -10,9 +10,11 @@ const UserWaitingPage = ({ roomData }) => {
         players={roomData.players.map(p => ({
           id: p.userId,
           name: p.displayName,
-          isReady: p.ready
+          isReady: p.ready,
+          isHost: p.isHost
         }))} 
         myId={1} 
+        capacity={roomData.capacity}
       />
     </WaitingLayout>
   );
