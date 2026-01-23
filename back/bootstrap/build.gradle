@@ -3,7 +3,10 @@ jar.enabled = false
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
+    runtimeOnly project(":adapter:out:redis")
     runtimeOnly project(":domain")
     runtimeOnly project(":application")
     runtimeOnly project(":adapter:in:http")

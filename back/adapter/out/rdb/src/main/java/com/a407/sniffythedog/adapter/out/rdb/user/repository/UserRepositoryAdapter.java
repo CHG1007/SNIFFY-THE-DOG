@@ -4,6 +4,8 @@ import com.a407.sniffythedog.adapter.out.rdb.user.entity.UserEntity;
 import com.a407.sniffythedog.adapter.out.rdb.user.mapper.UserMapper;
 import com.a407.sniffythedog.application.user.out.UserPort;
 import com.a407.sniffythedog.domain.user.entity.User;
+import com.a407.sniffythedog.domain.user.enums.SocialProvider;
+import com.a407.sniffythedog.domain.user.vo.SocialUuid;
 import com.a407.sniffythedog.domain.user.vo.UserId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -32,6 +34,13 @@ public class UserRepositoryAdapter implements UserPort {
     @Override
     public User findById(UserId userId) {
         return userJpaRepository.findById(userId.value())
+            .map(UserMapper::toDomain)
+            .orElse(null);
+    }
+
+    @Override
+    public User findBySocialProviderAndSocialUuid(SocialProvider provider, SocialUuid socialUuid) {
+        return userJpaRepository.findBySocialProviderAndSocialUuid(provider, socialUuid.value())
             .map(UserMapper::toDomain)
             .orElse(null);
     }
