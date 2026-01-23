@@ -1,13 +1,48 @@
 // src/pages/OnboardingPage.jsx
+import { useState } from 'react';
+import KakaoLogin from 'react-kakao-login';
 import { useNavigate } from 'react-router-dom';
+import { loginWithKakao } from '../api/authApi';
 import OnboardingBtn from '../components/onboarding/OnboardingBtn';
+
+const KAKAO_JS_KEY = '319d639362ed8e839aba02da75b07ea9';
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
 
-  // 버튼 클릭 시 실행될 함수들
+  const [isKakaoAuthed, setIsKakaoAuthed] = useState(false);
+
+  const handleKakaoSuccess = async (response) => {
+    const token = response?.response?.access_token || '';
+
+    if (!token) {
+      console.error('Kakao access token missing.');
+      setIsKakaoAuthed(false);
+      return;
+    }
+
+    try {
+      const result = await loginWithKakao(token);
+      const { success, error } = result?.data || {};
+
+      if (success) {
+        setIsKakaoAuthed(true);
+      } else {
+        console.error('Kakao backend login failed:', error);
+        setIsKakaoAuthed(false);
+      }
+    } catch (error) {
+      console.error('Kakao login request failed:', error);
+      setIsKakaoAuthed(false);
+    }
+  };
+
+  const handleKakaoFail = (error) => {
+    console.error('Kakao login failed:', error);
+    setIsKakaoAuthed(false);
+  };
+
   const handleStartGame = () => {
-    // 방 목록 페이지로 이동
     navigate('/rooms');
   };
 
@@ -29,9 +64,22 @@ const OnboardingPage = () => {
 
       {/* 버튼 섹션: 정의한 함수들을 onClick에 연결 */}
       <div className="flex flex-col gap-6">
-        <OnboardingBtn type="primary" onClick={handleStartGame}>
-          게임 시작하기
-        </OnboardingBtn>
+        {isKakaoAuthed ? (
+          <OnboardingBtn type="primary" onClick={handleStartGame}>
+            게임 시작하기
+          </OnboardingBtn>
+        ) : (
+          <KakaoLogin
+            token={KAKAO_JS_KEY}
+            onSuccess={handleKakaoSuccess}
+            onFail={handleKakaoFail}
+            render={(renderProps) => (
+              <OnboardingBtn type="primary" onClick={renderProps.onClick}>
+                카카오로 시작하기
+              </OnboardingBtn>
+            )}
+          />
+        )}
 
         <OnboardingBtn type="outline" onClick={handleTutorial}>
           튜토리얼
