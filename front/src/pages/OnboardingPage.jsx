@@ -1,7 +1,44 @@
+// src/pages/OnboardingPage.jsx
+import { useNavigate } from 'react-router-dom';
+import OnboardingBtn from '../components/onboarding/OnboardingBtn';
+
 const OnboardingPage = () => {
-    return (
-        <div>OnboardingPage</div>
-    )
-}
+  const navigate = useNavigate();
+
+  // 버튼 클릭 시 실행될 함수들
+  const handleStartGame = () => {
+    // 방 목록 페이지로 이동
+    navigate('/rooms');
+  };
+
+  const handleTutorial = () => {
+    // 튜토리얼 페이지로 이동
+    navigate('/tutorial');
+  };
+
+  return (
+    <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center">
+      
+      {/* 로고 섹션 */}
+      <div className="mb-16 text-center">
+        <h1 className="text-6xl font-black italic tracking-tighter">
+          <span className="text-[#ff8a00]">SNIFFY</span>
+          <span className="text-white ml-3">the DOG</span>
+        </h1>
+      </div>
+
+      {/* 버튼 섹션: 정의한 함수들을 onClick에 연결 */}
+      <div className="flex flex-col gap-6">
+        <OnboardingBtn type="primary" onClick={handleStartGame}>
+          게임 시작하기
+        </OnboardingBtn>
+
+        <OnboardingBtn type="outline" onClick={handleTutorial}>
+          튜토리얼
+        </OnboardingBtn>
+      </div>
+    </div>
+  );
+};
 
 export default OnboardingPage;
