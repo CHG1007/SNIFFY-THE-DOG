@@ -19,6 +19,8 @@ public class RoomController {
 
     private final CreateRoomUseCase createRoomUseCase;
     private final GetPublicRoomUseCase getAllRoomUseCase;
+    private final GetRoomByInviteCodeUseCase getRoomByInviteCodeUseCase;
+    private final GetRoomByRoomIdUseCase getRoomByRoomIdUseCase;
 
     @PostMapping
     public ApiResponse<CreateRoomResponse> createRoom(@RequestBody @Valid CreateRoomRequest request
@@ -61,5 +63,40 @@ public class RoomController {
                 .collect(Collectors.toList());
 
         return ApiResponse.success(response);
+    }
+    @GetMapping
+    public ApiResponse<?> getRooms(
+            @RequestParam(required = false) String inviteCode,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "6") int size
+            //todo:@Authentication 추가
+    ) {
+
+        if (inviteCode != null && !inviteCode.isBlank()) {
+            GetRoomDetailResult result =
+                    getRoomByInviteCodeUseCase.getRoomByInviteCode(new GetRoomByInviteCodeQuery(inviteCode));
+            return ApiResponse.success(result);
+        }
+
+        List<GetPublicRoomResult> results = getAllRoomUseCase.getPublicRooms(page, size);
+
+        List<RoomSummaryResponse> response = results.stream()
+                .map(result -> RoomSummaryResponse.builder()
+                        .roomId(result.roomId())
+                        .title(result.title())
+                        .currentCount(result.currentCount())
+                        .capacity(result.capacity())
+                        .isPrivate(result.isPrivate())
+                        .build())
+                .collect(Collectors.toList());
+
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/{roomId}")
+    public ApiResponse<GetRoomDetailResult> getRoomDetail(@PathVariable String roomId) {
+        GetRoomDetailResult result =
+                getRoomByRoomIdUseCase.getRoomByRoomId(new GetRoomByRoomIdQuery(roomId));
+        return ApiResponse.success(result);
     }
 }
