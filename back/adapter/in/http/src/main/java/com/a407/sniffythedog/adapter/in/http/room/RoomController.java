@@ -64,33 +64,16 @@ public class RoomController {
 
         return ApiResponse.success(response);
     }
-    @GetMapping
-    public ApiResponse<?> getRooms(
-            @RequestParam(required = false) String inviteCode,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "6") int size
+    // inviteCode가 있을 때만 이 메서드가 매칭됨
+    @GetMapping(params = "inviteCode")
+    public ApiResponse<GetRoomDetailResult> getRoomByInviteCode(
+            @RequestParam String inviteCode
             //todo:@Authentication 추가
     ) {
+        GetRoomDetailResult result =
+                getRoomByInviteCodeUseCase.getRoomByInviteCode(new GetRoomByInviteCodeQuery(inviteCode));
 
-        if (inviteCode != null && !inviteCode.isBlank()) {
-            GetRoomDetailResult result =
-                    getRoomByInviteCodeUseCase.getRoomByInviteCode(new GetRoomByInviteCodeQuery(inviteCode));
-            return ApiResponse.success(result);
-        }
-
-        List<GetPublicRoomResult> results = getAllRoomUseCase.getPublicRooms(page, size);
-
-        List<RoomSummaryResponse> response = results.stream()
-                .map(result -> RoomSummaryResponse.builder()
-                        .roomId(result.roomId())
-                        .title(result.title())
-                        .currentCount(result.currentCount())
-                        .capacity(result.capacity())
-                        .isPrivate(result.isPrivate())
-                        .build())
-                .collect(Collectors.toList());
-
-        return ApiResponse.success(response);
+        return ApiResponse.success(result);
     }
 
     @GetMapping("/{roomId}")
