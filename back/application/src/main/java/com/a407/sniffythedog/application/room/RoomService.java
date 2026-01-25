@@ -1,5 +1,7 @@
 package com.a407.sniffythedog.application.room;
 
+import com.a407.sniffythedog.application.common.exception.ApplicationException;
+import com.a407.sniffythedog.application.common.exception.ExceptionType;
 import com.a407.sniffythedog.application.room.in.*;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
@@ -62,7 +64,7 @@ public class RoomService implements CreateRoomUseCase, GetPublicRoomUseCase, Get
         RoomId roomId = RoomId.of(query.roomId());
 
         RoomSession room = redisRoomPort.loadRoom(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("ROOM_NOT_FOUND"));
+                .orElseThrow(() -> ApplicationException.of(ExceptionType.ROOM_NOT_FOUND));
 
         return toDetailResult(room);
     }
@@ -72,7 +74,7 @@ public class RoomService implements CreateRoomUseCase, GetPublicRoomUseCase, Get
         String inviteCode = query.inviteCode();
 
         RoomSession room = redisRoomPort.loadRoomByInviteCode(inviteCode)
-                .orElseThrow(() -> new IllegalArgumentException("INVITE_CODE_NOT_FOUND"));
+                .orElseThrow(() ->  ApplicationException.of(ExceptionType.INVITE_CODE_NOT_FOUND));
 
         return toDetailResult(room);
     }
