@@ -6,4 +6,4 @@ include 'bootstrap'
 include 'adapter:in:http'
 include 'adapter:out:rdb'
 include 'adapter:out:redis'
-
+include 'adapter:in:websocket'
