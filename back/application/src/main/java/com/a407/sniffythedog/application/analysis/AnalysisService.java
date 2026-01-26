@@ -15,7 +15,7 @@ public class AnalysisService {
     private final GmsPort gmsPort;
 
     public AnalysisResult analyze(Map<String, Object> payload) {
-        String text = gmsPort.analyze(AiModel.GPT_5_NANO, payload);
+        String text = gmsPort.analyze(AiModel.GPT_5_NANO.name(), payload);
         return new AnalysisResult(text, System.currentTimeMillis());
     }
 }

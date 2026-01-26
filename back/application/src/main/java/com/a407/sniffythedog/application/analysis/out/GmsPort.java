@@ -5,6 +5,6 @@ import java.util.Map;
 
 public interface GmsPort {
 
-    String analyze(AiModel model, Map<String, Object> payload);
+    String analyze(String modelName, Map<String, Object> payload);
 }
 
