@@ -1,8 +1,86 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useAudioAnalyzer } from "../../analysis/audio/UseAudioAnalyzer";
 import { useFaceAnalyzer } from "../../analysis/face/UseFaceAnalyzer";
 
 export default function AiTestModal({ onClose }) {
+  /* ===== hooks ===== */
+  const { initAudio, analyzeOnce: analyzeAudio, stop: stopAudio } =
+    useAudioAnalyzer();
+
+  const {
+    videoRef,
+    initVideo,
+    loadModels,
+    analyzeOnce: analyzeFace,
+    stop: stopVideo,
+  } = useFaceAnalyzer();
+
+  /* ===== refs ===== */
+  const intervalRef = useRef(null);
+  const bufferRef = useRef([]);
+
+  /* ===== start ===== */
+  const start = async () => {
+    bufferRef.current = [];
+
+    await initAudio();
+    await initVideo();
+    await loadModels();
+
+    let second = 0;
+
+    intervalRef.current = setInterval(async () => {
+      second++;
+
+      const audio = analyzeAudio();
+      const face = await analyzeFace();
+
+      bufferRef.current.push({ second, audio, face });
+
+      if (second >= 5) {
+        clearInterval(intervalRef.current);
+        stopAudio();
+        stopVideo();
+
+        console.log("Start Log : ", bufferRef.current);
+        await sendToBackend(bufferRef.current);
+        console.log("Final Log : ", bufferRef.current);
+      }
+    }, 1000);
+  };
+
+  /* ===== close ===== */
+  const close = () => {
+    clearInterval(intervalRef.current);
+    stopAudio();
+    stopVideo();
+    onClose();
+  };
+
+  /* ===== backend send ===== */
+  const sendToBackend = async (frames) => {
+    const payload = {
+      sessionId: "room-1",
+      targetUserId: "user-3",
+      windowSeconds: 5,
+      frames,
+      clientTimestamp: Date.now(),
+    };
+
+    try {
+      const res = await fetch("/api/analysis/frames", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      console.log("SEND RESULT:", res.status);
+    } catch (e) {
+      console.error("SEND FAILED", e);
+    }
+  };
+
+  /* ===== styles ===== */
   const overlay = {
     position: "fixed",
     inset: 0,
@@ -20,59 +98,6 @@ export default function AiTestModal({ onClose }) {
     border: "1px solid #ccc",
   };
 
-  /* ===== hooks ===== */
-  const { initAudio, analyzeOnce: analyzeAudio, stop: stopAudio } =
-    useAudioAnalyzer();
-  const {
-    videoRef,
-    initVideo,
-    loadModels,
-    analyzeOnce: analyzeFace,
-    stop: stopVideo,
-  } = useFaceAnalyzer();
-
-  const intervalRef = useRef(null);
-  const [logs, setLogs] = useState([]);
-  const [index, setIndex] = useState(0);
-
-  /* ===== start ===== */
-  const start = async () => {
-    setLogs([]);
-    setIndex(0);
-
-    await initAudio();
-    await initVideo();
-    await loadModels();
-
-    let count = 0;
-
-    intervalRef.current = setInterval(async () => {
-      count += 1;
-
-      const audio = analyzeAudio();
-      const face = await analyzeFace();
-
-      setLogs((prev) => [
-        ...prev,
-        { second: count, audio, face },
-      ]);
-
-      if (count >= 5) {
-        clearInterval(intervalRef.current);
-        stopAudio();
-        stopVideo();
-      }
-    }, 1000);
-  };
-
-  /* ===== close ===== */
-  const close = () => {
-    clearInterval(intervalRef.current);
-    stopAudio();
-    stopVideo();
-    onClose();
-  };
-
   /* ===== render ===== */
   return (
     <div style={overlay}>
@@ -88,26 +113,11 @@ export default function AiTestModal({ onClose }) {
           height={150}
         />
 
-        <pre>
-          {logs[index]
-            ? JSON.stringify(logs[index], null, 2)
-            : "no logs"}
-        </pre>
-
-        <button onClick={() => setIndex((i) => Math.max(i - 1, 0))}>
-          ←
-        </button>
-        <button
-          onClick={() =>
-            setIndex((i) => Math.min(i + 1, logs.length - 1))
-          }
-        >
-          →
-        </button>
-
-        <div>
+        <div style={{ marginTop: 12 }}>
           <button onClick={start}>start</button>
-          <button onClick={close}>close</button>
+          <button onClick={close} style={{ marginLeft: 8 }}>
+            close
+          </button>
         </div>
       </div>
     </div>
