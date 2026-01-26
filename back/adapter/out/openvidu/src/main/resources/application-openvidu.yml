@@ -1,0 +1,3 @@
+openvidu:
+  url: ${OPENVIDU_URL:https://localhost:4443}
+  secret: ${OPENVIDU_SECRET:MY_SECRET}

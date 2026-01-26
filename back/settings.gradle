@@ -6,5 +6,11 @@ include 'bootstrap'
 include 'adapter:in:http'
 include 'adapter:out:rdb'
 include 'adapter:out:redis'
+
 include 'adapter:in:websocket'
 include 'adapter:out:external'
+
+include 'adapter:out:openvidu'
+
+include 'adapter:out:gms'
+

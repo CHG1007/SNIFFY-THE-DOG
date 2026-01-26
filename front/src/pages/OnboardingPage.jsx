@@ -10,7 +10,7 @@ const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY || '';
 const OnboardingPage = () => {
   const navigate = useNavigate();
 
-  const [isKakaoAuthed, setIsKakaoAuthed] = useState(false);
+  const [isKakaoAuthed, setIsKakaoAuthed] = useState(true);
 
   const handleKakaoSuccess = async (response) => {
     const token = response?.response?.access_token || '';

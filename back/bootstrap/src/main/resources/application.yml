@@ -2,7 +2,9 @@ spring:
   application:
     name: bootstrap
   profiles:
-    include: rdb
+    include: rdb, openvidu
+  config:
+    import: optional:classpath:/application-gms.yml
 
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY}
