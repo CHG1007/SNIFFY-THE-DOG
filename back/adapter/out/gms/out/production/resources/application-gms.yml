@@ -1,5 +1,0 @@
-gms:
-  base-url: https://gms.ssafy.io/gmsapi
-  chat-completions-path: /api.openai.com/v1/chat/completions
-  api-key: ${GMS_API_KEY:S14P12A407-a7ce4824-c2f7-493e-b5ed-2d446f7ee4cb}
-  default-model: gpt-5-nano
