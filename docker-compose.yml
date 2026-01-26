@@ -34,9 +34,13 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      OPENVIDU_URL: https://openvidu:4443
+      OPENVIDU_SECRET: ${OPENVIDU_SECRET}
     depends_on:
       - mysql
       - redis
+      - openvidu
     networks:
       - appnet
     expose:
@@ -51,6 +55,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
       - certbot_www:/var/www/certbot:ro
       - certbot_conf:/etc/letsencrypt:ro
     depends_on:

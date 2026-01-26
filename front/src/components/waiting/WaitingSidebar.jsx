@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import CreateGameModal from '../modals/CreateGameModal'; // 모달 임포트 경로 확인!
 
-const WaitingSidebar = ({ roomInfo, isHost }) => {
+const WaitingSidebar = ({ roomInfo, isHost, onUpdate }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // ✅ 이 위치에 넣어주세요!
@@ -67,6 +67,7 @@ const WaitingSidebar = ({ roomInfo, isHost }) => {
           onClose={() => setIsEditModalOpen(false)} 
           initialData={roomInfo} // 기존 데이터 전달
           isEdit={true}           // 수정 모드 표시
+          onSave={onUpdate}
         />
       )}
     </div>
