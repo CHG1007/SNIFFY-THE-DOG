@@ -3,6 +3,7 @@ package com.a407.sniffythedog.domain.user.entity;
 import com.a407.sniffythedog.domain.user.enums.SocialProvider;
 import com.a407.sniffythedog.domain.user.enums.UserRole;
 import com.a407.sniffythedog.domain.user.enums.UserStatus;
+import com.a407.sniffythedog.domain.user.exception.UserDomainException;
 import com.a407.sniffythedog.domain.user.vo.Nickname;
 import com.a407.sniffythedog.domain.user.vo.SocialUuid;
 import com.a407.sniffythedog.domain.user.vo.UserId;
@@ -11,6 +12,10 @@ import java.time.Instant;
 import java.util.Objects;
 
 public class User {
+
+    public static final String ERROR_USER_BANNED = "USER_BANNED";
+    public static final String ERROR_USER_DELETED = "USER_DELETED";
+    public static final String ERROR_TOKEN_OWNER_MISMATCH = "TOKEN_OWNER_MISMATCH";
 
     private final UserId id;
     private final SocialProvider socialProvider;
@@ -77,6 +82,21 @@ public class User {
 
     public boolean isAdmin() {
         return this.role == UserRole.ADMIN;
+    }
+
+    public void validateActive() {
+        if (isBanned()) {
+            throw new UserDomainException(ERROR_USER_BANNED);
+        }
+        if (!isActive()) {
+            throw new UserDomainException(ERROR_USER_DELETED);
+        }
+    }
+
+    public void validateTokenOwner(UserId tokenOwnerId) {
+        if (tokenOwnerId == null || id == null || !id.equals(tokenOwnerId)) {
+            throw new UserDomainException(ERROR_TOKEN_OWNER_MISMATCH);
+        }
     }
 
     // Getters
