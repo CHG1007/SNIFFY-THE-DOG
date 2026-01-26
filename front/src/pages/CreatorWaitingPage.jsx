@@ -3,8 +3,9 @@ import WaitingLayout from '../components/waiting/WaitingLayout';
 import WaitingGrid from '../components/waiting/WaitingGrid';
 import WaitingSidebar from '../components/waiting/WaitingSidebar';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
+import GameStartCountdown from '../components/waiting/GameStartCountdown';
 
-const CreatorWaitingPage = ({ roomData, updateRoomData } ) => {
+const CreatorWaitingPage = ({ roomData, updateRoomData, onGameStart } ) => {
   const [targetPlayer, setTargetPlayer] = useState(null);
 
   // 강퇴 확인 버튼 클릭 시 진행
@@ -18,6 +19,9 @@ const CreatorWaitingPage = ({ roomData, updateRoomData } ) => {
     setTargetPlayer(null); // 모달 닫기
     console.log(`${targetPlayer.name}님을 퇴장시켰습니다.`);
   };
+
+  // 전원 레디 체크 (최소 인원 6명 이상 + 본인 포함 전원 ready)
+  const allReady = roomData.players.length >= 6 && roomData.players.every(p => p.ready);
 
   return (
     <WaitingLayout title={roomData.title}>
@@ -45,6 +49,9 @@ const CreatorWaitingPage = ({ roomData, updateRoomData } ) => {
         isHost={true}
         onUpdate={updateRoomData} 
       />
+
+      {/* 전원 레디 시 카운트다운 표시 */}
+      {allReady && <GameStartCountdown onComplete={onGameStart} />}  
 
       {/* 공통 모달 사용 */}
       {targetPlayer && (

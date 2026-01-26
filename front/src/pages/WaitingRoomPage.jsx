@@ -4,12 +4,15 @@ import { useLocation } from 'react-router-dom';
 import CreatorWaitingPage from './CreatorWaitingPage';
 import UserWaitingPage from './UserWaitingPage';
 import LoadingPage from './LoadingPage';
+import GamePage from './GamePage';
 
 const WaitingRoomPage = () => {
   const { roomId } = useParams();
   const location = useLocation();
   const [roomData, setRoomData] = useState(null);
   
+  // 상태 관리: 'WAITING' | 'STARTING' | 'PLAYING'
+  const [status, setStatus] = useState('WAITING'); 
   // navigate에서 보낸 state가 있으면 사용, 없으면 기본값 false
   const amIHost = location.state?.isHost || false;
   // 방장이 수정 버튼 클릭 시 데이터 업데이트
@@ -18,6 +21,14 @@ const WaitingRoomPage = () => {
       ...prev,
       ...newData // 넘겨받은 제목, 인원수 등을 기존 데이터에 덮어씌움
     }));
+  };
+
+  // 게임 시작 함수 (카운트다운 완료 시 호출)
+  const handleGameStart = () => {
+    setStatus('STARTING'); // 로딩 화면으로 전환
+    setTimeout(() => {
+      setStatus('PLAYING'); // 2초 후 실제 게임 화면으로 전환
+    }, 2000);
   };
 
   useEffect(() => {
@@ -32,12 +43,12 @@ const WaitingRoomPage = () => {
         capacity: createdData?.capacity || 8,
         inviteCode: "PKDIEJDL21443",
         players: [
-          { userId: 1, displayName: "태환", ready: true },
-          { userId: 2, displayName: "유저2", ready: false },
+          { userId: 1, displayName: "태환", ready: true, isHost: true },
+          { userId: 2, displayName: "유저2", ready: true },
           { userId: 3, displayName: "루피", ready: true },   
-          { userId: 4, displayName: "조로", ready: false },  
+          { userId: 4, displayName: "조로", ready: true },  
           { userId: 5, displayName: "나미", ready: true },   
-          { userId: 6, displayName: "상디", ready: false },  
+          { userId: 6, displayName: "상디", ready: true },  
   
         ]
       };
@@ -47,16 +58,26 @@ const WaitingRoomPage = () => {
     setTimeout(fetchRoomData, 1000); 
   }, [roomId, amIHost, location.state]);
 
-  // 데이터가 아직 없을 때 (null일 때) 로딩 페이지를 보여줍니다.
+  // 데이터가 아직 없을 때(null) 로딩 페이지
   if (!roomData) {
     return <LoadingPage />;
   }
 
+  // 게임 시작 전 로딩 (직업 배정 연출)
+  if (status === 'STARTING') {
+    return <LoadingPage message="Assigning Roles..." subMessage="당신의 정체를 숨기고 배신자를 찾으십시오." />;
+  }
+
+  // 실제 게임 화면
+  if (status === 'PLAYING') {
+    return <GamePage players={roomData.players.map(p => ({ id: p.userId, name: p.displayName, ready: p.ready }))} myId={1} />;
+  }
+
   // 판단 결과에 따라 미리 만들어둔 컴포넌트로 데이터를 토스(Toss)
   return amIHost ? (
-    <CreatorWaitingPage roomData={roomData} updateRoomData={updateRoomData} />
+    <CreatorWaitingPage roomData={roomData} updateRoomData={updateRoomData} onGameStart={handleGameStart} />
   ) : (
-    <UserWaitingPage roomData={roomData} />
+    <UserWaitingPage roomData={roomData} onGameStart={handleGameStart} />
   );
 };
 
