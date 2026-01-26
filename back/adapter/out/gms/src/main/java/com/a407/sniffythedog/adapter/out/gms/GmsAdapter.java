@@ -24,7 +24,7 @@ public class GmsAdapter implements GmsPort {
     private String apiKey;
 
     @Override
-    public String analyze(AiModel model, Map<String, Object> payload) {
+    public String analyze(String modelName, Map<String, Object> payload) {
         String url = baseUrl + path;
 
         Map<String, Object> body = Map.of(
