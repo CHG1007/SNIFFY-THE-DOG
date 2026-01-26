@@ -14,7 +14,7 @@ const VideoCanvas = ({ stream, isMuted = false }) => {
   }, [stream]); // stream이 바뀔 때마다 이 로직을 다시 실행
 
   return (
-    <div className="w-full h-full bg-[#1a1a1a] flex items-center justify-center overflow-hidden">
+    <div className="relative z-0 w-full h-full bg-[#1a1a1a] flex items-center justify-center overflow-hidden">
       {/* 실제 비디오 태그 */}
       <video
         ref={videoRef}

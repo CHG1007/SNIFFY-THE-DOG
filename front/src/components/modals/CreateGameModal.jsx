@@ -4,7 +4,7 @@ import ModalWrapper from "./ModalWrapper";
 import TextInput from "../common/TextInput";
 import ConfirmBtn from "../common/ConfirmBtn";
 
-const CreateGameModal = ({ isOpen, onClose, initialData, isEdit = false }) => {
+const CreateGameModal = ({ isOpen, onClose, initialData, isEdit = false, onSave }) => {
   const navigate = useNavigate();
   
   // initialData가 있을 때(수정 모드)와 없을 때(생성 모드)의 초기값 설정
@@ -12,6 +12,17 @@ const CreateGameModal = ({ isOpen, onClose, initialData, isEdit = false }) => {
   const [capacity, setCapacity] = useState(initialData?.capacity || 6);
   const [isPrivate, setIsPrivate] = useState(initialData?.isPrivate || false); 
   const [error, setError] = useState("");
+
+  // 랜덤 대문자+숫자 조합 생성 함수 (CreateGameModal 외부나 내부에 작성)
+  // 서버 연결 시 가짜 초대 코드 로직은 삭제 예정
+  const generateInviteCode = () => {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+  };
 
   const handleCreate = async () => {
     if (title.trim() === "") {
@@ -24,13 +35,15 @@ const CreateGameModal = ({ isOpen, onClose, initialData, isEdit = false }) => {
         // [수정 모드] 나중에 백엔드 PATCH API 연결 부분
         /* const response = await api.patch(`/api/v1/rooms/${initialData.roomId}`, { title, capacity, isPrivate }); 
         */
+        onSave({ title, capacity });
         console.log("방 정보 수정 완료:", { title, capacity, isPrivate });
       } else {
         // [생성 모드] 명세서 3-3 API 연결 부분
         /* const response = await api.post('/api/v1/rooms', { title, capacity, isPrivate, developerMode: false }); 
         */
-        const mockRoomId = "r_abc";
-        navigate(`/rooms/${mockRoomId}`, { state: { isHost: true } });
+        const newInviteCode = generateInviteCode();
+        const mockRoomId = "r_" + Math.random().toString(36).substr(2, 9);;
+        navigate(`/rooms/${mockRoomId}`, { state: { isHost: true, createdData: { title, capacity, inviteCode: newInviteCode } } });
       }
       onClose(); 
     } catch (err) {
