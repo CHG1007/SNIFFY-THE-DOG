@@ -1,4 +1,4 @@
-stages: [test, deploy]
+stages: [test, build, deploy]
 
 backend_test:
   stage: test
@@ -10,8 +10,22 @@ backend_test:
   only:
     - develop
 
+frontend_build:
+  stage: build
+  image: node:20-alpine
+  script:
+    - cd front
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - front/dist/
+    expire_in: 1 hour
+  only:
+    - develop
+
 docker_build_check:
-  stage: test
+  stage: build
   image: docker:27.3.1
   services:
     - name: docker:27.3.1-dind
@@ -22,7 +36,7 @@ docker_build_check:
     - set -e
     - docker version
     - docker build -t backend:ci -f back/Dockerfile back
-    - docker build -t nginx:ci -f nginx/Dockerfile .
+    - docker build -t nginx:ci -f nginx/Dockerfile nginx
   only:
     - develop
 
@@ -47,19 +61,25 @@ deploy_develop:
     - |
       set -euo pipefail
 
-      rm -rf dist && mkdir -p dist
+      rm -rf deploy && mkdir -p deploy
 
+      # Backend 이미지 빌드
       docker build -t "$BACKEND_IMAGE:$IMAGE_TAG" -f back/Dockerfile back
-      docker save "$BACKEND_IMAGE:$IMAGE_TAG" -o "dist/backend_${IMAGE_TAG}.tar"
+      docker save "$BACKEND_IMAGE:$IMAGE_TAG" -o "deploy/backend_${IMAGE_TAG}.tar"
 
-      docker build -t "$NGINX_IMAGE:$IMAGE_TAG" -f nginx/Dockerfile .
-      docker save "$NGINX_IMAGE:$IMAGE_TAG" -o "dist/nginx_${IMAGE_TAG}.tar"
+      # Nginx 이미지 빌드
+      docker build -t "$NGINX_IMAGE:$IMAGE_TAG" -f nginx/Dockerfile nginx
+      docker save "$NGINX_IMAGE:$IMAGE_TAG" -o "deploy/nginx_${IMAGE_TAG}.tar"
 
-      cp docker-compose.yml dist/docker-compose.yml
+      # Frontend 빌드 산출물 복사 (artifacts에서 가져옴)
+      cp -r front/dist deploy/frontend
+
+      # 설정 파일 복사
+      cp docker-compose.yml deploy/docker-compose.yml
       export SERVER_NAME="$SERVER_NAME"
-      envsubst '${SERVER_NAME}' < nginx/nginx.conf > dist/nginx.conf
+      envsubst '${SERVER_NAME}' < nginx/nginx.conf > deploy/nginx.conf
 
-      cat > dist/.env << EOF
+      cat > deploy/.env << EOF
       BACKEND_IMAGE=$BACKEND_IMAGE
       NGINX_IMAGE=$NGINX_IMAGE
       IMAGE_TAG=$IMAGE_TAG
@@ -71,10 +91,11 @@ deploy_develop:
       SERVER_NAME=$SERVER_NAME
       EOF
 
+      # 서버에 배포
       ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
 
       rsync -avz -e "ssh -i ~/.ssh/id_rsa" \
-        dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+        deploy/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
 
       ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "
         cd '$DEPLOY_PATH'
@@ -84,10 +105,12 @@ deploy_develop:
         docker rm -f backend nginx 2>/dev/null || true
         docker compose up -d --no-deps backend nginx
         docker image prune -f
+        rm -f backend_${IMAGE_TAG}.tar nginx_${IMAGE_TAG}.tar
       "
 
   needs:
     - backend_test
+    - frontend_build
     - docker_build_check
 
   only:
