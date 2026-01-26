@@ -25,6 +25,7 @@ public enum ExceptionType {
 
     // 게임/방 예외
     ROOM_NOT_FOUND("R001", 404, "방을 찾을 수 없습니다."),
+    INVITE_CODE_NOT_FOUND("R014", 404, "초대 코드가 존재하지 않거나 만료되었습니다."),
     ROOM_FULL("R002", 409, "방이 가득 찼습니다."),
     ROOM_NOT_WAITING("R003", 400, "대기 중인 방이 아닙니다."),
     ALREADY_IN_ROOM("R004", 409, "이미 방에 참가 중입니다."),

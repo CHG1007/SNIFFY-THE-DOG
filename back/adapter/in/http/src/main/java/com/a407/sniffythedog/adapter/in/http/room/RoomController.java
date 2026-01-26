@@ -19,6 +19,8 @@ public class RoomController {
 
     private final CreateRoomUseCase createRoomUseCase;
     private final GetPublicRoomUseCase getAllRoomUseCase;
+    private final GetRoomByInviteCodeUseCase getRoomByInviteCodeUseCase;
+    private final GetRoomByRoomIdUseCase getRoomByRoomIdUseCase;
 
     @PostMapping
     public ApiResponse<CreateRoomResponse> createRoom(@RequestBody @Valid CreateRoomRequest request
@@ -61,5 +63,23 @@ public class RoomController {
                 .collect(Collectors.toList());
 
         return ApiResponse.success(response);
+    }
+    // inviteCode가 있을 때만 이 메서드가 매칭됨
+    @GetMapping(params = "inviteCode")
+    public ApiResponse<GetRoomDetailResult> getRoomByInviteCode(
+            @RequestParam String inviteCode
+            //todo:@Authentication 추가
+    ) {
+        GetRoomDetailResult result =
+                getRoomByInviteCodeUseCase.getRoomByInviteCode(new GetRoomByInviteCodeQuery(inviteCode));
+
+        return ApiResponse.success(result);
+    }
+
+    @GetMapping("/{roomId}")
+    public ApiResponse<GetRoomDetailResult> getRoomDetail(@PathVariable String roomId) {
+        GetRoomDetailResult result =
+                getRoomByRoomIdUseCase.getRoomByRoomId(new GetRoomByRoomIdQuery(roomId));
+        return ApiResponse.success(result);
     }
 }
