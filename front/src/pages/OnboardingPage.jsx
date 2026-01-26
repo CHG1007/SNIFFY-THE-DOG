@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { loginWithKakao } from '../api/authApi';
 import OnboardingBtn from '../components/onboarding/OnboardingBtn';
 
-const KAKAO_JS_KEY = '319d639362ed8e839aba02da75b07ea9';
+const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY || '';
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
