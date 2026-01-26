@@ -2,7 +2,7 @@ spring:
   application:
     name: bootstrap
   profiles:
-    include: rdb
+    include: rdb, openvidu
 
 kakao:
   rest-api-key: c6394578908f696f0f85a2907926a4d4
