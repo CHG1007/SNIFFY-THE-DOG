@@ -11,4 +11,5 @@ dependencies {
     implementation project(":application")
     implementation project(":adapter:in:http")
     implementation project(":adapter:out:rdb")
+    implementation project(":adapter:out:gms")
 }
