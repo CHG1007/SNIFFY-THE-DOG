@@ -277,6 +277,8 @@ public class RoomSession {
         return title;
     }
 
+    public PrivateGame getPrivateGame(){return privateGame;}
+
     public boolean isPrivate() {
         return privateGame.isPrivate();
     }
