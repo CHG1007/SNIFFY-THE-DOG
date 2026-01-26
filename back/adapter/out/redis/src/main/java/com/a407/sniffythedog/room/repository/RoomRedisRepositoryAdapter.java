@@ -41,6 +41,9 @@ public class RoomRedisRepositoryAdapter implements RedisRoomPort {
         if (!roomSession.isPrivate()) {
             double score = roomSession.getCreatedAt().toEpochMilli();
             zSet.add(PUBLIC_ROOMS_KEY, roomSession.getId().value(), score);
+        } else {
+            String inviteKey = INVITE_KEY_PREFIX + roomSession.getInviteCode();
+            redisTemplate.opsForValue().set(inviteKey, roomSession.getId().value());
         }
     }
 
