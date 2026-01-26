@@ -38,6 +38,7 @@ public enum ExceptionType {
     PLAYER_DEAD("R011", 400, "사망한 플레이어입니다."),
     NO_CHANCE_LEFT("R012", 400, "AI 찬스를 모두 사용했습니다."),
     NOT_CITIZEN("R013", 400, "시민만 AI 찬스를 사용할 수 있습니다."),
+    ROOM_CONCURRENT_UPDATE_FAILED("R409", 409, "방 상태가 동시에 변경되어 요청을 처리할 수 없습니다. 잠시 후 다시 시도해주세요."),
 
     // 신고 예외
     REPORT_NOT_FOUND("P001", 404, "신고를 찾을 수 없습니다."),
