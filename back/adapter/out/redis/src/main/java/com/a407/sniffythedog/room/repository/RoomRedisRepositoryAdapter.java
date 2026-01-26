@@ -41,6 +41,9 @@ public class RoomRedisRepositoryAdapter implements RedisRoomPort {
         if (!roomSession.isPrivate()) {
             double score = roomSession.getCreatedAt().toEpochMilli();
             zSet.add(PUBLIC_ROOMS_KEY, roomSession.getId().value(), score);
+        } else {
+            String inviteKey = INVITE_KEY_PREFIX + roomSession.getInviteCode();
+            redisTemplate.opsForValue().set(inviteKey, roomSession.getId().value());
         }
     }
 
@@ -98,7 +101,26 @@ public class RoomRedisRepositoryAdapter implements RedisRoomPort {
         }
         return loadRoom(RoomId.of(roomIdValue));
     }
-    
+
+    @Override
+    public void deleteRoom(String roomId) {
+        String roomKey = ROOM_KEY_PREFIX + roomId;
+        String json = redisTemplate.opsForValue().get(roomKey);
+
+        if (json != null) {
+            RoomSession room = roomMapper.toDomain(json);
+
+            if (!room.isPrivate()) {
+                redisTemplate.opsForZSet().remove(PUBLIC_ROOMS_KEY, roomId);
+            } else {
+                String inviteKey = INVITE_KEY_PREFIX + room.getInviteCode();
+                redisTemplate.delete(inviteKey);
+            }
+        }
+
+        redisTemplate.delete(roomKey);
+    }
+
     // 낙관적락
     // roomSession에 동시에 요청이 와도 안꼬이게 실행함 -> 내꺼 취소 -> room데이터 안바뀌고 index 안바뀜
     // room JSON을 읽고 수정해서 저장하는데 누가 끼어들어 roomKey 바꿨으면 내 저장 취소 하고 다시 시도하여 저장

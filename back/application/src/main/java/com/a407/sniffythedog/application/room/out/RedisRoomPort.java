@@ -13,6 +13,7 @@ public interface RedisRoomPort {
     List<RoomSession> loadPublicRooms(int page, int size);
     Optional<RoomSession> loadRoom(RoomId roomId);
     Optional<RoomSession> loadRoomByInviteCode(String inviteCode);
+    void deleteRoom(String roomId);
 
     // 정원 7명일때 a,b가 동시에 들어와서 정원 넘치는 경우 방지, 원자 갱신 메서드
     RoomSession updateRoomAtomically(RoomId roomId, UnaryOperator<RoomSession> mutator);
