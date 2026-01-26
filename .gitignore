@@ -41,5 +41,3 @@ bin/
 docker-compose.local.yml
 
 ### docs ###
-docs/
-backtree.txt
