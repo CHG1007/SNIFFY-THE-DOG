@@ -1,20 +1,24 @@
-### IntelliJ IDEA ###
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
-.kotlin
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
 
-### Eclipse ###
+### STS ###
 .apt_generated
 .classpath
 .factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+!**/src/main/**/out/
+!**/src/test/**/out/
 
 ### NetBeans ###
 /nbproject/private/
@@ -26,5 +30,11 @@ bin/
 ### VS Code ###
 .vscode/
 
-### Mac OS ###
-.DS_Store
+**/claude.md
+
+### Docker ###
+docker-compose.local.yml
+
+### docs ###
+docs/
+backtree.txt
