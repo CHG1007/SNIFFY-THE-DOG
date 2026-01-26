@@ -11,4 +11,5 @@ dependencies {
     runtimeOnly project(":adapter:out:rdb")
     runtimeOnly project(":adapter:out:openvidu")
     runtimeOnly project(":adapter:in:websocket")
+    runtimeOnly project(":adapter:out:gms")
 }
