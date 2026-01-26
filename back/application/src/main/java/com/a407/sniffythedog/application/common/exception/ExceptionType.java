@@ -25,6 +25,7 @@ public enum ExceptionType {
 
     // 게임/방 예외
     ROOM_NOT_FOUND("R001", 404, "방을 찾을 수 없습니다."),
+    INVITE_CODE_NOT_FOUND("R014", 404, "초대 코드가 존재하지 않거나 만료되었습니다."),
     ROOM_FULL("R002", 409, "방이 가득 찼습니다."),
     ROOM_NOT_WAITING("R003", 400, "대기 중인 방이 아닙니다."),
     ALREADY_IN_ROOM("R004", 409, "이미 방에 참가 중입니다."),
@@ -37,6 +38,7 @@ public enum ExceptionType {
     PLAYER_DEAD("R011", 400, "사망한 플레이어입니다."),
     NO_CHANCE_LEFT("R012", 400, "AI 찬스를 모두 사용했습니다."),
     NOT_CITIZEN("R013", 400, "시민만 AI 찬스를 사용할 수 있습니다."),
+    ROOM_CONCURRENT_UPDATE_FAILED("R409", 409, "방 상태가 동시에 변경되어 요청을 처리할 수 없습니다. 잠시 후 다시 시도해주세요."),
 
     // 신고 예외
     REPORT_NOT_FOUND("P001", 404, "신고를 찾을 수 없습니다."),
