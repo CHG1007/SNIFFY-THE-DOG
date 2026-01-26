@@ -1,6 +1,7 @@
 package com.a407.sniffythedog.application.game;
 
 import com.a407.sniffythedog.application.common.exception.ApplicationException;
+import com.a407.sniffythedog.application.common.exception.ExceptionType;
 import com.a407.sniffythedog.application.game.in.*;
 import com.a407.sniffythedog.application.game.out.GameMessagePort;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
@@ -14,7 +15,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class GameService implements JoinRoomUseCase {
+public class GameService implements JoinRoomUseCase, LeaveRoomUseCase {
 
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
@@ -71,5 +72,29 @@ public class GameService implements JoinRoomUseCase {
             gameMessagePort.sendToUser(String.valueOf(userId), roomCode, requestId, "JOIN_REJECTED", errorData);
         }
 
+    }
+
+    @Override
+    public void execute(LeaveRoomCommand command) {
+        String roomCode = command.roomCode();
+        Long userId = command.userId();
+
+        RoomSession room = redisRoomPort.loadRoom(RoomId.of(roomCode))
+                .orElseThrow(() -> ApplicationException.of(ExceptionType.ROOM_NOT_FOUND));
+
+        GameUserId gameUserId = new GameUserId(userId);
+        room.leavePlayer(gameUserId);
+
+        if(room.getPlayerCount() == 0){
+            redisRoomPort.deleteRoom(roomCode);
+            //todo: 스케줄러 취소
+        } else {
+            redisRoomPort.saveRoom(room);
+
+            RoomState roomState = RoomState.from(room);
+            Map<String, Object> leaveMessage = Map.of("version", room.getVersion(), "userId", userId, "roomState", roomState);
+            gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_LEFT", leaveMessage);
+
+        }
     }
 }
