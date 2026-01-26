@@ -16,7 +16,7 @@ public class MediaService implements GetMediaTokenUseCase {
     @Override
     public GetMediaTokenResult getToken(GetMediaTokenQuery query) {
         String sessionId = openViduPort.createSession(query.roomId());
-        String token = openViduPort.createToken(sessionId, query.userId());
+        String token = openViduPort.createToken(sessionId, String.valueOf(query.userId()));
 
         return new GetMediaTokenResult(sessionId, token);
     }
