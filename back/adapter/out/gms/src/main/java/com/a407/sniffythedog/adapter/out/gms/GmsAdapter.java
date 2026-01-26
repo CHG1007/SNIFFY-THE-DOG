@@ -1,7 +1,6 @@
 package com.a407.sniffythedog.adapter.out.gms;
 
 import com.a407.sniffythedog.application.analysis.out.GmsPort;
-import com.a407.sniffythedog.domain.analysis.enums.AiModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
@@ -28,7 +27,7 @@ public class GmsAdapter implements GmsPort {
         String url = baseUrl + path;
 
         Map<String, Object> body = Map.of(
-                "model", model.getCode(),
+                "model", modelName,
                 "messages", List.of(
                         Map.of("role", "system", "content",
                                 """ 
