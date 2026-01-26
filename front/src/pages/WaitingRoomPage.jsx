@@ -43,12 +43,13 @@ const WaitingRoomPage = () => {
         capacity: createdData?.capacity || 8,
         inviteCode: "PKDIEJDL21443",
         players: [
-          { userId: 1, displayName: "태환", ready: true, isHost: true },
-          { userId: 2, displayName: "유저2", ready: true },
-          { userId: 3, displayName: "루피", ready: true },   
-          { userId: 4, displayName: "조로", ready: true },  
-          { userId: 5, displayName: "나미", ready: true },   
-          { userId: 6, displayName: "상디", ready: true },  
+          // 이미지는 추후 수정해야 함
+          { userId: 1, displayName: "태환", ready: true, isHost: true, photo: "https://pds.joongang.co.kr/news/component/htmlphoto_mmdata/202302/11/9e7b87f1-2ca5-45af-ac7b-358ad794b1bc.jpg" },
+          { userId: 2, displayName: "유저2", ready: true, isHost: false, photo: "https://img.vogue.co.kr/vogue/2023/10/style_65387f34c898c-930x1203.jpg" },
+          { userId: 3, displayName: "루피", ready: true, isHost: false, photo: "https://pds.joongang.co.kr/news/component/htmlphoto_mmdata/202302/11/9e7b87f1-2ca5-45af-ac7b-358ad794b1bc.jpg" }, 
+          { userId: 4, displayName: "조로", ready: true, isHost: false, photo: "https://img.vogue.co.kr/vogue/2023/10/style_65387f34c898c-930x1203.jpg" }, 
+          { userId: 5, displayName: "나미", ready: true, isHost: false, photo: "https://pds.joongang.co.kr/news/component/htmlphoto_mmdata/202302/11/9e7b87f1-2ca5-45af-ac7b-358ad794b1bc.jpg" }, 
+          { userId: 6, displayName: "상디", ready: true, isHost: false, photo: "https://img.vogue.co.kr/vogue/2023/10/style_65387f34c898c-930x1203.jpg" },
   
         ]
       };
@@ -69,8 +70,9 @@ const WaitingRoomPage = () => {
   }
 
   // 실제 게임 화면
+  // photo는 추후 삭제 예정
   if (status === 'PLAYING') {
-    return <GamePage players={roomData.players.map(p => ({ id: p.userId, name: p.displayName, ready: p.ready }))} myId={1} />;
+    return <GamePage players={roomData.players.map(p => ({ id: p.userId, name: p.displayName, ready: p.ready, photo: p.photo  }))} myId={1} />;
   }
 
   // 판단 결과에 따라 미리 만들어둔 컴포넌트로 데이터를 토스(Toss)
