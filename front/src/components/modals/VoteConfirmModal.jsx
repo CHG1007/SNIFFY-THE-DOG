@@ -1,6 +1,8 @@
 const VoteConfirmModal = ({ isOpen, targetName, phaseSeconds, onConfirm, onClose }) => {
   if (!isOpen) return null;
 
+  const timeLeft = 10 - phaseSeconds;
+  
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md">
       <div className="bg-[#111115] p-8 rounded-2xl border-2 border-[#ff8a00] text-center max-w-sm w-full mx-4 shadow-[0_0_50px_rgba(255,138,0,0.2)]">
@@ -9,8 +11,8 @@ const VoteConfirmModal = ({ isOpen, targetName, phaseSeconds, onConfirm, onClose
         </h3>
         
         {/* 사용자가 강조한 작은 글씨 카운트다운 */}
-        <p className="text-red-500 text-sm font-bold mb-8 animate-pulse italic">
-          투표 종료까지 {phaseSeconds}초 남았습니다!
+        <p className="text-red-300 text-sm font-medium mb-8 italic">
+          투표 종료까지 {timeLeft > 0 ? timeLeft : 0}초 남았습니다!
         </p>
 
         <div className="flex gap-3">
