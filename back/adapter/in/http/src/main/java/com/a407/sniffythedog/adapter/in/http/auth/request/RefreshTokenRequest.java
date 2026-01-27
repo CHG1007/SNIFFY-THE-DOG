@@ -7,7 +7,7 @@ public record RefreshTokenRequest(
     @NotBlank(message = "refreshToken is required")
     String refreshToken
 ) {
-    public ReissueTokenCommand toCommand() {
-        return new ReissueTokenCommand(refreshToken);
+    public ReissueTokenCommand toCommand(Long userId) {
+        return new ReissueTokenCommand(userId, refreshToken);
     }
 }

@@ -13,6 +13,8 @@ backend_test:
 frontend_build:
   stage: build
   image: node:20-alpine
+  variables:
+    VITE_KAKAO_JS_KEY: $KAKAO_JS_KEY
   script:
     - cd front
     - npm ci
@@ -87,6 +89,10 @@ deploy_develop:
       MYSQL_DATABASE=$MYSQL_DATABASE
       MYSQL_USER=$MYSQL_USER
       MYSQL_PASSWORD=$MYSQL_PASSWORD
+      KAKAO_REST_API_KEY=$KAKAO_REST_API_KEY
+      KAKAO_JS_KEY=$KAKAO_JS_KEY
+      JWT_SECRET=$JWT_SECRET
+      GMS_API_KEY=$GMS_API_KEY
       OPENVIDU_SECRET=$OPENVIDU_SECRET
       SERVER_NAME=$SERVER_NAME
       EOF

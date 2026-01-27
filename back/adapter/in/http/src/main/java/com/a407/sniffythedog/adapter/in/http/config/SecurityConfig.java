@@ -1,7 +1,7 @@
 package com.a407.sniffythedog.adapter.in.http.config;
 
 import com.a407.sniffythedog.adapter.in.http.global.filter.JwtAuthenticationFilter;
-import com.a407.sniffythedog.application.global.jwt.JwtProvider;
+import com.a407.sniffythedog.adapter.in.http.global.jwt.JwtProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -75,7 +75,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // 프론트엔드 주소 (Vite)
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedOrigins(List.of(
+            "http://localhost:5173",
+            "https://i14a407.p.ssafy.io"
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
