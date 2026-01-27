@@ -1,5 +1,7 @@
-package com.a407.sniffythedog.application.global.jwt;
+package com.a407.sniffythedog.adapter.in.http.global.jwt;
 
+import com.a407.sniffythedog.application.auth.out.IssuedToken;
+import com.a407.sniffythedog.application.auth.out.TokenIssuerPort;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
@@ -13,7 +15,7 @@ import java.time.Instant;
 import java.util.Date;
 
 @Component
-public class JwtProvider {
+public class JwtProvider implements TokenIssuerPort {
 
     private final SecretKey secretKey;
     private final long accessTokenValiditySeconds;
@@ -29,25 +31,31 @@ public class JwtProvider {
         this.refreshTokenValiditySeconds = refreshTokenValiditySeconds;
     }
 
-    public String generateAccessToken(Long userId, String role) {
+    @Override
+    public IssuedToken issueAccessToken(Long userId, String role) {
         Instant now = Instant.now();
-        return Jwts.builder()
+        Instant expiresAt = now.plusSeconds(accessTokenValiditySeconds);
+        String token = Jwts.builder()
             .subject(String.valueOf(userId))
             .claim("role", role)
             .issuedAt(Date.from(now))
-            .expiration(Date.from(now.plusSeconds(accessTokenValiditySeconds)))
+            .expiration(Date.from(expiresAt))
             .signWith(secretKey, Jwts.SIG.HS256)
             .compact();
+        return new IssuedToken(token, expiresAt);
     }
 
-    public String generateRefreshToken(Long userId) {
+    @Override
+    public IssuedToken issueRefreshToken(Long userId) {
         Instant now = Instant.now();
-        return Jwts.builder()
+        Instant expiresAt = now.plusSeconds(refreshTokenValiditySeconds);
+        String token = Jwts.builder()
             .subject(String.valueOf(userId))
             .issuedAt(Date.from(now))
-            .expiration(Date.from(now.plusSeconds(refreshTokenValiditySeconds)))
+            .expiration(Date.from(expiresAt))
             .signWith(secretKey, Jwts.SIG.HS256)
             .compact();
+        return new IssuedToken(token, expiresAt);
     }
 
     public boolean validateToken(String token) {
@@ -74,5 +82,15 @@ public class JwtProvider {
             .build()
             .parseSignedClaims(token)
             .getPayload();
+    }
+
+    public ParsedToken parseRefreshToken(String token) {
+        Claims claims = getClaims(token);
+        Long userId = Long.parseLong(claims.getSubject());
+        Instant expiresAt = claims.getExpiration().toInstant();
+        return new ParsedToken(userId, expiresAt);
+    }
+
+    public record ParsedToken(Long userId, Instant expiresAt) {
     }
 }

@@ -7,6 +7,7 @@ import com.a407.sniffythedog.adapter.in.http.auth.response.KakaoLoginResponse;
 import com.a407.sniffythedog.adapter.in.http.auth.response.RefreshTokenResponse;
 import com.a407.sniffythedog.adapter.in.http.auth.response.SocialLoginResponse;
 import com.a407.sniffythedog.adapter.in.http.common.response.ApiResponse;
+import com.a407.sniffythedog.adapter.in.http.global.jwt.JwtProvider;
 import com.a407.sniffythedog.application.auth.in.AuthUseCase;
 import com.a407.sniffythedog.application.auth.in.KakaoLoginResult;
 import com.a407.sniffythedog.application.auth.in.LogoutUseCase;
@@ -14,6 +15,10 @@ import com.a407.sniffythedog.application.auth.in.ReissueTokenResult;
 import com.a407.sniffythedog.application.auth.in.ReissueTokenUseCase;
 import com.a407.sniffythedog.application.auth.in.SocialLoginResult;
 import com.a407.sniffythedog.application.auth.in.SocialLoginUseCase;
+import com.a407.sniffythedog.application.common.exception.ApplicationException;
+import com.a407.sniffythedog.application.common.exception.ExceptionType;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,6 +35,7 @@ public class AuthController {
     private final SocialLoginUseCase socialLoginUseCase;
     private final ReissueTokenUseCase reissueTokenUseCase;
     private final LogoutUseCase logoutUseCase;
+    private final JwtProvider jwtProvider;
 
     @PostMapping("/api/auth/login/kakao")
     public ApiResponse<KakaoLoginResponse> loginWithKakao(@Valid @RequestBody KakaoLoginRequest request) {
@@ -48,8 +54,15 @@ public class AuthController {
 
     @PostMapping("/api/v1/auth/refresh")
     public ApiResponse<RefreshTokenResponse> reissueToken(@Valid @RequestBody RefreshTokenRequest request) {
-        ReissueTokenResult result = reissueTokenUseCase.execute(request.toCommand());
-        return ApiResponse.success(RefreshTokenResponse.from(result));
+        try {
+            JwtProvider.ParsedToken parsedToken = jwtProvider.parseRefreshToken(request.refreshToken());
+            ReissueTokenResult result = reissueTokenUseCase.execute(request.toCommand(parsedToken.userId()));
+            return ApiResponse.success(RefreshTokenResponse.from(result));
+        } catch (ExpiredJwtException e) {
+            throw ApplicationException.of(ExceptionType.EXPIRED_TOKEN);
+        } catch (JwtException | IllegalArgumentException e) {
+            throw ApplicationException.of(ExceptionType.INVALID_TOKEN);
+        }
     }
 
     @PostMapping("/api/v1/auth/logout")
