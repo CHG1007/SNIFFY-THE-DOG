@@ -1,7 +1,6 @@
 package com.a407.sniffythedog.adapter.in.http.config;
 import com.a407.sniffythedog.adapter.in.http.global.filter.JwtAuthenticationFilter;
-import com.a407.sniffythedog.application.global.jwt.JwtProvider;
-import jakarta.servlet.http.HttpServletRequest;
+import com.a407.sniffythedog.adapter.in.http.global.jwt.JwtProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
