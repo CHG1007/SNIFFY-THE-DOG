@@ -1,5 +1,9 @@
 stages: [test, build, deploy]
 
+# ===================
+# CI: 빌드 검증 (MR + develop)
+# ===================
+
 backend_test:
   stage: test
   image: gradle:8.7-jdk21
@@ -7,8 +11,9 @@ backend_test:
     - cd back
     - chmod +x gradlew
     - ./gradlew test
-  only:
-    - develop
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "develop"
 
 frontend_build:
   stage: build
@@ -23,8 +28,9 @@ frontend_build:
     paths:
       - front/dist/
     expire_in: 1 hour
-  only:
-    - develop
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "develop"
 
 docker_build_check:
   stage: build
@@ -39,8 +45,13 @@ docker_build_check:
     - docker version
     - docker build -t backend:ci -f back/Dockerfile back
     - docker build -t nginx:ci -f nginx/Dockerfile nginx
-  only:
-    - develop
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+# ===================
+# CD: 배포 (develop only)
+# ===================
 
 deploy_develop:
   stage: deploy
@@ -122,8 +133,8 @@ deploy_develop:
     - frontend_build
     - docker_build_check
 
-  only:
-    - develop
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
 
   tags:
     - ssafy-ec2-runner
