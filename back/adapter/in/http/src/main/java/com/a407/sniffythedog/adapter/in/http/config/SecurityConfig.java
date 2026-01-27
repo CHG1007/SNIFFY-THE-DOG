@@ -1,5 +1,4 @@
 package com.a407.sniffythedog.adapter.in.http.config;
-
 import com.a407.sniffythedog.adapter.in.http.global.filter.JwtAuthenticationFilter;
 import com.a407.sniffythedog.application.global.jwt.JwtProvider;
 import jakarta.servlet.http.HttpServletRequest;
@@ -66,6 +65,8 @@ public class SecurityConfig {
                         // 프론트엔드 URL (/api/v1/auth/kakao) 허용
                         // 2. [넓은 규칙] 나머지 auth는 다 허용
                         .requestMatchers("/api/v1/auth/**", "/api/auth/**").permitAll()
+                        // ⭐⭐⭐⭐⭐ AI 분석 API 임시 허용 (개발 단계)
+                        .requestMatchers("/api/analysis/**").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 );
@@ -82,7 +83,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // 프론트엔드 주소 (Vite)
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedOrigins(List.of(
+            "http://localhost:5173",
+            "https://i14a407.p.ssafy.io"
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

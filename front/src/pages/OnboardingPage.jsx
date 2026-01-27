@@ -5,12 +5,12 @@ import { useNavigate } from 'react-router-dom';
 import { loginWithKakao } from '../api/authApi';
 import OnboardingBtn from '../components/onboarding/OnboardingBtn';
 
-const KAKAO_JS_KEY = '319d639362ed8e839aba02da75b07ea9';
+const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY || '';
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
 
-  const [isKakaoAuthed, setIsKakaoAuthed] = useState(false);
+  const [isKakaoAuthed, setIsKakaoAuthed] = useState(true);
 
   const handleKakaoSuccess = async (response) => {
     const token = response?.response?.access_token || '';

@@ -9,5 +9,13 @@ dependencies {
     runtimeOnly project(":application")
     runtimeOnly project(":adapter:in:http")
     runtimeOnly project(":adapter:out:rdb")
+    runtimeOnly project(":adapter:out:openvidu")
     runtimeOnly project(":adapter:in:websocket")
+
+    runtimeOnly project(":adapter:out:external")
+
+    runtimeOnly project(":adapter:out:gms")
+
+    runtimeOnly project(":adapter:out:mongo")
+
 }

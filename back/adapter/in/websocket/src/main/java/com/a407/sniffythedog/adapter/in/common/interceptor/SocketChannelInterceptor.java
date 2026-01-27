@@ -1,10 +1,6 @@
 package com.a407.sniffythedog.adapter.in.common.interceptor;
 
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
-import com.a407.sniffythedog.domain.game.entity.PlayerState;
-import com.a407.sniffythedog.domain.game.entity.RoomSession;
-import com.a407.sniffythedog.domain.game.enums.GameRole;
-import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;

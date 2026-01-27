@@ -10,54 +10,36 @@ import com.a407.sniffythedog.application.auth.in.ReissueTokenUseCase;
 import com.a407.sniffythedog.application.auth.in.SocialLoginCommand;
 import com.a407.sniffythedog.application.auth.in.SocialLoginResult;
 import com.a407.sniffythedog.application.auth.in.SocialLoginUseCase;
+import com.a407.sniffythedog.application.auth.out.IssuedToken;
 import com.a407.sniffythedog.application.auth.out.RefreshTokenPort;
+import com.a407.sniffythedog.application.auth.out.TokenIssuerPort;
 import com.a407.sniffythedog.application.common.exception.ApplicationException;
 import com.a407.sniffythedog.application.common.exception.ExceptionType;
-import com.a407.sniffythedog.application.global.jwt.JwtProvider;
+import com.a407.sniffythedog.application.port.out.LoadSocialUserPort;
+import com.a407.sniffythedog.application.port.out.SocialUserInfo;
 import com.a407.sniffythedog.application.user.out.UserPort;
 import com.a407.sniffythedog.domain.auth.RefreshToken;
 import com.a407.sniffythedog.domain.user.entity.User;
+import com.a407.sniffythedog.domain.user.exception.UserDomainException;
 import com.a407.sniffythedog.domain.user.enums.SocialProvider;
 import com.a407.sniffythedog.domain.user.vo.Nickname;
 import com.a407.sniffythedog.domain.user.vo.SocialUuid;
 import com.a407.sniffythedog.domain.user.vo.UserId;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.Objects;
 
 @Service
-@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueTokenUseCase, LogoutUseCase {
 
-    private static final String KAKAO_REST_API_KEY_HEADER = "X-Kakao-REST-API-KEY";
-
     private final UserPort userPort;
     private final RefreshTokenPort refreshTokenPort;
-    private final JwtProvider jwtProvider;
-    private final RestTemplate restTemplate = new RestTemplate();
-
-    @Value("${kakao.rest-api-key}")
-    private String kakaoRestApiKey;
-
-    @Value("${kakao.user-info-url:https://kapi.kakao.com/v2/user/me}")
-    private String kakaoUserInfoUrl;
+    private final TokenIssuerPort tokenIssuerPort;
+    private final LoadSocialUserPort loadSocialUserPort;
 
     @Override
     @Transactional
@@ -67,7 +49,7 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
             throw ApplicationException.of(ExceptionType.BAD_REQUEST, "Unsupported socialType: " + command.socialType());
         }
 
-        KakaoUserInfo userInfo = fetchKakaoUserInfo(command.token());
+        SocialUserInfo userInfo = loadSocialUserPort.loadUser(provider, command.token());
         SocialUuid socialUuid = SocialUuid.of(userInfo.id());
 
         User user = userPort.findBySocialProviderAndSocialUuid(provider, socialUuid);
@@ -78,12 +60,7 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
             user = userPort.save(User.create(provider, socialUuid, nickname));
             isNew = true;
         } else {
-            if (user.isBanned()) {
-                throw ApplicationException.of(ExceptionType.USER_BANNED);
-            }
-            if (!user.isActive()) {
-                throw ApplicationException.of(ExceptionType.USER_DELETED);
-            }
+            validateActiveUser(user);
         }
 
         return new KakaoLoginResult(
@@ -102,7 +79,7 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
             throw ApplicationException.of(ExceptionType.BAD_REQUEST, "Unsupported social: " + command.social());
         }
 
-        KakaoUserInfo userInfo = fetchKakaoUserInfo(command.accessToken());
+        SocialUserInfo userInfo = loadSocialUserPort.loadUser(provider, command.accessToken());
         SocialUuid socialUuid = SocialUuid.of(userInfo.id());
 
         User user = userPort.findBySocialProviderAndSocialUuid(provider, socialUuid);
@@ -113,12 +90,7 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
             user = userPort.save(User.create(provider, socialUuid, nickname));
             isFirstLogin = true;
         } else {
-            if (user.isBanned()) {
-                throw ApplicationException.of(ExceptionType.USER_BANNED);
-            }
-            if (!user.isActive()) {
-                throw ApplicationException.of(ExceptionType.USER_DELETED);
-            }
+            validateActiveUser(user);
         }
 
         SocialLoginResult.UserInfo userInfoResponse = new SocialLoginResult.UserInfo(
@@ -128,13 +100,13 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
             user.getStatus().name()
         );
 
-        String accessToken = jwtProvider.generateAccessToken(user.getId().value(), user.getRole().name());
-        String refreshToken = jwtProvider.generateRefreshToken(user.getId().value());
+        IssuedToken accessToken = tokenIssuerPort.issueAccessToken(user.getId().value(), user.getRole().name());
+        IssuedToken refreshToken = tokenIssuerPort.issueRefreshToken(user.getId().value());
         storeRefreshToken(user.getId().value(), refreshToken);
 
         return new SocialLoginResult(
-            accessToken,
-            refreshToken,
+            accessToken.token(),
+            refreshToken.token(),
             isFirstLogin,
             userInfoResponse
         );
@@ -143,32 +115,32 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
     @Override
     @Transactional
     public ReissueTokenResult execute(ReissueTokenCommand command) {
-        Claims claims = parseRefreshTokenClaims(command.refreshToken());
+        Long userId = command.userId();
+        String refreshToken = command.refreshToken();
+        if (userId == null || refreshToken == null || refreshToken.isBlank()) {
+            throw ApplicationException.of(ExceptionType.INVALID_TOKEN);
+        }
 
-        Long userId = parseUserId(claims);
-        RefreshToken storedToken = refreshTokenPort.findByToken(command.refreshToken())
+        RefreshToken storedToken = refreshTokenPort.findByToken(refreshToken)
             .orElseThrow(() -> ApplicationException.of(ExceptionType.INVALID_TOKEN));
 
-        if (!storedToken.getUserId().value().equals(userId)) {
-            throw ApplicationException.of(ExceptionType.INVALID_TOKEN);
+        if (storedToken.getExpiryDate().isBefore(Instant.now())) {
+            throw ApplicationException.of(ExceptionType.EXPIRED_TOKEN);
         }
 
         User user = userPort.findById(UserId.of(userId));
         if (user == null) {
             throw ApplicationException.of(ExceptionType.USER_NOT_FOUND);
         }
-        if (user.isBanned()) {
-            throw ApplicationException.of(ExceptionType.USER_BANNED);
-        }
-        if (!user.isActive()) {
-            throw ApplicationException.of(ExceptionType.USER_DELETED);
-        }
 
-        String newAccessToken = jwtProvider.generateAccessToken(userId, user.getRole().name());
-        String newRefreshToken = jwtProvider.generateRefreshToken(userId);
+        validateActiveUser(user);
+        validateTokenOwner(user, storedToken.getUserId());
+
+        IssuedToken newAccessToken = tokenIssuerPort.issueAccessToken(userId, user.getRole().name());
+        IssuedToken newRefreshToken = tokenIssuerPort.issueRefreshToken(userId);
         rotateRefreshToken(userId, newRefreshToken);
 
-        return new ReissueTokenResult(newAccessToken, newRefreshToken);
+        return new ReissueTokenResult(newAccessToken.token(), newRefreshToken.token());
     }
 
     @Override
@@ -187,67 +159,6 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
         } catch (IllegalArgumentException e) {
             throw ApplicationException.of(ExceptionType.BAD_REQUEST, "Unsupported socialType: " + socialType);
         }
-    }
-
-    private KakaoUserInfo fetchKakaoUserInfo(String accessToken) {
-        if (accessToken == null || accessToken.isBlank()) {
-            throw ApplicationException.of(ExceptionType.INVALID_TOKEN);
-        }
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(accessToken);
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        headers.add(KAKAO_REST_API_KEY_HEADER, kakaoRestApiKey);
-
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-        try {
-            ResponseEntity<Map> response = restTemplate.exchange(
-                kakaoUserInfoUrl,
-                HttpMethod.POST,
-                entity,
-                Map.class
-            );
-
-            Map body = response.getBody();
-            if (body == null) {
-                throw ApplicationException.of(ExceptionType.OAUTH_FAILED);
-            }
-
-            Object idValue = body.get("id");
-            if (!(idValue instanceof Number idNumber)) {
-                throw ApplicationException.of(ExceptionType.OAUTH_FAILED);
-            }
-
-            String nickname = extractNickname(body);
-            return new KakaoUserInfo(String.valueOf(idNumber.longValue()), nickname);
-        } catch (RestClientResponseException e) {
-            if (e.getRawStatusCode() == 401) {
-                throw ApplicationException.of(ExceptionType.INVALID_TOKEN);
-            }
-            throw ApplicationException.of(ExceptionType.OAUTH_FAILED);
-        } catch (RestClientException e) {
-            throw ApplicationException.of(ExceptionType.OAUTH_FAILED);
-        }
-    }
-
-    private String extractNickname(Map body) {
-        Object kakaoAccountValue = body.get("kakao_account");
-        if (!(kakaoAccountValue instanceof Map<?, ?> kakaoAccount)) {
-            return null;
-        }
-
-        Object profileValue = kakaoAccount.get("profile");
-        if (!(profileValue instanceof Map<?, ?> profile)) {
-            return null;
-        }
-
-        Object nicknameValue = profile.get("nickname");
-        if (nicknameValue instanceof String nickname && !nickname.isBlank()) {
-            return nickname;
-        }
-
-        return null;
     }
 
     private Nickname resolveNickname(String nickname, String kakaoId) {
@@ -275,41 +186,42 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
         return Nickname.of(prefix + suffix);
     }
 
-    private Claims parseRefreshTokenClaims(String refreshToken) {
-        if (refreshToken == null || refreshToken.isBlank()) {
-            throw ApplicationException.of(ExceptionType.INVALID_TOKEN);
-        }
-        try {
-            return jwtProvider.getClaims(refreshToken);
-        } catch (ExpiredJwtException e) {
-            throw ApplicationException.of(ExceptionType.EXPIRED_TOKEN);
-        } catch (JwtException | IllegalArgumentException e) {
-            throw ApplicationException.of(ExceptionType.INVALID_TOKEN);
-        }
-    }
-
-    private Long parseUserId(Claims claims) {
-        String subject = claims.getSubject();
-        if (subject == null || subject.isBlank()) {
-            throw ApplicationException.of(ExceptionType.INVALID_TOKEN);
-        }
-        try {
-            return Long.parseLong(subject);
-        } catch (NumberFormatException e) {
-            throw ApplicationException.of(ExceptionType.INVALID_TOKEN);
-        }
-    }
-
-    private void storeRefreshToken(Long userId, String refreshToken) {
-        Instant expiryDate = jwtProvider.getClaims(refreshToken).getExpiration().toInstant();
+    private void storeRefreshToken(Long userId, IssuedToken refreshToken) {
         refreshTokenPort.deleteByUserId(UserId.of(userId));
-        refreshTokenPort.save(RefreshToken.create(UserId.of(userId), refreshToken, expiryDate));
+        refreshTokenPort.save(RefreshToken.create(UserId.of(userId), refreshToken.token(), refreshToken.expiresAt()));
     }
 
-    private void rotateRefreshToken(Long userId, String refreshToken) {
+    private void rotateRefreshToken(Long userId, IssuedToken refreshToken) {
         storeRefreshToken(userId, refreshToken);
     }
 
-    private record KakaoUserInfo(String id, String nickname) {
+    private void validateActiveUser(User user) {
+        try {
+            user.validateActive();
+        } catch (UserDomainException e) {
+            throw mapUserDomainException(e);
+        }
+    }
+
+    private void validateTokenOwner(User user, UserId tokenOwnerId) {
+        try {
+            user.validateTokenOwner(tokenOwnerId);
+        } catch (UserDomainException e) {
+            throw mapUserDomainException(e);
+        }
+    }
+
+    private ApplicationException mapUserDomainException(UserDomainException e) {
+        String message = e.getMessage();
+        if (User.ERROR_USER_BANNED.equals(message)) {
+            return ApplicationException.of(ExceptionType.USER_BANNED);
+        }
+        if (User.ERROR_USER_DELETED.equals(message)) {
+            return ApplicationException.of(ExceptionType.USER_DELETED);
+        }
+        if (User.ERROR_TOKEN_OWNER_MISMATCH.equals(message)) {
+            return ApplicationException.of(ExceptionType.INVALID_TOKEN);
+        }
+        return ApplicationException.of(ExceptionType.BAD_REQUEST, message);
     }
 }

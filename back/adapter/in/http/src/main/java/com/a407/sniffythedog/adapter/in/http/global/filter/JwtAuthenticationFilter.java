@@ -1,7 +1,7 @@
 package com.a407.sniffythedog.adapter.in.http.global.filter;
 
+import com.a407.sniffythedog.adapter.in.http.global.jwt.JwtProvider;
 import com.a407.sniffythedog.adapter.in.http.global.security.AuthenticatedUser;
-import com.a407.sniffythedog.application.global.jwt.JwtProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
