@@ -1,6 +1,7 @@
 package com.a407.sniffythedog.adapter.in.room;
 
 import com.a407.sniffythedog.adapter.in.room.request.JoinRequest;
+import com.a407.sniffythedog.adapter.in.room.request.SetReadyRequest;
 import com.a407.sniffythedog.adapter.in.room.request.SyncRequest;
 import com.a407.sniffythedog.application.game.in.*;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class GameSocketController {
     private final JoinRoomUseCase joinRoomUseCase;
     private final LeaveRoomUseCase leaveRoomUseCase;
     private final SyncRoomUseCase syncRoomUseCase;
+    private final SetReadyUseCase setReadyUseCase;
 
     @MessageMapping("/rooms/{roomCode}/join")
     public void joinRoom(@DestinationVariable String roomCode,
@@ -59,4 +61,23 @@ public class GameSocketController {
         syncRoomUseCase.execute(command);
 
     }
+
+    @MessageMapping("/rooms/{roomCode}/ready")
+    public void setReady(
+            @DestinationVariable String roomCode,
+            @Payload SetReadyRequest request,
+            Principal principal
+    ) {
+        Long userId = Long.parseLong(principal.getName());
+
+        SetReadyCommand command = new SetReadyCommand(
+                roomCode,
+                userId,
+                request.ready(),
+                request.requestId()
+        );
+
+        setReadyUseCase.execute(command);
+    }
+
 }

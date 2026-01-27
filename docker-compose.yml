@@ -58,7 +58,7 @@ services:
 
       SPRING_DATA_REDIS_HOST: redis
       MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DATABASE}?authSource=admin
-      OPENVIDU_URL: https://openvidu:4443
+      OPENVIDU_URL: http://openvidu:4443
       OPENVIDU_SECRET: ${OPENVIDU_SECRET}
     depends_on:
       - mysql
@@ -106,14 +106,15 @@ services:
     environment:
       OPENVIDU_SECRET: ${OPENVIDU_SECRET}
       DOMAIN_OR_PUBLIC_IP: ${SERVER_NAME}
+      HTTPS_PORT: 443
+    expose:
+      - "4443"
     ports:
-      - "4443:4443"
       - "3478:3478/udp"
       - "3478:3478/tcp"
       - "40000-40100:40000-40100/udp"
     networks:
       - appnet
-    restart: unless-stopped
 
 networks:
   appnet:
