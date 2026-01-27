@@ -116,6 +116,7 @@ services:
       - "40000-40100:40000-40100/udp"
     networks:
       - appnet
+    restart: unless-stopped
 
 networks:
   appnet:
