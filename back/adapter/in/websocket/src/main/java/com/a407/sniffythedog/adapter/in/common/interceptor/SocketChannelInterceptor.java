@@ -1,14 +1,9 @@
 package com.a407.sniffythedog.adapter.in.common.interceptor;
 
+import com.a407.sniffythedog.adapter.in.http.global.jwt.JwtProvider;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -20,8 +15,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -32,22 +25,14 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class SocketChannelInterceptor implements ChannelInterceptor {
 
-    //todo: jwtsecret 변경
-    @Value("${jwt.secret}")
-    private String jwtSecret;
 
-    private SecretKey key;
+    private final JwtProvider jwtProvider;
 
     private final RedisRoomPort redisRoomPort;
 
     // 방 코드를 추출하기 위한 정규식 (/topic/rooms/{roomCode}/mafia)
     private static final Pattern MAFIA_TOPIC_PATTERN = Pattern.compile(".*/rooms/(.+)/mafia");
 
-    @PostConstruct
-    public void init() {
-        // 키 객체 생성 비용을 줄이기 위해 초기화 시 한 번만 생성
-        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-    }
 
     /**
      * 클라이언트가 서버에 메세지를 보낼 때마다 실행
@@ -84,27 +69,33 @@ public class SocketChannelInterceptor implements ChannelInterceptor {
             throw new IllegalArgumentException("Authorization header is missing or invalid");
         }
 
-        token = token.substring(7);
+        String jwt = token.substring(7);
+
+        // JwtProvider를 사용하여 토큰 검증
+        if (!jwtProvider.validateToken(jwt)) {
+            log.error("WebSocket Token Validation Failed: Invalid Token");
+            throw new IllegalArgumentException("Invalid JWT token");
+        }
 
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(this.key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
+            // JwtProvider를 사용하여 정보 추출
+            Long userId = jwtProvider.getUserId(jwt);
+            String role = jwtProvider.getRole(jwt); // JwtProvider에 getRole 메서드가 있다고 가정 (코드상 존재함)
 
-            String userIdStr = claims.getSubject();
+            // Principal 생성 (userId를 Principal 이름으로 사용)
+            // 역할(Role)이 있다면 Authorities에 추가
+            List<SimpleGrantedAuthority> authorities = (role != null)
+                    ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                    : Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
 
-            List<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
-            Authentication auth = new UsernamePasswordAuthenticationToken(userIdStr, null, authorities);
+            Authentication auth = new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
             accessor.setUser(auth);
-            log.info("WebSocket Connected: User ID {}", userIdStr);
+            log.info("WebSocket Connected: User ID {}", userId);
 
-        } catch (JwtException | IllegalArgumentException e) {
-            log.error("WebSocket Token Validation Failed: {}", e.getMessage());
-            // 이 예외는 클라이언트에게 STOMP ERROR 프레임으로 전달되고 연결이 종료됩니다.
-            throw new IllegalArgumentException("Invalid JWT token: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("WebSocket Authentication Error: {}", e.getMessage());
+            throw new IllegalArgumentException("Authentication failed: " + e.getMessage());
         }
     }
 
@@ -116,6 +107,11 @@ public class SocketChannelInterceptor implements ChannelInterceptor {
         if (matcher.matches()) {
             String roomCode = matcher.group(1);
             Authentication auth = (Authentication) accessor.getUser();
+
+            if (auth == null) {
+                throw new IllegalArgumentException("Unauthenticated user trying to subscribe");
+            }
+
             validateMafiaSubscription(auth, roomCode);
         }
     }
@@ -123,9 +119,5 @@ public class SocketChannelInterceptor implements ChannelInterceptor {
     private void validateMafiaSubscription(Authentication user, String roomCode) {
         //todo: 마피아 구독 검증 로직 작성
     }
-
-
-
-
 
 }

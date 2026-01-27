@@ -8,5 +8,6 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
 
     implementation project(":domain")
+    implementation project(":adapter:in:http")
     compileOnly project(":application")
 }
