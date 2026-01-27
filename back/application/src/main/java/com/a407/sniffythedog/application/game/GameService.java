@@ -10,14 +10,12 @@ import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Map;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase, SetReadyUseCase {
 
@@ -173,7 +171,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
     private void scheduleAutoStart(String roomCode, Long version) {
         //todo: 스케줄러 취소
-        log.info("Room {} Auto-Start Countdown Initiated (3 seconds)", roomCode);
+
         gameMessagePort.sendToRoom(roomCode, "GAME_COUNTDOWN", Map.of("seconds", 3));
 
         Instant startTime = Instant.now().plusSeconds(3);
@@ -184,7 +182,6 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
         boolean cancelled = true;//todo: 스케줄러 취소
 
         if (cancelled) {
-            log.info("Room {} Auto-Start Cancelled", roomCode);
 
             // [알림] 방 전체에 "카운트다운 중단!" 전송 -> 프론트에서 카운트다운 UI 제거
             gameMessagePort.sendToRoom(roomCode, "GAME_COUNTDOWN_CANCELLED", Map.of(
