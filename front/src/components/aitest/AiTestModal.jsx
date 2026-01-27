@@ -46,6 +46,7 @@ export default function AiTestModal({ onClose }) {
     }, 1000);
   };
 
+  /* 걍 주석 */
   /* ===== close ===== */
   const close = () => {
     clearInterval(intervalRef.current);
