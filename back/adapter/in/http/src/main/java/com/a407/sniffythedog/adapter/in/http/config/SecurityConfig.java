@@ -1,5 +1,4 @@
 package com.a407.sniffythedog.adapter.in.http.config;
-
 import com.a407.sniffythedog.adapter.in.http.global.filter.JwtAuthenticationFilter;
 import com.a407.sniffythedog.adapter.in.http.global.jwt.JwtProvider;
 import org.springframework.context.annotation.Bean;
@@ -52,6 +51,14 @@ public class SecurityConfig {
 
                 // 5. 권한 설정
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/api/v3/api-docs/**",
+                                "/api/swagger-ui/**",
+                                "/api/swagger-ui.html"
+                        ).permitAll()
                         // 1. [구체적인 규칙] 로그아웃은 인증해야 함
                         .requestMatchers("/api/v1/auth/logout").authenticated()
                         // 프론트엔드 URL (/api/v1/auth/kakao) 허용
@@ -87,4 +94,5 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
 }

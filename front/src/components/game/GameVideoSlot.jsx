@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import VideoCanvas from "../video/VideoCanvas";
 import VoteConfirmModal from "../modals/VoteConfirmModal";
 
-const GameVideoSlot = ({ player, isMe, canVote, phaseSeconds, didIVote, onVoteComplete }) => {
+const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteComplete }) => {
   const [audioLevel, setAudioLevel] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -19,31 +19,36 @@ const GameVideoSlot = ({ player, isMe, canVote, phaseSeconds, didIVote, onVoteCo
 
   // 복수 투표 방지 핸들러
   const handleVoteClick = () => {
-    if (didIVote) return; // 🚩 부모 상태가 true(이미 한 번 투표함)면 모달 안 열림
+    if (!player.isAlive) return; 
+    if (didIVote) return; 
     setIsModalOpen(true);
   };
 
   const handleVoteConfirm = () => {
     console.log(`${player.name}님에게 투표 완료!`);
-    onVoteComplete(); // 🚩 부모의 didIVote를 true로 바꿈 (모든 자식에게 전파)
+    onVoteComplete(player.userId); // 🚩 부모의 didIVote를 true로 바꿈 (모든 자식에게 전파)
     setIsModalOpen(false);
   };
 
   return (
-    <div className="relative w-full h-full min-h-[180px] bg-[#1a1a1a] rounded-xl overflow-hidden border-2 border-white/5 shadow-inner group">
+    <div className={`relative w-full h-full min-h-58 bg-[#1a1a1a] rounded-xl overflow-hidden border-2 transition-all duration-500
+      ${player.isAlive ? 'border-white/5' : 'border-red-900/50 grayscale opacity-60'} 
+      shadow-inner group`}>
       {/* 비디오 캔버스 */}
-      <VideoCanvas stream={player.stream} isMuted={isMe} photo={player.photo}/>
+      <div className="w-full h-full">
+        <VideoCanvas stream={player.stream} isMuted={isMe} photo={player.photo}/>
+      </div>
 
       {/* 투표 버튼 레이어 */}
-      {canVote && !isMe && (
+      {canVote && player.isAlive && !isMe && (
         <div className="absolute top-3 right-3 z-50">
           <button 
             onClick={handleVoteClick}
-            disabled={didIVote} // 🚩 이미 투표했다면 버튼 비활성화
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg 
+            disabled={didIVote} 
+            className={`w-12 h-12 rounded-full border-2 transition-all shadow-lg
               ${didIVote 
-                ? "bg-gray-700/50 border-gray-500 opacity-50 cursor-not-allowed" // 🚩 hasVoted 대신 didIVote 사용
-                : "bg-black/60 border-2 border-[#ff8a00] hover:scale-110 active:scale-95 shadow-[0_0_15px_rgba(255,138,0,0.3)]"
+                ? "bg-gray-800/80 border-gray-600 cursor-not-allowed" 
+                : "bg-black/60 border-[#ff8a00] hover:scale-110 active:scale-95 shadow-[0_0_15px_rgba(255,138,0,0.3)]"
               }`}
           >
             <span className={`text-[10px] font-black italic ${didIVote ? "text-gray-400" : "text-[#ff8a00]"}`}>
@@ -54,12 +59,12 @@ const GameVideoSlot = ({ player, isMe, canVote, phaseSeconds, didIVote, onVoteCo
       )}
 
       {/* 정보 오버레이 (하단) */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent flex justify-between items-end">
-        <div className="flex flex-col gap-1">
-          <span className="text-white text-sm font-bold bg-black/40 px-2 py-0.5 rounded">
-            {player.name} {isMe && "(나)"}
-          </span>
-        </div>
+      <div className="absolute bottom-2 left-2 right-2 z-20 flex justify-between items-end">
+          <div className="flex flex-col gap-1">
+            <span className="bg-black/60 px-2 py-0.5 rounded text-xs text-white w-fit">
+              {player.nickname} {isMe && "(나)"} {!player.isAlive && "💀"}
+            </span>
+          </div>
         
         {/* 오디오 레벨 바 */}
         <div className="flex items-end gap-[2px] h-4 mb-1">
@@ -84,7 +89,6 @@ const GameVideoSlot = ({ player, isMe, canVote, phaseSeconds, didIVote, onVoteCo
       <VoteConfirmModal 
         isOpen={isModalOpen}
         targetName={player.name}
-        phaseSeconds={phaseSeconds}
         onClose={() => setIsModalOpen(false)}
         onConfirm={handleVoteConfirm}
       />
