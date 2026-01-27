@@ -14,3 +14,5 @@ include 'adapter:out:openvidu'
 
 include 'adapter:out:gms'
 
+include 'adapter:out:mongo'
+

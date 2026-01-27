@@ -16,4 +16,6 @@ dependencies {
 
     runtimeOnly project(":adapter:out:gms")
 
+    runtimeOnly project(":adapter:out:mongo")
+
 }
