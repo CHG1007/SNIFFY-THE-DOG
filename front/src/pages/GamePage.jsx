@@ -4,6 +4,9 @@ import TimeScreen from '../components/game/TimeScreen';
 import DiscussionPage from './DiscussionPage';
 import RealVote from '../components/modals/RealVoteModal';
 import GameAlertModal from '../components/modals/GameAlertModal';
+import VoteConfirmModal from '../components/modals/VoteConfirmModal';
+import NothingHappenModal from '../components/modals/NothingHappenModal';
+
 
 // 초 단위를 "00:00" 형식으로 바꿔주는 유틸리티 함수
 const formatTime = (seconds) => {
@@ -17,6 +20,8 @@ const GamePage = ({ players = [], myId }) => {
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [phaseSeconds, setPhaseSeconds] = useState(0);
   const [didIVote, setDidIVote] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [isVoteModalOpen, setIsVoteModalOpen] = useState(false);
 
   // 1. 데이터 표준화(프론트-백엔드 구조 일치)
   const standardizedPlayers = useMemo(() => players.map(p => ({
@@ -108,6 +113,24 @@ const GamePage = ({ players = [], myId }) => {
 
   const capacity = standardizedPlayers.length; // 현재 인원수
 
+  const handleVoteClick = (player) => {
+    setSelectedPlayer(player); // 클릭한 유저 객체를 그대로 저장 (userId, nickname 등 포함)
+    setIsVoteModalOpen(true);
+  };
+
+  const handleVoteConfirm = () => {
+  if (didIVote || !selectedPlayer) return; // 혹시 모를 중복 실행 방지
+
+  console.log(`${selectedPlayer.nickname}님에게 최종 투표!`);
+  
+  // 투표 완료 상태로 변경 (이게 변하면 모든 Slot의 버튼이 DONE으로 바뀜)
+  setDidIVote(true); 
+  
+  // 확인 모달 닫기
+  setIsVoteModalOpen(false); 
+
+  // 백엔드 통신 로직 예정 (selectedPlayer.userId 사용)
+};
 
   return (
    <div className="h-[calc(100vh-60px)] w-full bg-[#0a0a0f] flex flex-col relative overflow-hidden">
@@ -119,20 +142,22 @@ const GamePage = ({ players = [], myId }) => {
         {gameStep === "DEFENSE" ? (
           <DiscussionPage roomSession={mockRoomSession} onTimeout={() => {}} />
         ) : (
-          <div className="flex flex-wrap justify-center content-center gap-4 w-full h-full">
+          <div className="flex flex-wrap justify-center content-center gap-6 w-full h-full">
             {standardizedPlayers.map((player) => (
               <div 
-                key={player.userId}
+                key={player.userId} 
+                player={player}
+                onVoteRequest={() => handleVoteClick(player)}
                 className={`flex-grow-0 flex-shrink-0 ${getFlexBasis(capacity)} min-w-[320px] transition-all duration-500`}
               >
               <div className="w-full h-full">  
                 <GameVideoSlot 
-                  player={player} 
-                  isMe={player.id === myId}
+                  key={player.userId}
+                  player={player}
+                  isMe={player.userId === myId} 
                   canVote={gameStep === "DAY_VOTE"}
-                  phaseSeconds={phaseSeconds}
                   didIVote={didIVote}
-                  onVoteComplete={() => setDidIVote(true)}
+                  onVoteRequest={() => handleVoteClick(player)}
                 />
               </div>
             </div>
@@ -141,11 +166,21 @@ const GamePage = ({ players = [], myId }) => {
         )}
 
         {/* --- 모달 시스템 (z-index 확인) --- */}
+
+        {/* 1단계: 낮 투표 확인 모달 (사용자 클릭 시 발생) */}
+        <VoteConfirmModal 
+          isOpen={isVoteModalOpen}
+          targetName={selectedPlayer?.nickname} // 선택된 유저의 닉네임 전달
+          phaseSeconds={phaseSeconds}
+          onClose={() => setIsVoteModalOpen(false)}
+          onConfirm={handleVoteConfirm}
+        />
+        {/* 2단계: 결과 안내 모달 (gameStep에 따라 자동 발생) */}
         {gameStep === "VOTE_RESULT" && (
           <GameAlertModal 
             title="VOTE RESULT"
             targetPlayer={standardizedPlayers[0]}
-            message="님이 피고인으로 지목되었습니다."
+            message="피고인으로 지목되었습니다."
           />
         )}
 
@@ -157,9 +192,11 @@ const GamePage = ({ players = [], myId }) => {
           <GameAlertModal 
             title="VERDICT"
             targetPlayer={standardizedPlayers[0]}
-            message="님이 찬반 투표 결과 처형되었습니다."
+            message="찬반 투표 결과 처형되었습니다."
           />
         )}
+        {/* 3단계: 아무 일도 없었을 때 (필요시) */}
+      {/* {gameStep === "NO_EVENT" && <NothingHappenModal onTimeout={...} />} */}
       </main>
       <div className={`absolute inset-0 -z-10 transition-colors duration-1000 ${gameStep === "NIGHT" ? "bg-blue-900/10" : "bg-orange-900/10"}`} />
     </div>
