@@ -4,12 +4,18 @@ import com.a407.sniffythedog.application.common.exception.ApplicationException;
 import com.a407.sniffythedog.application.common.exception.ExceptionType;
 import com.a407.sniffythedog.application.game.in.*;
 import com.a407.sniffythedog.application.game.out.GameMessagePort;
+import com.a407.sniffythedog.application.game.scheduler.PhaseScheduler;
+import com.a407.sniffythedog.application.game.scheduler.event.GameStartEvent;
+import com.a407.sniffythedog.application.game.scheduler.event.PhaseTimeoutEvent;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.PlayerState;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
+import com.a407.sniffythedog.domain.game.enums.RoomStatus;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
+import com.a407.sniffythedog.domain.game.vo.PhaseTiming;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -21,6 +27,9 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
+    private final PhaseScheduler phaseScheduler;
+
+    private static final PhaseTiming GAME_TIMING = new PhaseTiming(60, 30, 30, 15, 30);
 
     @Override
     public void execute(JoinRoomCommand command) {
@@ -170,24 +179,108 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
     }
 
     private void scheduleAutoStart(String roomCode, Long version) {
-        //todo: 스케줄러 취소
+
+        phaseScheduler.cancelSchedule(roomCode);
 
         gameMessagePort.sendToRoom(roomCode, "GAME_COUNTDOWN", Map.of("seconds", 3));
 
         Instant startTime = Instant.now().plusSeconds(3);
-        //todo: 스케줄러 등록
+        phaseScheduler.scheduleEvent(
+                roomCode,
+                startTime,
+                new GameStartEvent(roomCode, version)
+        );
+
     }
 
     private void cancelAutoStart(String roomCode){
-        boolean cancelled = true;//todo: 스케줄러 취소
+        boolean cancelled = phaseScheduler.cancelSchedule(roomCode);
 
         if (cancelled) {
 
-            // [알림] 방 전체에 "카운트다운 중단!" 전송 -> 프론트에서 카운트다운 UI 제거
             gameMessagePort.sendToRoom(roomCode, "GAME_COUNTDOWN_CANCELLED", Map.of(
                     "message", "플레이어가 준비를 취소하여 시작이 중단되었습니다."
             ));
         }
     }
+
+    @EventListener
+    public void handlePhaseTimeout(PhaseTimeoutEvent event){
+        advancePhase(event.roomCode(), event.version());
+    }
+
+    @EventListener
+    public void handleGameStart(GameStartEvent event) {
+        startGameByKey(event.roomCode(), event.version());
+    }
+
+    private void startGameByKey(String roomCode, long expectedVersion) {
+        RoomId roomId = new RoomId(roomCode);
+
+        try {
+            RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room -> {
+                if (room.getVersion() != expectedVersion) {
+                    return room;
+                }
+
+                room.startGame(GAME_TIMING);
+                return room;
+            });
+
+            if (updatedRoom.getVersion() != expectedVersion + 1) {
+                cancelAutoStart(roomCode);
+                return;
+            }
+
+            handlePhaseChangeMessages(updatedRoom, roomCode);
+
+        } catch (Exception e) {
+            gameMessagePort.sendToRoom(roomCode, "ERROR", Map.of("message", "게임 시작 중 오류가 발생했습니다."));
+        }
+    }
+
+    private void advancePhase(String roomCode, long expectedVersion) {
+        RoomId roomId = new RoomId(roomCode);
+        try {
+            RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room -> {
+
+                if (room.getVersion() != expectedVersion) {
+                    return room;
+                }
+
+                room.proceedToNextPhase(GAME_TIMING);
+                return room;
+            });
+
+
+            if (updatedRoom.getVersion() != expectedVersion+1) return;
+
+            handlePhaseChangeMessages(updatedRoom, roomCode);
+        } catch (Exception e) {
+            gameMessagePort.sendToRoom(roomCode, "ERROR", Map.of("message", "페이즈 전환 중 오류가 발생했습니다."));
+        }
+
+    }
+
+    private void handlePhaseChangeMessages(RoomSession room, String roomCode) {
+
+        if (room.getStatus() == RoomStatus.ENDED) {
+            //todo: 게임 종료
+            return;
+        }
+
+        Map<String, Object> phasePayload = Map.of(
+                "version", room.getVersion(),
+                "phase", room.getGameState().phase(),
+                "phaseEndsAt", room.getGameState().phaseEndsAt()
+        );
+        gameMessagePort.sendToRoom(roomCode, "PHASE_CHANGED", phasePayload);
+
+
+        phaseScheduler.scheduleEvent(roomCode, room.getGameState().phaseEndsAt(), new PhaseTimeoutEvent(roomCode, room.getVersion()));
+    }
+
+    //todo: 게임종료 메서드 추가
+
 
 }

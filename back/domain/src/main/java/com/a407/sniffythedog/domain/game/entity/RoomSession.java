@@ -147,6 +147,55 @@ public class RoomSession {
         touch();
     }
 
+    public void proceedToNextPhase(PhaseTiming timing) {
+        if (this.status != RoomStatus.PLAYING) return;
+
+        Phase currentPhase = gameState.phase();
+        Instant now = Instant.now();
+
+        switch (currentPhase) {
+            // 1. 낮(DAY) -> 투표(DAY_VOTE)
+            case DAY:
+                this.gameState = gameState
+                        .toPhase(Phase.DAY_VOTE, now.plusSeconds(timing.dayVoteSec()))
+                        .withDayVote(VoteState.empty());
+                break;
+
+            // 2. 투표(DAY_VOTE) -> 밤(NIGHT)
+            case DAY_VOTE:
+                this.gameState = gameState
+                        .toPhase(Phase.NIGHT, now.plusSeconds(timing.nightSec()))
+                        .withNight(NightState.empty());
+                break;
+
+            // 3. 최후변론(DEFENSE) -> 찬반투표(FINAL_VOTE)
+            case DEFENSE:
+                this.gameState = gameState
+                        .toPhase(Phase.FINAL_VOTE, now.plusSeconds(timing.finalVoteSec()));
+                break;
+
+            // 4. 찬반투표(FINAL_VOTE) -> 밤(NIGHT)
+            case FINAL_VOTE:
+                concludeTrial(); // 재판 종료 처리
+                this.gameState = gameState
+                        .toPhase(Phase.NIGHT, now.plusSeconds(timing.nightSec()))
+                        .withNight(NightState.empty());
+                break;
+
+            // 5. 밤(NIGHT) -> 다음 날 낮(DAY) [라운드 변경]
+            case NIGHT:
+                // 라운드 증가 + 모든 상태 초기화 + DAY로 시작
+                this.gameState = gameState.toNextRound(now.plusSeconds(timing.daySec()));
+                break;
+
+            default:
+                // 예외 발생 시 안전하게 다음 날로 이동
+                this.gameState = gameState.toNextRound(now.plusSeconds(timing.daySec()));
+        }
+
+        touch();
+    }
+
     private void assignRoles() {
         List<GameUserId> playerIds = new ArrayList<>(players.keySet());
         Collections.shuffle(playerIds);
