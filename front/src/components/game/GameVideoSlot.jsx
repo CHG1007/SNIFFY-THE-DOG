@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import VideoCanvas from "../video/VideoCanvas";
 import VoteConfirmModal from "../modals/VoteConfirmModal";
 
-const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteComplete }) => {
+const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteRequest }) => {
   const [audioLevel, setAudioLevel] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 🚩 [삭제] const [hasVoted, setHasVoted] = useState(false); 
   // 슬롯마다 따로 노는 상태 대신 부모가 준 didIVote를 사용해야 전원이 동시에 변합니다.
@@ -16,19 +15,6 @@ const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteComplete }) => {
     }, 100);
     return () => clearInterval(interval);
   }, []);
-
-  // 복수 투표 방지 핸들러
-  const handleVoteClick = () => {
-    if (!player.isAlive) return; 
-    if (didIVote) return; 
-    setIsModalOpen(true);
-  };
-
-  const handleVoteConfirm = () => {
-    console.log(`${player.name}님에게 투표 완료!`);
-    onVoteComplete(player.userId); // 🚩 부모의 didIVote를 true로 바꿈 (모든 자식에게 전파)
-    setIsModalOpen(false);
-  };
 
   return (
     <div className={`relative w-full h-full min-h-58 bg-[#1a1a1a] rounded-xl overflow-hidden border-2 transition-all duration-500
@@ -43,7 +29,7 @@ const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteComplete }) => {
       {canVote && player.isAlive && !isMe && (
         <div className="absolute top-3 right-3 z-50">
           <button 
-            onClick={handleVoteClick}
+            onClick={onVoteRequest}
             disabled={didIVote} 
             className={`w-12 h-12 rounded-full border-2 transition-all shadow-lg
               ${didIVote 
@@ -84,14 +70,6 @@ const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteComplete }) => {
           <span className="text-xl">🐾</span>
         </div>
       )}
-
-      {/* 투표 확인 모달 */}
-      <VoteConfirmModal 
-        isOpen={isModalOpen}
-        targetName={player.name}
-        onClose={() => setIsModalOpen(false)}
-        onConfirm={handleVoteConfirm}
-      />
     </div>
   );
 };

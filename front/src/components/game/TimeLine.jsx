@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 
 const TimeLine = ({ duration, onTimeout }) => {
   const [progress, setProgress] = useState(0);
+  const [displayTime, setDisplayTime] = useState(duration);
 
   useEffect(() => {
     // 100ms마다 게이지를 갱신하여 부드럽게 줄어들게 합니다.
-    const intervalTime = 100;
+    const intervalTime = 50;
     const totalSteps = (duration * 1000) / intervalTime;
     const stepSize = 100 / totalSteps;
 
@@ -16,6 +17,9 @@ const TimeLine = ({ duration, onTimeout }) => {
           if (onTimeout) onTimeout(); // 시간이 다 되면 콜백 실행
           return 100;
         }
+        const newLeft = Math.ceil(duration - (prev + stepSize) * duration / 100);
+        if (newLeft >= 0) setDisplayTime(newLeft);
+        
         return prev + stepSize;
       });
     }, intervalTime);
@@ -24,13 +28,17 @@ const TimeLine = ({ duration, onTimeout }) => {
   }, [duration, onTimeout]);
 
   return (
-    <div className="relative w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
-      <div 
-        className="h-full bg-[#ff8a00] transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(255,138,0,0.5)]"
-        style={{ width: `${progress}%` }} 
-      />
-      <div className="absolute right-0 -top-6 text-[#ff8a00] text-xs font-bold italic">
-        {duration}초 뒤 닫힙니다.
+    <div className="w-full flex flex-col gap-1.5">
+      <div className="flex justify-end pr-1">
+        <span className="text-gray-400 text-sm font-medium tabular-nums">
+          남은 시간 앞으로 {displayTime}초...
+        </span>
+      </div>
+      <div className="relative w-full h-2.5 bg-gray-800 rounded-full overflow-hidden border border-white/10">
+        <div 
+          className="h-full bg-gradient-to-r from-[#ff8a00] to-[#ff5f00] transition-all duration-75 ease-linear shadow-[0_0_20px_rgba(255,138,0,0.6)]"
+          style={{ width: `${progress}%` }} 
+        />
       </div>
     </div>
   );

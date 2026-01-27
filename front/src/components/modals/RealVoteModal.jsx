@@ -12,38 +12,57 @@ const RealVote = ({ accusedPlayer, onVoteComplete }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80">
-      <div className="bg-[#0f111a] p-8 rounded-2xl border-2 border-orange-500/50 text-center w-[400px]">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md">
+      <div className="w-full max-w-4xl px-10 flex flex-col items-center text-center">
+        {/* 상단 타이틀 */}
+        <h1 className="text-6xl font-black text-red-600 mb-12 tracking-widest drop-shadow-lg">
+          FINAL VOTE
+        </h1>
         {/* 피고인 정보 (2-2 PlayerState 활용) */}
-        <div className="mb-6">
-          <div className="w-20 h-20 mx-auto rounded-full border-2 border-orange-500 overflow-hidden mb-2">
-            <img src={accusedPlayer?.photo || "/assets/default.png"} alt="target" />
+        <div className="mb-10">
+          <div className="w-48 h-48 mx-auto rounded-full border-4 border-[#ff8a00] overflow-hidden mb-6 shadow-[0_0_30px_rgba(255,138,0,0.3)]">
+            <img 
+              src={accusedPlayer?.photo || "/assets/dog_character.png"} 
+              className="w-full h-full object-cover"
+              alt="accused" 
+            />
           </div>
-          <h2 className="text-white text-lg font-bold">
-            {accusedPlayer?.displayName}님을 처형하시겠습니까?
+          <h2 className="text-4xl text-white font-bold leading-tight">
+            <span className="text-[#ff8a00]">{accusedPlayer?.nickname}</span>님을 <br/>
+            <span className="text-3xl text-gray-300">처형하시겠습니까?</span>
           </h2>
         </div>
 
         {/* 투표 버튼 (2-5 YesNo Enum 기반) */}
-        <div className="flex gap-4 mb-8">
+        <div className="flex gap-8 w-full max-w-2xl mb-20">
           <button 
             disabled={hasVoted}
             onClick={() => handleVote('YES')}
-            className="flex-1 py-3 bg-orange-600 text-white font-black rounded-lg hover:bg-orange-700 disabled:opacity-50"
+            className={`flex-1 py-6 rounded-xl text-3xl font-black transition-all transform active:scale-95
+              ${hasVoted 
+                ? "bg-gray-800 text-gray-500 cursor-not-allowed" 
+                : "bg-orange-600 text-white hover:bg-orange-500 hover:shadow-[0_0_20px_rgba(234,88,12,0.5)]"
+              }`}
           >
-            찬성
+            {hasVoted ? "대기 중" : "찬 성"}
           </button>
           <button 
             disabled={hasVoted}
             onClick={() => handleVote('NO')}
-            className="flex-1 py-3 bg-gray-700 text-white font-black rounded-lg hover:bg-gray-800 disabled:opacity-50"
+            className={`flex-1 py-6 rounded-xl text-3xl font-black transition-all transform active:scale-95
+              ${hasVoted 
+                ? "bg-gray-800 text-gray-500 cursor-not-allowed" 
+                : "bg-gray-600 text-white hover:bg-gray-500"
+              }`}
           >
-            반대
+            {hasVoted ? "대기 중" : "반 대"}
           </button>
         </div>
 
         {/* 2초 타임라인 */}
-        <TimeLine duration={2} onTimeout={onVoteComplete} />
+        <div className="w-full max-w-2xl">
+          <TimeLine duration={5} onTimeout={onVoteComplete} />
+        </div>
       </div>
     </div>
   );
