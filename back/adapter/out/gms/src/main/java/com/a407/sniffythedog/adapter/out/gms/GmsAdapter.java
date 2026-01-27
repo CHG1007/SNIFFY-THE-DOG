@@ -23,7 +23,7 @@ public class GmsAdapter implements GmsPort {
     private String apiKey;
 
     @Override
-    public String analyze(String modelName, Map<String, Object> payload) {
+    public String analyze(String modelName, List<Map<String, Object>> payload) {
         String url = baseUrl + path;
 
         Map<String, Object> body = Map.of(
@@ -34,7 +34,7 @@ public class GmsAdapter implements GmsPort {
                                 너는 한국어를 사용하는 감정 분석가이며,
                                 다음은 5초간 수집된 사용자 감정 데이터이다.
                                 이 데이터를 기반으로 현재 사용자의 감정 상태 및 긴장도를 한 문장으로 요약하라."""),
-                        Map.of("role", "user", "content", "분석 데이터: " + payload.toString())
+                        Map.of("role", "user", "content", "분석 데이터: " + (payload != null ? payload.toString() : "전달된 데이터가 없습니다."))
                 )
         );
 
