@@ -5,6 +5,7 @@ import com.a407.sniffythedog.application.common.exception.ExceptionType;
 import com.a407.sniffythedog.application.game.in.*;
 import com.a407.sniffythedog.application.game.out.GameMessagePort;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
+import com.a407.sniffythedog.domain.game.entity.PlayerState;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
@@ -15,7 +16,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class GameService implements JoinRoomUseCase, LeaveRoomUseCase {
+public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase {
 
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
@@ -96,5 +97,27 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase {
             gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_LEFT", leaveMessage);
 
         }
+    }
+
+    @Override
+    public void execute(SyncRoomCommand command) {
+        String roomCode = command.roomCode();
+        Long userId = command.userId();
+        String requestId = command.requestId();
+
+        RoomSession room = redisRoomPort.loadRoom(RoomId.of(roomCode))
+                .orElseThrow(() -> ApplicationException.of(ExceptionType.ROOM_NOT_FOUND));
+
+        GameUserId gameUserId = new GameUserId(userId);
+        PlayerState myPlayer = room.getPlayer(gameUserId);
+
+        if(myPlayer == null){
+            throw ApplicationException.of(ExceptionType.FORBIDDEN);
+        }
+
+        RoomState roomState = RoomState.from(room);
+        RoomSnapshot snapshot = RoomSnapshot.of(roomState, myPlayer);
+        gameMessagePort.sendToUser(String.valueOf(userId), roomCode, requestId, "ROOM_SNAPSHOT", snapshot);
+
     }
 }

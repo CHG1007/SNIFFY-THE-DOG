@@ -1,10 +1,8 @@
 package com.a407.sniffythedog.adapter.in.room;
 
 import com.a407.sniffythedog.adapter.in.room.request.JoinRequest;
-import com.a407.sniffythedog.application.game.in.JoinRoomCommand;
-import com.a407.sniffythedog.application.game.in.JoinRoomUseCase;
-import com.a407.sniffythedog.application.game.in.LeaveRoomCommand;
-import com.a407.sniffythedog.application.game.in.LeaveRoomUseCase;
+import com.a407.sniffythedog.adapter.in.room.request.SyncRequest;
+import com.a407.sniffythedog.application.game.in.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -20,6 +18,7 @@ public class GameSocketController {
 
     private final JoinRoomUseCase joinRoomUseCase;
     private final LeaveRoomUseCase leaveRoomUseCase;
+    private final SyncRoomUseCase syncRoomUseCase;
 
     @MessageMapping("/rooms/{roomCode}/join")
     public void joinRoom(@DestinationVariable String roomCode,
@@ -43,5 +42,21 @@ public class GameSocketController {
 
         LeaveRoomCommand command = new LeaveRoomCommand(roomCode, userId);
         leaveRoomUseCase.execute(command);
+    }
+
+    @MessageMapping("/rooms/{roomCode}/sync")
+    public void sync(@DestinationVariable String roomCode,
+                     @Payload SyncRequest request,
+                     Principal principal){
+        Long userId = Long.parseLong(principal.getName());
+
+        SyncRoomCommand command = new SyncRoomCommand(
+                roomCode,
+                userId,
+                request.requestId(),
+                request.lastKnownVersion()
+        );
+        syncRoomUseCase.execute(command);
+
     }
 }
