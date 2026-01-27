@@ -119,7 +119,7 @@ public class SocketChannelInterceptor implements ChannelInterceptor {
             if (auth == null) {
                 throw new IllegalArgumentException("Unauthenticated user trying to subscribe");
             }
-            
+
             validateMafiaSubscription(auth, roomCode);
         }
     }
