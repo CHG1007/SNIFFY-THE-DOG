@@ -121,11 +121,29 @@ deploy_develop:
         cd '$DEPLOY_PATH'
         docker load -i backend_${IMAGE_TAG}.tar
         docker load -i nginx_${IMAGE_TAG}.tar
-        docker compose up -d --no-recreate mysql redis mongodb openvidu
-        docker rm -f backend nginx 2>/dev/null || true
-        docker compose up -d --no-deps backend nginx
+        docker compose up -d --no-recreate mysql redis mongodb
+        docker rm -f backend nginx openvidu 2>/dev/null || true
+        docker compose up -d --no-deps backend nginx openvidu
         docker image prune -f
         rm -f *.tar
+
+        # 컨테이너 health check (30초 대기)
+        echo 'Waiting for backend to be healthy...'
+        for i in \$(seq 1 30); do
+          if docker ps --filter 'name=backend' --filter 'status=running' | grep -q backend; then
+            echo 'Backend is running, checking health...'
+            sleep 5
+            if docker ps --filter 'name=backend' --filter 'status=running' | grep -q backend; then
+              echo 'Backend health check passed!'
+              exit 0
+            fi
+          fi
+          echo \"Attempt \$i/30: Backend not ready yet...\"
+          sleep 1
+        done
+        echo 'Backend failed to start!'
+        docker logs backend --tail 50
+        exit 1
       "
 
   needs:
