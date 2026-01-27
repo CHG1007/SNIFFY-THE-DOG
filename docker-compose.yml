@@ -39,7 +39,7 @@ services:
       KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY}
       KAKAO_JS_KEY: ${KAKAO_JS_KEY}
       JWT_SECRET: ${JWT_SECRET}
-
+      GMS_API_KEY: ${GMS_API_KEY}
 
       SPRING_DATA_REDIS_HOST: redis
       OPENVIDU_URL: https://openvidu:4443
