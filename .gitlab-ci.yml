@@ -89,6 +89,9 @@ deploy_develop:
       MYSQL_DATABASE=$MYSQL_DATABASE
       MYSQL_USER=$MYSQL_USER
       MYSQL_PASSWORD=$MYSQL_PASSWORD
+      MONGO_USER=$MONGO_USER
+      MONGO_PASSWORD=$MONGO_PASSWORD
+      MONGO_DATABASE=$MONGO_DATABASE
       KAKAO_REST_API_KEY=$KAKAO_REST_API_KEY
       KAKAO_JS_KEY=$KAKAO_JS_KEY
       JWT_SECRET=$JWT_SECRET
@@ -107,7 +110,7 @@ deploy_develop:
         cd '$DEPLOY_PATH'
         docker load -i backend_${IMAGE_TAG}.tar
         docker load -i nginx_${IMAGE_TAG}.tar
-        docker compose up -d --no-recreate mysql redis openvidu
+        docker compose up -d --no-recreate mysql redis mongodb openvidu
         docker rm -f backend nginx 2>/dev/null || true
         docker compose up -d --no-deps backend nginx
         docker image prune -f
