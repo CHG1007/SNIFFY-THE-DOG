@@ -25,4 +25,6 @@ dist-ssr
 
 ### 문서 ###
 docs/
+fronttree.txt
 .env
+.env.local
