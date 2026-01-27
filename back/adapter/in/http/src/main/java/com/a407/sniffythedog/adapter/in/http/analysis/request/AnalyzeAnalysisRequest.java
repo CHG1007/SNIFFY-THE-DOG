@@ -1,11 +1,16 @@
 package com.a407.sniffythedog.adapter.in.http.analysis.request;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.List;
 import java.util.Map;
 
+@Getter
+@Setter
 public class AnalyzeAnalysisRequest {
-    private Map<String, Object> payload;
+    private List<Map<String, Object>> frames;
 
     public AnalyzeAnalysisRequest() {}
-    public Map<String, Object> getPayload() { return payload; }
+    public List<Map<String, Object>> getPayload() { return frames; }
 }

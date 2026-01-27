@@ -7,6 +7,7 @@ import com.a407.sniffythedog.domain.analysis.enums.AiModel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -14,8 +15,8 @@ import java.util.Map;
 public class AnalysisService {
     private final GmsPort gmsPort;
 
-    public AnalysisResult analyze(Map<String, Object> payload) {
-        String text = gmsPort.analyze(AiModel.GPT_5_NANO.name(), payload);
+    public AnalysisResult analyze(List<Map<String, Object>> payload) {
+        String text = gmsPort.analyze(AiModel.GPT_5_NANO.getCode(), payload);
         return new AnalysisResult(text, System.currentTimeMillis());
     }
 }

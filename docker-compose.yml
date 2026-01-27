@@ -37,6 +37,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       OPENVIDU_URL: https://openvidu:4443
       OPENVIDU_SECRET: ${OPENVIDU_SECRET}
+      GMS_API_KEY: ${GMS_API_KEY}
     depends_on:
       - mysql
       - redis
