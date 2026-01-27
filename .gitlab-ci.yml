@@ -125,7 +125,7 @@ deploy_develop:
         docker rm -f backend nginx 2>/dev/null || true
         docker compose up -d --no-deps backend nginx
         docker image prune -f
-        rm -f backend_${IMAGE_TAG}.tar nginx_${IMAGE_TAG}.tar
+        rm -f *.tar
       "
 
   needs:
