@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @Configuration
 @EnableJpaRepositories(basePackages = "com.a407.sniffythedog.adapter.out.rdb")
 @EntityScan(basePackages = "com.a407.sniffythedog.adapter.out.rdb")
-public class JpaConfig {
+public class RdbConfig {
 }

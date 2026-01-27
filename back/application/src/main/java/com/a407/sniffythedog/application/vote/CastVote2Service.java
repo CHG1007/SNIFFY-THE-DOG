@@ -1,0 +1,139 @@
+package com.a407.sniffythedog.application.vote;
+
+import com.a407.sniffythedog.application.common.exception.ApplicationException;
+import com.a407.sniffythedog.application.common.exception.ExceptionType;
+import com.a407.sniffythedog.application.room.out.RedisRoomPort;
+import com.a407.sniffythedog.application.vote.in.CastVote2Command;
+import com.a407.sniffythedog.application.vote.in.CastVote2UseCase;
+import com.a407.sniffythedog.application.vote.out.RoomEventPort;
+import com.a407.sniffythedog.domain.game.entity.PlayerState;
+import com.a407.sniffythedog.domain.game.entity.RoomSession;
+import com.a407.sniffythedog.domain.game.enums.FinalVoteResult;
+import com.a407.sniffythedog.domain.game.enums.RoomStatus;
+import com.a407.sniffythedog.domain.game.enums.YesNo;
+import com.a407.sniffythedog.domain.game.vo.FinalVoteState;
+import com.a407.sniffythedog.domain.game.vo.GameUserId;
+import com.a407.sniffythedog.domain.game.vo.RoomId;
+import com.a407.sniffythedog.domain.game.vo.TrialState;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+public class CastVote2Service implements CastVote2UseCase {
+
+    private final RedisRoomPort redisRoomPort;
+    private final RoomEventPort roomEventPort;
+
+    @Override
+    public void execute(CastVote2Command command) {
+
+        RoomId roomId = RoomId.of(command.roomCode());
+        GameUserId voterId = GameUserId.of(command.voterUserId());
+        YesNo vote = command.vote();
+
+        final ResultHolder holder = new ResultHolder();
+
+        RoomSession updated = redisRoomPort.updateRoomAtomically(roomId, room -> {
+
+            // 방상태가 PLAYING 중인지
+            if (room.getStatus() != RoomStatus.PLAYING) {
+                throw ApplicationException.of(ExceptionType.ROOM_NOT_JOINABLE);
+            }
+
+            // 재판단계인지
+            TrialState trial = room.getGameState().trial();
+            if (!trial.hasAccused()) {
+                throw ApplicationException.of(ExceptionType.INVALID_PHASE);
+            }
+
+            // 방에 없는 유저거나 죽은 유저면 투표 못하게 처리
+            PlayerState voter = room.getPlayers().get(voterId);
+            if (voter == null || !voter.isAlive()) {
+                throw ApplicationException.of(ExceptionType.NOT_ALLOWED);
+            }
+
+            // 중복 투표 방지
+            if (trial.finalVote().getVote(voterId).isPresent()) {
+                throw ApplicationException.of(ExceptionType.ALREADY_VOTED);
+            }
+
+            // 투표 반영
+            room.castFinalVote(voterId, vote);
+
+            // 전원 투표 완료 시 판결
+            long aliveCount = room.getPlayers().values()
+                    .stream().filter(PlayerState::isAlive).count();
+
+            int totalVotes = room.getGameState().trial()
+                    .finalVote().votes().size();
+
+            if (totalVotes == aliveCount) {
+
+                // 판결 확정
+                room.concludeTrial();
+
+                FinalVoteState finalVote = room.getGameState().trial().finalVote();
+                GameUserId accused = room.getGameState().trial().accusedUserId();
+
+                holder.approved = finalVote.result() == FinalVoteResult.EXECUTE;
+                holder.yes = finalVote.getYesCount();
+                holder.no = finalVote.getNoCount();
+                holder.executedUserId = accused == null ? null : accused.value();
+
+                // 처형
+                if (holder.approved && accused != null) {
+                    room.killPlayer(accused);
+                    holder.killed = true;
+                }
+            }
+
+            return room;
+        });
+
+        // 투표 진행 알림
+        roomEventPort.publishVote2Update(
+                command.roomCode(),
+                updated.getVersion(),
+                command.voterUserId(),
+                true
+        );
+
+        // 판결 결과 알림
+        if (holder.resolved()) {
+
+            roomEventPort.publishVote2Result(
+                    command.roomCode(),
+                    updated.getVersion(),
+                    holder.approved,
+                    holder.executedUserId,
+                    holder.yes,
+                    holder.no
+            );
+
+            if (holder.killed) {
+                roomEventPort.publishPlayerStatusChanged(
+                        command.roomCode(),
+                        updated.getVersion(),
+                        holder.executedUserId,
+                        false,
+                        "VOTE_EXECUTION"
+                );
+            }
+        }
+    }
+
+    private static class ResultHolder {
+        boolean approved;
+        long yes;
+        long no;
+        Long executedUserId;
+        boolean killed;
+
+        boolean resolved() {
+            return executedUserId != null;
+        }
+    }
+}
