@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase, SetReadyUseCase {
+public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase, SetReadyUseCase, KickUserUseCase {
 
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
@@ -371,6 +371,71 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                 room.getGameState().phaseEndsAt(),
                 new PhaseTimeoutEvent(roomCode, room.getVersion())
         );
+    }
+
+    @Override
+    public void execute(KickUserCommand command) {
+        String roomCode = command.roomCode();
+        Long hostUserId = command.hostUserId();
+        Long targetUserId = command.targetUserId();
+        String requestId = command.requestId();
+
+        RoomId roomId = new RoomId(roomCode);
+        GameUserId hostId = new GameUserId(hostUserId);
+        GameUserId targetId = new GameUserId(targetUserId);
+        try{
+            RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room ->{
+                if(!room.getHostUserId().equals(hostId)){
+                    throw ApplicationException.of(ExceptionType.FORBIDDEN, "방장만 강퇴할 수 있습니다");
+                }
+                if (room.getStatus() != RoomStatus.WAITING) {
+                    throw ApplicationException.of(ExceptionType.INVALID_GAME_STATE, "게임 대기 중에만 강퇴할 수 있습니다.");
+                }
+                if (hostId.equals(targetId)) {
+                    throw ApplicationException.of(ExceptionType.INVALID_REQUEST, "자기 자신을 강퇴할 수 없습니다.");
+                }
+
+                room.leavePlayer(targetId);
+
+                return room;
+            });
+
+            gameMessagePort.sendToUser(
+                    String.valueOf(targetUserId),
+                    roomCode,
+                    requestId,
+                    "KICKED",
+                    Map.of("reason", "방장에 의해 강퇴되었습니다.")
+            );
+            RoomState roomState = RoomState.from(updatedRoom);
+            Map<String, Object> leaveMessage = Map.of(
+                    "version", updatedRoom.getVersion(),
+                    "userId", targetUserId,
+                    "roomState", roomState
+            );
+            gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_LEFT", leaveMessage);
+
+            if (!updatedRoom.canStart()) {
+                cancelAutoStart(roomCode);
+            }
+
+        } catch (ApplicationException e){
+            gameMessagePort.sendToUser(
+                    String.valueOf(hostUserId),
+                    roomCode,
+                    requestId,
+                    "ERROR",
+                    Map.of("message", e.getMessage())
+            );
+        } catch (Exception e) {
+            gameMessagePort.sendToUser(
+                    String.valueOf(hostUserId),
+                    roomCode,
+                    requestId,
+                    "ERROR",
+                    Map.of("message", "강퇴 처리 중 오류가 발생했습니다.")
+            );
+        }
     }
 
     //todo: 게임종료 메서드 추가
