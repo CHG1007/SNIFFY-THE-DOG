@@ -2,6 +2,7 @@ package com.a407.sniffythedog.adapter.in.common.room;
 
 import com.a407.sniffythedog.adapter.in.common.room.message.*;
 import com.a407.sniffythedog.adapter.in.http.room.response.GameFinishedMessage;
+import com.a407.sniffythedog.adapter.in.http.room.response.RoomPlayerLeftMessage;
 import com.a407.sniffythedog.application.game.in.RoomState;
 import com.a407.sniffythedog.application.vote.out.RoomEventPort;
 import lombok.RequiredArgsConstructor;
