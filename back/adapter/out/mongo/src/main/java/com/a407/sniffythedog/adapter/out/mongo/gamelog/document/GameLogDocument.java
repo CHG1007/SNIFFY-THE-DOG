@@ -148,7 +148,17 @@ public class GameLogDocument {
         private Long actorUserId;
         private Long targetUserId;
         private Boolean voteResult;
+        private Boolean isMafia;
         private Instant timestamp;
+
+        private Long mafiaTargetUserId;
+        private Long doctorTargetUserId;
+        private Long killedUserId;
+        private Boolean saved;
+
+        private String phase;
+        private String winnerTeam;
+
 
         public GameEventDoc() {
         }
@@ -163,52 +173,44 @@ public class GameLogDocument {
             this.timestamp = timestamp;
         }
 
-        public String getType() {
-            return type;
-        }
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
 
-        public void setType(String type) {
-            this.type = type;
-        }
+        public int getRound() { return round; }
+        public void setRound(int round) { this.round = round; }
 
-        public int getRound() {
-            return round;
-        }
+        public Long getActorUserId() { return actorUserId; }
+        public void setActorUserId(Long actorUserId) { this.actorUserId = actorUserId; }
 
-        public void setRound(int round) {
-            this.round = round;
-        }
+        public Long getTargetUserId() { return targetUserId; }
+        public void setTargetUserId(Long targetUserId) { this.targetUserId = targetUserId; }
 
-        public Long getActorUserId() {
-            return actorUserId;
-        }
+        public Boolean getVoteResult() { return voteResult; }
+        public void setVoteResult(Boolean voteResult) { this.voteResult = voteResult; }
 
-        public void setActorUserId(Long actorUserId) {
-            this.actorUserId = actorUserId;
-        }
+        public Boolean getIsMafia() { return isMafia; }
+        public void setIsMafia(Boolean isMafia) { this.isMafia = isMafia; }
 
-        public Long getTargetUserId() {
-            return targetUserId;
-        }
 
-        public void setTargetUserId(Long targetUserId) {
-            this.targetUserId = targetUserId;
-        }
+        public Long getMafiaTargetUserId() { return mafiaTargetUserId; }
+        public void setMafiaTargetUserId(Long mafiaTargetUserId) { this.mafiaTargetUserId = mafiaTargetUserId; }
 
-        public Boolean getVoteResult() {
-            return voteResult;
-        }
+        public Long getDoctorTargetUserId() { return doctorTargetUserId; }
+        public void setDoctorTargetUserId(Long doctorTargetUserId) { this.doctorTargetUserId = doctorTargetUserId; }
 
-        public void setVoteResult(Boolean voteResult) {
-            this.voteResult = voteResult;
-        }
+        public Long getKilledUserId() { return killedUserId; }
+        public void setKilledUserId(Long killedUserId) { this.killedUserId = killedUserId; }
 
-        public Instant getTimestamp() {
-            return timestamp;
-        }
+        public Boolean getSaved() { return saved; }
+        public void setSaved(Boolean saved) { this.saved = saved; }
 
-        public void setTimestamp(Instant timestamp) {
-            this.timestamp = timestamp;
-        }
+        public String getPhase() { return phase; }
+        public void setPhase(String phase) { this.phase = phase; }
+
+        public String getWinnerTeam() { return winnerTeam; }
+        public void setWinnerTeam(String winnerTeam) { this.winnerTeam = winnerTeam; }
+
+        public Instant getTimestamp() { return timestamp; }
+        public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
     }
 }
