@@ -18,7 +18,6 @@ import com.a407.sniffythedog.domain.game.vo.TrialState;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -87,6 +86,11 @@ public class CastVote2Service implements CastVote2UseCase {
                 if (holder.approved && accused != null) {
                     room.killPlayer(accused);
                     holder.killed = true;
+
+                    room.checkAndEndIfGameOver().ifPresent(winner -> {
+                        holder.finished = true;
+                        holder.winnerTeam = winner.name();
+                    });
                 }
             }
 
@@ -122,6 +126,15 @@ public class CastVote2Service implements CastVote2UseCase {
                         "VOTE_EXECUTION"
                 );
             }
+
+            if (holder.finished) {
+                roomEventPort.publishGameFinished(
+                        command.roomCode(),
+                        updated.getVersion(),
+                        holder.winnerTeam,
+                        null
+                );
+            }
         }
     }
 
@@ -131,6 +144,9 @@ public class CastVote2Service implements CastVote2UseCase {
         long no;
         Long executedUserId;
         boolean killed;
+
+        boolean finished;
+        String winnerTeam;
 
         boolean resolved() {
             return executedUserId != null;

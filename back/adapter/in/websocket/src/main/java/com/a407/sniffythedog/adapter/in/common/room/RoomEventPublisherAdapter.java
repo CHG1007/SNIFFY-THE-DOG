@@ -1,14 +1,13 @@
 package com.a407.sniffythedog.adapter.in.common.room;
 
+import com.a407.sniffythedog.adapter.in.common.room.message.*;
+import com.a407.sniffythedog.adapter.in.http.room.response.GameFinishedMessage;
+import com.a407.sniffythedog.application.game.in.RoomState;
 import com.a407.sniffythedog.application.vote.out.RoomEventPort;
-import com.a407.sniffythedog.adapter.in.common.room.message.PlayerStatusChangedMessage;
-import com.a407.sniffythedog.adapter.in.common.room.message.Vote1ResultMessage;
-import com.a407.sniffythedog.adapter.in.common.room.message.Vote1UpdateMessage;
-import com.a407.sniffythedog.adapter.in.common.room.message.Vote2ResultMessage;
-import com.a407.sniffythedog.adapter.in.common.room.message.Vote2UpdateMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
+import java.time.OffsetDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -61,6 +60,38 @@ public class RoomEventPublisherAdapter implements RoomEventPort {
                 isAlive,
                 reason
         );
+        messagingTemplate.convertAndSend(topic(roomCode), payload);
+    }
+
+    @Override
+    public void publishGameFinished(String roomCode, long version, String winnerTeam, Long mvpUserId) {
+        GameFinishedMessage payload = GameFinishedMessage.builder()
+                .type("GAME_FINISHED")
+                .roomCode(roomCode)
+                .version(version)
+                .timestamp(OffsetDateTime.now())
+                .data(GameFinishedMessage.Data.builder()
+                        .winnerTeam(winnerTeam)
+                        .mvpUserId(mvpUserId)
+                        .build())
+                .build();
+
+        messagingTemplate.convertAndSend(topic(roomCode), payload);
+    }
+
+    @Override
+    public void publishRoomPlayerLeft(String roomCode, long version, Long userId, RoomState roomState) {
+        RoomPlayerLeftMessage payload = RoomPlayerLeftMessage.builder()
+                .type("ROOM_PLAYER_LEFT")
+                .roomCode(roomCode)
+                .version(version)
+                .timestamp(OffsetDateTime.now())
+                .data(RoomPlayerLeftMessage.Data.builder()
+                        .userId(userId)
+                        .roomState(roomState)
+                        .build())
+                .build();
+
         messagingTemplate.convertAndSend(topic(roomCode), payload);
     }
 }

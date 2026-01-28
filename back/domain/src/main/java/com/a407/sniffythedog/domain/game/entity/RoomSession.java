@@ -345,8 +345,20 @@ public class RoomSession {
                 .noneMatch(PlayerState::isMafia);
     }
 
+    // 게임 판정
     public boolean isGameOver() {
         return isMafiaWin() || isCitizenWin();
+    }
+
+    // 커밋 반영을 위해서 게임 오버 쳌크
+    // Optional<Winner>로 반환값을 둬서 게임이 끝나지 않았을떄는 empty , 끝나면 winner 반환
+    public Optional<Winner> checkAndEndIfGameOver() {
+        if (this.status == RoomStatus.ENDED) return Optional.empty();
+        if (!isGameOver()) return Optional.empty();
+
+        Winner winner = isCitizenWin() ? Winner.CITIZEN : Winner.MAFIA;
+        endGame(); // status=ENDED, endedAt, touch()
+        return Optional.of(winner);
     }
 
     private void touch() {

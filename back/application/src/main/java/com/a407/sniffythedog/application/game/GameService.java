@@ -115,30 +115,119 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
     public void execute(LeaveRoomCommand command) {
         String roomCode = command.roomCode();
         Long userId = command.userId();
-        RoomId roomId = new RoomId(roomCode);
+
+        RoomId roomId = RoomId.of(roomCode);
         GameUserId gameUserId = new GameUserId(userId);
 
-        RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room -> {
-            room.leavePlayer(gameUserId);
+        final LeaveHolder holder = new LeaveHolder();
+
+        RoomSession updated = redisRoomPort.updateRoomAtomically(roomId, room -> {
+
+            // 방에 없는 사람 방지
+            PlayerState player = room.getPlayer(gameUserId);
+            if (player == null) {
+                throw ApplicationException.of(ExceptionType.NOT_IN_ROOM); // 없으면 BAD_REQUEST로 바꿔도 됨
+            }
+
+            // WAITING: 그냥 제거
+            if (room.getStatus() == RoomStatus.WAITING) {
+                room.leavePlayer(gameUserId);
+                holder.leftUserId = userId;
+            }
+
+            // PLAYING: 탈주 = 사망 처리
+            else if (room.getStatus() == RoomStatus.PLAYING) {
+                // 살아있으면 죽이고(이미 죽은 사람이면 그냥 넘어감)
+                if (player.isAlive()) {
+                    room.killPlayer(gameUserId);
+                    holder.killed = true;
+                    holder.killedUserId = userId;
+                    holder.killReason = "DISCONNECTED";
+                }
+
+                // 방장이 나가면 위임 (게임 중이면 host 유지하면 곤란할 수 있음)
+                if (room.getHostUserId().equals(gameUserId)) {
+                    // 남아있는 사람 중 한 명에게 위임
+                    GameUserId newHost = room.getPlayers().keySet().stream()
+                            .filter(id -> !id.equals(gameUserId))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (newHost != null) {
+                        room.transferHost(newHost);
+                    }
+                }
+
+                holder.leftUserId = userId;
+
+                // 승리 체크 + 종료 반영
+                room.checkAndEndIfGameOver().ifPresent(winner -> {
+                    holder.finished = true;
+                    holder.winnerTeam = winner.name();
+                });
+            }
+            else {
+                throw ApplicationException.of(ExceptionType.ROOM_NOT_JOINABLE);
+            }
+
+            if (room.getPlayerCount() == 0) {
+                holder.deleteRoom = true;
+            }
+
             return room;
         });
 
-
-        if (updatedRoom.getPlayerCount() == 0) {
+        if (holder.deleteRoom) {
             redisRoomPort.deleteRoom(roomCode);
-            //todo: 스케줄러 취소
-        } else {
+            // todo: 스케줄러 취소
+            return;
+        }
 
-            RoomState roomState = RoomState.from(updatedRoom);
-            Map<String, Object> leaveMessage = Map.of(
-                    "version", updatedRoom.getVersion(),
-                    "userId", userId,
-                    "roomState", roomState
+        RoomState roomState = RoomState.from(updated);
+
+        // 1) 나감 브로드캐스트
+        Map<String, Object> leaveMessage = Map.of(
+                "version", updated.getVersion(),
+                "userId", userId,
+                "roomState", roomState
+        );
+        gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_LEFT", leaveMessage);
+
+        // 2) 게임 중 탈주를 사망 처리했다면 상태 변경 이벤트도 같이
+        if (holder.killed) {
+            Map<String, Object> statusMsg = Map.of(
+                    "version", updated.getVersion(),
+                    "userId", holder.killedUserId,
+                    "isAlive", false,
+                    "reason", holder.killReason
             );
+            gameMessagePort.sendToRoom(roomCode, "PLAYER_STATUS_CHANGED", statusMsg);
+        }
 
-            gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_LEFT", leaveMessage);
+        // 3) 종료면 GAME_FINISHED
+        if (holder.finished) {
+            Map<String, Object> finishedMsg = Map.of(
+                    "version", updated.getVersion(),
+                    "winnerTeam", holder.winnerTeam,
+                    "mvpUserId", null
+            );
+            gameMessagePort.sendToRoom(roomCode, "GAME_FINISHED", finishedMsg);
         }
     }
+
+    private static class LeaveHolder {
+        Long leftUserId;
+
+        boolean killed;
+        Long killedUserId;
+        String killReason;
+
+        boolean finished;
+        String winnerTeam;
+
+        boolean deleteRoom;
+    }
+
 
     @Override
     public void execute(SyncRoomCommand command) {
@@ -438,9 +527,5 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
         }
     }
 
-    //todo: 게임종료 메서드 추가
-    //게임 종료시 redis에 있는 로그 mongoDB로 로그 전송
-
-
-
+    //todo: 게임종료 메서드 추가 게임 종료시 redis에 있는 로그 mongoDB로 로그 전송
 }

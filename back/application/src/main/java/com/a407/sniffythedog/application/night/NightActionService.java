@@ -5,6 +5,7 @@ import com.a407.sniffythedog.application.common.exception.ExceptionType;
 import com.a407.sniffythedog.application.night.in.*;
 import com.a407.sniffythedog.application.night.out.NightEventPort;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
+import com.a407.sniffythedog.application.vote.out.RoomEventPort;
 import com.a407.sniffythedog.domain.game.entity.*;
 import com.a407.sniffythedog.domain.game.enums.GameRole;
 import com.a407.sniffythedog.domain.game.enums.Phase;
@@ -21,12 +22,14 @@ public class NightActionService implements
 
     private final RedisRoomPort redisRoomPort; // 원자적으로 수정할 떄 사용
     private final NightEventPort eventPort; // WS 메세지 발행 전용 포트
+    private final RoomEventPort roomEventPort;
 
     private final NightResolver resolver = new NightResolver(); // 밤 정산 하는 것
 
-    public NightActionService(RedisRoomPort redisRoomPort, NightEventPort eventPort) {
+    public NightActionService(RedisRoomPort redisRoomPort, NightEventPort eventPort, RoomEventPort roomEventPort) {
         this.redisRoomPort = redisRoomPort;
         this.eventPort = eventPort;
+        this.roomEventPort = roomEventPort;
     }
 
     // 마피아 확정
@@ -111,6 +114,8 @@ public class NightActionService implements
     public void resolve(String roomCode) {
         RoomId roomId = RoomId.of(roomCode);
 
+        final ResolveHolder holder = new ResolveHolder();
+
         RoomSession updated = redisRoomPort.updateRoomAtomically(roomId, room -> {
             requireNight(room);
 
@@ -124,47 +129,62 @@ public class NightActionService implements
 
             // 죽어야하는 사람 , 의사가 막았는지 들어있음
             NightResolutionResult result = resolver.resolve(temp);
+            holder.saved = result.saved();
 
             // 결과 반영
             if (result.killedUserId() != null) {
+                holder.killedUserId = result.killedUserId();
+                holder.killed = true;
                 room.killPlayer(result.killedUserId());
             }
 
-            // 다음 페이즈로
-            Instant endsAt = Instant.now().plus(120, ChronoUnit.SECONDS);
-            room.transitionToPhase(Phase.DAY, endsAt);
+            // 승리 체크 + 종료 반영
+            room.checkAndEndIfGameOver().ifPresent(winner->{
+                holder.finished = true;
+                holder.winnerTeam = winner.name();
+            });
+
+            if (!holder.finished) {
+                Instant endsAt = Instant.now().plus(120, ChronoUnit.SECONDS);
+                // 일단 DAY PHASE 120으로 설정해놨는데 (2분 ..)
+                // 나중에 하드 코딩 말고 바꾸기
+                //TODO: 하드 코딩 말고 시간 초 바꾸기
+                room.transitionToPhase(Phase.DAY, endsAt);
+                holder.phaseChanged = true;
+                holder.phase = Phase.DAY;
+                holder.phaseEndsAt = endsAt;
+            }
 
             return room;
         });
 
-        // Atomically에서 만든 result 밖으로 가져올 수 없어서 이벤트에 쓰는 방식
-        GameUserId mafiaTarget = updated.getGameState().night().mafiaTargetUserId();
-        GameUserId doctorTarget = updated.getGameState().night().doctorTargetUserId();
+        eventPort.nightResolved(roomCode, updated.getVersion(), holder.killedUserId, holder.saved);
 
-        RoomNightState temp = new RoomNightState();
-        if (mafiaTarget != null) temp.lockMafiaTarget(mafiaTarget);
-        if (doctorTarget != null) temp.setDoctorTarget(doctorTarget);
-
-        NightResolutionResult result = resolver.resolve(temp);
-
-        eventPort.nightResolved(roomCode, updated.getVersion(), result.killedUserId(), result.saved());
-
-        if (result.killedUserId() != null) {
+        // 2) 사망자 있으면 상태 변경 알림
+        if (holder.killed) {
             eventPort.playerStatusChanged(
                     roomCode,
                     updated.getVersion(),
-                    result.killedUserId(),
+                    holder.killedUserId,
                     false,
                     "NIGHT_KILLED"
             );
         }
 
-        eventPort.phaseChanged(
-                roomCode,
-                updated.getVersion(),
-                Phase.DAY,
-                updated.getGameState().phaseEndsAt() // 이것도 GameState getter명에 맞춰야 함
-        );
+        // 3) 페이즈 변경 (게임이 끝났으면 굳이 DAY로 안 넘김)
+        if (holder.phaseChanged) {
+            eventPort.phaseChanged(
+                    roomCode,
+                    updated.getVersion(),
+                    holder.phase,
+                    holder.phaseEndsAt
+            );
+        }
+
+        // 4) 게임 종료 브로드캐스트
+        if (holder.finished) {
+            roomEventPort.publishGameFinished(roomCode, updated.getVersion(), holder.winnerTeam, null);
+        }
     }
 
     private void requireNight(RoomSession room) {
@@ -178,5 +198,19 @@ public class NightActionService implements
         if (p == null) throw ApplicationException.of(ExceptionType.BAD_REQUEST);
         if (!p.isAlive()) throw ApplicationException.of(ExceptionType.PLAYER_DEAD);
         return p;
+    }
+
+    private static class ResolveHolder {
+        GameUserId killedUserId;
+        boolean saved;
+
+        boolean killed;
+
+        boolean finished;
+        String winnerTeam;
+
+        boolean phaseChanged;
+        Phase phase;
+        Instant phaseEndsAt;
     }
 }
