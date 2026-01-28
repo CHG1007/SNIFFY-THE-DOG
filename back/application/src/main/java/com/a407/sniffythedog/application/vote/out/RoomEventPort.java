@@ -1,5 +1,7 @@
 package com.a407.sniffythedog.application.vote.out;
 
+import com.a407.sniffythedog.application.game.in.RoomState;
+
 // 방에 무슨 일이 일어났을 때 , 외부에 알리는 것 !
 public interface RoomEventPort {
     // 1차 투표 진행 ( 방코드 , 버전 , 누가 투표 했는지 , 투표 O/X )0
@@ -16,5 +18,12 @@ public interface RoomEventPort {
 
     // 처형/사망 상태 변경 알림 ( 어느방 , 버전 , 상태가 바뀐 플레이어, 생존 여부 , 왜 상태가 바뀌었는지 )
     void publishPlayerStatusChanged(String roomCode, long version, Long userId, boolean isAlive, String reason);
+
+    // 게임 결과
+    void publishGameFinished(String roomCode, long version, String winnerTeam, Long mvpUserId);
+
+    // 나간 사람들 알려주는것
+    void publishRoomPlayerLeft(String roomCode, long version, Long userId, RoomState roomState);
+
 }
 
