@@ -1,6 +1,7 @@
 package com.a407.sniffythedog.adapter.in.room;
 
 import com.a407.sniffythedog.adapter.in.room.request.JoinRequest;
+import com.a407.sniffythedog.adapter.in.room.request.KickReqeust;
 import com.a407.sniffythedog.adapter.in.room.request.SetReadyRequest;
 import com.a407.sniffythedog.adapter.in.room.request.SyncRequest;
 import com.a407.sniffythedog.application.game.in.*;
@@ -21,6 +22,7 @@ public class GameSocketController {
     private final LeaveRoomUseCase leaveRoomUseCase;
     private final SyncRoomUseCase syncRoomUseCase;
     private final SetReadyUseCase setReadyUseCase;
+    private final KickUserUseCase kickUserUseCase;
 
     @MessageMapping("/rooms/{roomCode}/join")
     public void joinRoom(@DestinationVariable String roomCode,
@@ -78,6 +80,23 @@ public class GameSocketController {
         );
 
         setReadyUseCase.execute(command);
+    }
+
+    @MessageMapping("/room/{roomCode}/kick")
+    public void kickUser(
+            @DestinationVariable String roomCode,
+            @Payload KickReqeust kickReqeust,
+            Principal principal
+            ){
+        Long hostUserId = Long.valueOf(principal.getName());
+
+        KickUserCommand command = new KickUserCommand(
+                roomCode,
+                hostUserId,
+                kickReqeust.targetUserId(),
+                kickReqeust.requestId()
+        );
+        kickUserUseCase.execute(command);
     }
 
 }

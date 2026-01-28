@@ -161,11 +161,9 @@ public class RoomSession {
                         .withDayVote(VoteState.empty());
                 break;
 
-            // 2. 투표(DAY_VOTE) -> 밤(NIGHT)
+            // 2. 투표(DAY_VOTE) -> 최후변론(DEFENSE) or 밤(NIGHT)
             case DAY_VOTE:
-                this.gameState = gameState
-                        .toPhase(Phase.NIGHT, now.plusSeconds(timing.nightSec()))
-                        .withNight(NightState.empty());
+                handleDayVoteEnd(now, timing);
                 break;
 
             // 3. 최후변론(DEFENSE) -> 찬반투표(FINAL_VOTE)
@@ -194,6 +192,45 @@ public class RoomSession {
         }
 
         touch();
+    }
+
+    /**
+     * 1차 투표 집계 로직
+     * 동률 -> phase : night
+     * 최다 득표 존재 -> phase : defense
+     */
+    private void handleDayVoteEnd(Instant now, PhaseTiming timing) {
+        VoteState voteState = gameState.dayVote();
+        Map<GameUserId, Long> counts = voteState.countVotes();
+
+        long maxVotes = 0;
+        List<GameUserId> candidates = new ArrayList<>();
+
+        // 최다 득표자 찾기
+        for (Map.Entry<GameUserId, Long> entry : counts.entrySet()) {
+            long count = entry.getValue();
+            if (count > maxVotes) {
+                maxVotes = count;
+                candidates.clear();
+                candidates.add(entry.getKey());
+            } else if (count == maxVotes) {
+                candidates.add(entry.getKey());
+            }
+        }
+
+        // [조건 체크] 투표가 있고(max > 0) && 동률이 아님(size == 1)
+        if (maxVotes > 0 && candidates.size() == 1) {
+            // 지목된 사람 있음 -> 변론 단계로 이동
+            GameUserId accused = candidates.get(0);
+            this.gameState = gameState
+                    .toPhase(Phase.DEFENSE, now.plusSeconds(timing.defenseSec()))
+                    .withTrial(TrialState.withAccused(accused)); // 재판 대상자 설정
+        } else {
+            // 아무도 투표 안 함 OR 동률 -> 밤으로 이동 (스킵)
+            this.gameState = gameState
+                    .toPhase(Phase.NIGHT, now.plusSeconds(timing.nightSec()))
+                    .withNight(NightState.empty());
+        }
     }
 
     private void assignRoles() {
