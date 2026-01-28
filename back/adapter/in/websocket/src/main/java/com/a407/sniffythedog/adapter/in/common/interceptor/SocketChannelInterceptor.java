@@ -2,6 +2,10 @@ package com.a407.sniffythedog.adapter.in.common.interceptor;
 
 import com.a407.sniffythedog.adapter.in.http.global.jwt.JwtProvider;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
+import com.a407.sniffythedog.domain.game.entity.PlayerState;
+import com.a407.sniffythedog.domain.game.entity.RoomSession;
+import com.a407.sniffythedog.domain.game.vo.GameUserId;
+import com.a407.sniffythedog.domain.game.vo.RoomId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
@@ -117,7 +121,23 @@ public class SocketChannelInterceptor implements ChannelInterceptor {
     }
 
     private void validateMafiaSubscription(Authentication user, String roomCode) {
-        //todo: 마피아 구독 검증 로직 작성
+        Long userId = Long.parseLong(user.getName());
+
+        // 1. Redis에서 현재 방 정보 조회
+        RoomSession room = redisRoomPort.loadRoom(RoomId.of(roomCode))
+                .orElseThrow(() -> new IllegalArgumentException("Room not found: " + roomCode));
+
+        // 2. 플레이어 정보 확인
+        PlayerState player = room.getPlayer(GameUserId.of(userId));
+        if (player == null) {
+            throw new IllegalArgumentException("User is not a participant of room: " + roomCode);
+        }
+
+        // 3. 마피아 여부 검증
+        if (!player.isMafia()) {
+            log.warn("Security Alert: User {} tried to subscribe mafia channel without permission.", userId);
+            throw new IllegalArgumentException("Access Denied: You are not a Mafia.");
+        }
     }
 
 }
