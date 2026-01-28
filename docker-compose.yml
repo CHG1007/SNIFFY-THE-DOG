@@ -71,6 +71,12 @@ services:
     expose:
       - "8080"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   nginx:
     image: "${NGINX_IMAGE}:${IMAGE_TAG}"
