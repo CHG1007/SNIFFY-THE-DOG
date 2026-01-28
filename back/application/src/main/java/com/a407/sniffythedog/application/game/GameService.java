@@ -7,6 +7,7 @@ import com.a407.sniffythedog.application.game.out.GameMessagePort;
 import com.a407.sniffythedog.application.game.scheduler.PhaseScheduler;
 import com.a407.sniffythedog.application.game.scheduler.event.GameStartEvent;
 import com.a407.sniffythedog.application.game.scheduler.event.PhaseTimeoutEvent;
+import com.a407.sniffythedog.application.gamelog.out.GameLogRedisPort;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.PlayerState;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
@@ -14,12 +15,15 @@ import com.a407.sniffythedog.domain.game.enums.RoomStatus;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.PhaseTiming;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
+import com.a407.sniffythedog.domain.gamelog.vo.PlayerResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +32,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
     private final PhaseScheduler phaseScheduler;
+    private final GameLogRedisPort gameLogRedisPort;
 
     private static final PhaseTiming GAME_TIMING = new PhaseTiming(60, 30, 30, 15, 30);
 
@@ -295,6 +300,16 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                 return;
             }
 
+            List<PlayerResult> initialPlayers = updatedRoom.getPlayers().values().stream()
+                    .map(p -> PlayerResult.of(
+                            p.getUserId().value(),
+                            p.getDisplayName(),
+                            p.getGameRole(),
+                            true // 게임 시작 시 모두 생존
+                    ))
+                    .collect(Collectors.toList());
+
+            gameLogRedisPort.initGameLog(roomCode, initialPlayers, Instant.now());
             handlePhaseChangeMessages(updatedRoom, roomCode);
 
         } catch (Exception e) {
