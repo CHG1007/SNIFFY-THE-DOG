@@ -1,6 +1,6 @@
 package com.a407.sniffythedog.application.media.out;
 
-public interface OpenViduPort {
+public interface MediaPort {
 
     /**
      * OpenVidu 세션을 생성하거나 기존 세션을 반환합니다.

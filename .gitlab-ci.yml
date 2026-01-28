@@ -92,6 +92,11 @@ deploy_develop:
       export SERVER_NAME="$SERVER_NAME"
       envsubst '${SERVER_NAME}' < nginx/nginx.conf > deploy/nginx.conf
 
+      # LiveKit 설정 파일 복사
+      export LIVEKIT_API_KEY="$LIVEKIT_API_KEY"
+      export LIVEKIT_API_SECRET="$LIVEKIT_API_SECRET"
+      envsubst '${LIVEKIT_API_KEY} ${LIVEKIT_API_SECRET}' < livekit.yaml > deploy/livekit.yaml
+
       cat > deploy/.env << EOF
       BACKEND_IMAGE=$BACKEND_IMAGE
       NGINX_IMAGE=$NGINX_IMAGE
@@ -107,7 +112,8 @@ deploy_develop:
       KAKAO_JS_KEY=$KAKAO_JS_KEY
       JWT_SECRET=$JWT_SECRET
       GMS_API_KEY=$GMS_API_KEY
-      OPENVIDU_SECRET=$OPENVIDU_SECRET
+      LIVEKIT_API_KEY=$LIVEKIT_API_KEY
+      LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET
       SERVER_NAME=$SERVER_NAME
       EOF
 
@@ -122,8 +128,8 @@ deploy_develop:
         docker load -i backend_${IMAGE_TAG}.tar
         docker load -i nginx_${IMAGE_TAG}.tar
         docker compose up -d --no-recreate mysql redis mongodb
-        docker rm -f backend nginx openvidu 2>/dev/null || true
-        docker compose up -d --no-deps backend nginx openvidu
+        docker rm -f backend nginx livekit 2>/dev/null || true
+        docker compose up -d --no-deps backend nginx livekit
         docker image prune -f
         rm -f *.tar
 

@@ -1,0 +1,4 @@
+livekit:
+  url: ${LIVEKIT_URL:https://your-livekit-domain}
+  api-key: ${LIVEKIT_API_KEY:YOUR_API_KEY}
+  api-secret: ${LIVEKIT_API_SECRET:YOUR_API_SECRET}
