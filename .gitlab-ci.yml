@@ -40,6 +40,8 @@ docker_build_check:
       command: ["--tls=false"]
   variables:
     DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
     - set -e
     - docker version
@@ -65,6 +67,7 @@ deploy_develop:
 
   before_script:
     - apk add --no-cache openssh-client rsync bash coreutils gettext
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
     - mkdir -p ~/.ssh
     - printf "%s" "$DEPLOY_KEY64" | base64 -d > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
