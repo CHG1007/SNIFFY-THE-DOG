@@ -42,7 +42,8 @@ public enum ExceptionType {
     ROOM_NOT_JOINABLE("R004", 409, "현재 입장/진행이 불가능한 방입니다."),
     NOT_ALLOWED("R005", 403, "요청 권한이 없습니다."),
     ALREADY_VOTED("R006", 409, "이미 투표를 완료했습니다."),
-
+    INVALID_GAME_STATE("R008", 400, "게임 대기 중에만 강퇴할 수 있습니다."),
+    INVALID_REQUEST("R014", 400, "자기 자신을 강퇴할 수 없습니다."),
 
     // 신고 예외
     REPORT_NOT_FOUND("P001", 404, "신고를 찾을 수 없습니다."),

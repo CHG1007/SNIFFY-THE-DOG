@@ -57,14 +57,16 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/api/v3/api-docs/**",
                                 "/api/swagger-ui/**",
-                                "/api/swagger-ui.html"
+                                "/api/swagger-ui.html",
+                                "/actuator/health/**",
+                                "/actuator/info"
                         ).permitAll()
                         // 1. [구체적인 규칙] 로그아웃은 인증해야 함
                         .requestMatchers("/api/v1/auth/logout").authenticated()
                         // 프론트엔드 URL (/api/v1/auth/kakao) 허용
                         // 2. [넓은 규칙] 나머지 auth는 다 허용
                         .requestMatchers("/api/v1/auth/**", "/api/auth/**").permitAll()
-                        // ⭐⭐⭐⭐⭐ AI 분석 API 임시 허용 (개발 단계)
+                        // AI 분석 API 임시 허용 (개발 단계)
                         .requestMatchers("/api/analysis/**").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()

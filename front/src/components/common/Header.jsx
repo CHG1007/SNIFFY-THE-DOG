@@ -26,7 +26,11 @@ const Header = () => {
         <div className="flex items-center gap-3 cursor-pointer py-2">
           {/* 임시 프로필 이미지 아이콘 */}
           <div className="w-8 h-8 rounded-full bg-gray-600 overflow-hidden border border-gray-500">
-            <img src="/api/placeholder/32/32" alt="profile" />
+            {/* 없는 api 호출 임시 수정 <img src="/api/placeholder/32/32" alt="profile" /> */}
+            <img
+                src="https://ui-avatars.com/api/?name=User&background=random"
+                alt="profile"
+            />
           </div>
           <span className="font-bold">user123 님</span>
         </div>

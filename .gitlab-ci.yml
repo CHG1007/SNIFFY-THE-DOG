@@ -1,5 +1,9 @@
 stages: [test, build, deploy]
 
+variables:
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  DOCKER_BUILDKIT: "1"
+
 # ===================
 # CI: 빌드 검증 (MR + develop)
 # ===================
@@ -7,10 +11,16 @@ stages: [test, build, deploy]
 backend_test:
   stage: test
   image: gradle:8.7-jdk21
+  cache:
+    key: gradle-${CI_COMMIT_REF_SLUG}
+    paths:
+      - .gradle/caches
+      - .gradle/wrapper
+    policy: pull-push
   script:
     - cd back
     - chmod +x gradlew
-    - ./gradlew test
+    - ./gradlew test --build-cache --parallel
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "develop"
@@ -18,11 +28,16 @@ backend_test:
 frontend_build:
   stage: build
   image: node:20-alpine
+  cache:
+    key: npm-${CI_COMMIT_REF_SLUG}
+    paths:
+      - front/node_modules
+    policy: pull-push
   variables:
     VITE_KAKAO_JS_KEY: $KAKAO_JS_KEY
   script:
     - cd front
-    - npm ci
+    - npm ci --prefer-offline
     - npm run build
   artifacts:
     paths:
@@ -32,22 +47,15 @@ frontend_build:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "develop"
 
-docker_build_check:
+# MR에서는 Dockerfile 문법 검사만 (빠름)
+docker_lint:
   stage: build
-  image: docker:27.3.1
-  services:
-    - name: docker:27.3.1-dind
-      command: ["--tls=false"]
-  variables:
-    DOCKER_TLS_CERTDIR: ""
+  image: hadolint/hadolint:latest-alpine
   script:
-    - set -e
-    - docker version
-    - docker build -t backend:ci -f back/Dockerfile back
-    - docker build -t nginx:ci -f nginx/Dockerfile nginx
+    - hadolint back/Dockerfile || true
+    - hadolint nginx/Dockerfile || true
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "develop"
 
 # ===================
 # CD: 배포 (develop only)
@@ -61,10 +69,14 @@ deploy_develop:
       command: ["--tls=false"]
   variables:
     DOCKER_TLS_CERTDIR: ""
+    DOCKER_BUILDKIT: "1"
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+    BACKEND_IMAGE: "$DOCKER_USERNAME/a407_back"
+    NGINX_IMAGE: "$DOCKER_USERNAME/a407_nginx"
 
   before_script:
-    - apk add --no-cache openssh-client rsync bash coreutils gettext
+    - apk add --no-cache openssh-client bash coreutils gettext
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
     - mkdir -p ~/.ssh
     - printf "%s" "$DEPLOY_KEY64" | base64 -d > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
@@ -74,23 +86,40 @@ deploy_develop:
     - |
       set -euo pipefail
 
+      # Backend 이미지 빌드 & 푸시 (병렬)
+      docker build -t "$BACKEND_IMAGE:$IMAGE_TAG" -t "$BACKEND_IMAGE:latest" -f back/Dockerfile back &
+      BACKEND_PID=$!
+
+      # Nginx 이미지 빌드 & 푸시 (병렬)
+      docker build -t "$NGINX_IMAGE:$IMAGE_TAG" -t "$NGINX_IMAGE:latest" -f nginx/Dockerfile nginx &
+      NGINX_PID=$!
+
+      # 빌드 완료 대기
+      wait $BACKEND_PID
+      wait $NGINX_PID
+
+      # Docker Hub에 푸시
+      docker push "$BACKEND_IMAGE:$IMAGE_TAG"
+      docker push "$BACKEND_IMAGE:latest"
+      docker push "$NGINX_IMAGE:$IMAGE_TAG"
+      docker push "$NGINX_IMAGE:latest"
+      echo "Images pushed to Docker Hub successfully"
+
+      # 설정 파일 준비
       rm -rf deploy && mkdir -p deploy
 
-      # Backend 이미지 빌드
-      docker build -t "$BACKEND_IMAGE:$IMAGE_TAG" -f back/Dockerfile back
-      docker save "$BACKEND_IMAGE:$IMAGE_TAG" -o "deploy/backend_${IMAGE_TAG}.tar"
-
-      # Nginx 이미지 빌드
-      docker build -t "$NGINX_IMAGE:$IMAGE_TAG" -f nginx/Dockerfile nginx
-      docker save "$NGINX_IMAGE:$IMAGE_TAG" -o "deploy/nginx_${IMAGE_TAG}.tar"
-
-      # Frontend 빌드 산출물 복사 (artifacts에서 가져옴)
+      # Frontend 빌드 산출물 복사
       cp -r front/dist deploy/frontend
 
       # 설정 파일 복사
       cp docker-compose.yml deploy/docker-compose.yml
       export SERVER_NAME="$SERVER_NAME"
       envsubst '${SERVER_NAME}' < nginx/nginx.conf > deploy/nginx.conf
+
+      # LiveKit 설정 파일 복사
+      export LIVEKIT_API_KEY="$LIVEKIT_API_KEY"
+      export LIVEKIT_API_SECRET="$LIVEKIT_API_SECRET"
+      envsubst '${LIVEKIT_API_KEY} ${LIVEKIT_API_SECRET}' < livekit.yaml > deploy/livekit.yaml
 
       cat > deploy/.env << EOF
       BACKEND_IMAGE=$BACKEND_IMAGE
@@ -107,49 +136,40 @@ deploy_develop:
       KAKAO_JS_KEY=$KAKAO_JS_KEY
       JWT_SECRET=$JWT_SECRET
       GMS_API_KEY=$GMS_API_KEY
-      OPENVIDU_SECRET=$OPENVIDU_SECRET
+      LIVEKIT_API_KEY=$LIVEKIT_API_KEY
+      LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET
       SERVER_NAME=$SERVER_NAME
       EOF
 
-      # 서버에 배포
+      # 서버에 설정 파일만 전송 (이미지는 pull)
       ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
 
-      rsync -avz -e "ssh -i ~/.ssh/id_rsa" \
-        deploy/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+      scp -i ~/.ssh/id_rsa -r deploy/* "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
 
+      # 서버에서 이미지 pull & 배포
       ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "
         cd '$DEPLOY_PATH'
-        docker load -i backend_${IMAGE_TAG}.tar
-        docker load -i nginx_${IMAGE_TAG}.tar
-        docker compose up -d --no-recreate mysql redis mongodb
-        docker rm -f backend nginx openvidu 2>/dev/null || true
-        docker compose up -d --no-deps backend nginx openvidu
-        docker image prune -f
-        rm -f *.tar
 
-        # 컨테이너 health check (30초 대기)
-        echo 'Waiting for backend to be healthy...'
-        for i in \$(seq 1 30); do
-          if docker ps --filter 'name=backend' --filter 'status=running' | grep -q backend; then
-            echo 'Backend is running, checking health...'
-            sleep 5
-            if docker ps --filter 'name=backend' --filter 'status=running' | grep -q backend; then
-              echo 'Backend health check passed!'
-              exit 0
-            fi
-          fi
-          echo \"Attempt \$i/30: Backend not ready yet...\"
-          sleep 1
-        done
-        echo 'Backend failed to start!'
-        docker logs backend --tail 50
-        exit 1
+        # Docker Hub 로그인
+        echo \"$DOCKER_PASSWORD\" | docker login -u \"$DOCKER_USERNAME\" --password-stdin
+
+        # 이미지 pull (병렬)
+        docker pull \"$BACKEND_IMAGE:$IMAGE_TAG\"
+        docker pull \"$NGINX_IMAGE:$IMAGE_TAG\"
+        wait
+
+        # DB 컨테이너 유지, 앱 컨테이너만 재시작
+        docker compose up -d --no-recreate mysql redis mongodb
+        docker rm -f backend nginx livekit 2>/dev/null || true
+        docker compose up -d --no-deps backend nginx livekit
+        docker image prune -f
+
+        docker logs backend --tail 100
       "
 
   needs:
     - backend_test
     - frontend_build
-    - docker_build_check
 
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"

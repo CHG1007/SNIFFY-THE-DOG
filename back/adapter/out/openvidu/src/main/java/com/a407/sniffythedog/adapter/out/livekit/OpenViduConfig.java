@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.adapter.out.openvidu;
+package com.a407.sniffythedog.adapter.out.livekit;
 
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;

@@ -7,6 +7,7 @@ import com.a407.sniffythedog.application.game.out.GameMessagePort;
 import com.a407.sniffythedog.application.game.scheduler.PhaseScheduler;
 import com.a407.sniffythedog.application.game.scheduler.event.GameStartEvent;
 import com.a407.sniffythedog.application.game.scheduler.event.PhaseTimeoutEvent;
+import com.a407.sniffythedog.application.gamelog.out.GameLogRedisPort;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.PlayerState;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
@@ -14,20 +15,24 @@ import com.a407.sniffythedog.domain.game.enums.RoomStatus;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.PhaseTiming;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
+import com.a407.sniffythedog.domain.gamelog.vo.PlayerResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase, SetReadyUseCase {
+public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase, SetReadyUseCase, KickUserUseCase {
 
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
     private final PhaseScheduler phaseScheduler;
+    private final GameLogRedisPort gameLogRedisPort;
 
     private static final PhaseTiming GAME_TIMING = new PhaseTiming(60, 30, 30, 15, 30);
 
@@ -53,7 +58,12 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     "roomState", roomState,
                     "my", MyInfo.from(updatedRoom.getPlayer(gameUserId))
             );
-            gameMessagePort.sendToUser(String.valueOf(userId), roomCode, requestId, "JOIN_ACK", ackData);
+            gameMessagePort.sendToUser(String.valueOf(userId),
+                    roomCode,
+                    requestId,
+                    "JOIN_ACK",
+                    ackData)
+            ;
 
             //방입장 성공 전체 브로드케스트
             PlayerSummary newPlayer = PlayerSummary.from(updatedRoom.getPlayer(gameUserId));
@@ -71,7 +81,15 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     "message", e.getMessage(),
                     "retryable", true
             );
-            gameMessagePort.sendToUser(String.valueOf(userId), roomCode, requestId, "JOIN_REJECTED", rejectData);
+
+            gameMessagePort.sendToUser(
+                    String.valueOf(userId),
+                    roomCode,
+                    requestId,
+                    "JOIN_REJECTED",
+                    rejectData
+            );
+
         } catch (Exception e) {
             // 기타 예외
             e.printStackTrace();
@@ -80,7 +98,15 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     "message", "일시적인 오류가 발생했습니다.",
                     "retryable", true
             );
-            gameMessagePort.sendToUser(String.valueOf(userId), roomCode, requestId, "JOIN_REJECTED", errorData);
+
+            gameMessagePort.sendToUser(
+                    String.valueOf(userId),
+                    roomCode,
+                    requestId,
+                    "JOIN_REJECTED",
+                    errorData
+            );
+
         }
 
     }
@@ -90,24 +116,118 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
         String roomCode = command.roomCode();
         Long userId = command.userId();
 
-        RoomSession room = redisRoomPort.loadRoom(RoomId.of(roomCode))
-                .orElseThrow(() -> ApplicationException.of(ExceptionType.ROOM_NOT_FOUND));
-
+        RoomId roomId = RoomId.of(roomCode);
         GameUserId gameUserId = new GameUserId(userId);
-        room.leavePlayer(gameUserId);
 
-        if (room.getPlayerCount() == 0) {
+        final LeaveHolder holder = new LeaveHolder();
+
+        RoomSession updated = redisRoomPort.updateRoomAtomically(roomId, room -> {
+
+            // 방에 없는 사람 방지
+            PlayerState player = room.getPlayer(gameUserId);
+            if (player == null) {
+                throw ApplicationException.of(ExceptionType.NOT_IN_ROOM); // 없으면 BAD_REQUEST로 바꿔도 됨
+            }
+
+            // WAITING: 그냥 제거
+            if (room.getStatus() == RoomStatus.WAITING) {
+                room.leavePlayer(gameUserId);
+                holder.leftUserId = userId;
+            }
+
+            // PLAYING: 탈주 = 사망 처리
+            else if (room.getStatus() == RoomStatus.PLAYING) {
+                // 살아있으면 죽이고(이미 죽은 사람이면 그냥 넘어감)
+                if (player.isAlive()) {
+                    room.killPlayer(gameUserId);
+                    holder.killed = true;
+                    holder.killedUserId = userId;
+                    holder.killReason = "DISCONNECTED";
+                }
+
+                // 방장이 나가면 위임 (게임 중이면 host 유지하면 곤란할 수 있음)
+                if (room.getHostUserId().equals(gameUserId)) {
+                    // 남아있는 사람 중 한 명에게 위임
+                    GameUserId newHost = room.getPlayers().keySet().stream()
+                            .filter(id -> !id.equals(gameUserId))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (newHost != null) {
+                        room.transferHost(newHost);
+                    }
+                }
+
+                holder.leftUserId = userId;
+
+                // 승리 체크 + 종료 반영
+                room.checkAndEndIfGameOver().ifPresent(winner -> {
+                    holder.finished = true;
+                    holder.winnerTeam = winner.name();
+                });
+            }
+            else {
+                throw ApplicationException.of(ExceptionType.ROOM_NOT_JOINABLE);
+            }
+
+            if (room.getPlayerCount() == 0) {
+                holder.deleteRoom = true;
+            }
+
+            return room;
+        });
+
+        if (holder.deleteRoom) {
             redisRoomPort.deleteRoom(roomCode);
-            //todo: 스케줄러 취소
-        } else {
-            redisRoomPort.saveRoom(room);
+            // todo: 스케줄러 취소
+            return;
+        }
 
-            RoomState roomState = RoomState.from(room);
-            Map<String, Object> leaveMessage = Map.of("version", room.getVersion(), "userId", userId, "roomState", roomState);
-            gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_LEFT", leaveMessage);
+        RoomState roomState = RoomState.from(updated);
 
+        // 1) 나감 브로드캐스트
+        Map<String, Object> leaveMessage = Map.of(
+                "version", updated.getVersion(),
+                "userId", userId,
+                "roomState", roomState
+        );
+        gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_LEFT", leaveMessage);
+
+        // 2) 게임 중 탈주를 사망 처리했다면 상태 변경 이벤트도 같이
+        if (holder.killed) {
+            Map<String, Object> statusMsg = Map.of(
+                    "version", updated.getVersion(),
+                    "userId", holder.killedUserId,
+                    "isAlive", false,
+                    "reason", holder.killReason
+            );
+            gameMessagePort.sendToRoom(roomCode, "PLAYER_STATUS_CHANGED", statusMsg);
+        }
+
+        // 3) 종료면 GAME_FINISHED
+        if (holder.finished) {
+            Map<String, Object> finishedMsg = Map.of(
+                    "version", updated.getVersion(),
+                    "winnerTeam", holder.winnerTeam,
+                    "mvpUserId", null
+            );
+            gameMessagePort.sendToRoom(roomCode, "GAME_FINISHED", finishedMsg);
         }
     }
+
+    private static class LeaveHolder {
+        Long leftUserId;
+
+        boolean killed;
+        Long killedUserId;
+        String killReason;
+
+        boolean finished;
+        String winnerTeam;
+
+        boolean deleteRoom;
+    }
+
 
     @Override
     public void execute(SyncRoomCommand command) {
@@ -127,7 +247,13 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
         RoomState roomState = RoomState.from(room);
         RoomSnapshot snapshot = RoomSnapshot.of(roomState, myPlayer);
-        gameMessagePort.sendToUser(String.valueOf(userId), roomCode, requestId, "ROOM_SNAPSHOT", snapshot);
+        gameMessagePort.sendToUser(
+                String.valueOf(userId),
+                roomCode,
+                requestId,
+                "ROOM_SNAPSHOT",
+                snapshot
+        );
 
     }
 
@@ -159,10 +285,22 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
             }
 
         } catch (ApplicationException e) {
-            gameMessagePort.sendToUser(String.valueOf(userId), roomCode, requestId, "ERROR", Map.of("message", e.getMessage()));
+            gameMessagePort.sendToUser(
+                    String.valueOf(userId),
+                    roomCode,
+                    requestId,
+                    "ERROR",
+                    Map.of("message", e.getMessage())
+            );
         } catch(Exception e) {
             e.printStackTrace();
-            gameMessagePort.sendToUser(String.valueOf(userId), roomCode, requestId, "ERROR", Map.of("message", "Internal Error"));
+            gameMessagePort.sendToUser(
+                    String.valueOf(userId),
+                    roomCode,
+                    requestId,
+                    "ERROR",
+                    Map.of("message", "Internal Error")
+            );
         }
 
     }
@@ -178,11 +316,17 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
         gameMessagePort.sendToRoom(roomCode, "ROOM_READY_UPDATED", readyMessage);
     }
 
+    /**
+     * 모든 사람이 레디일때 자동 시작 스케줄러 등록
+     */
     private void scheduleAutoStart(String roomCode, Long version) {
 
         phaseScheduler.cancelSchedule(roomCode);
 
-        gameMessagePort.sendToRoom(roomCode, "GAME_COUNTDOWN", Map.of("seconds", 3));
+        gameMessagePort.sendToRoom(roomCode,
+                "GAME_COUNTDOWN",
+                Map.of("seconds", 3)
+        );
 
         Instant startTime = Instant.now().plusSeconds(3);
         phaseScheduler.scheduleEvent(
@@ -193,27 +337,40 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
     }
 
+    /**
+     * 자동 시작 스케줄러 취소
+     */
     private void cancelAutoStart(String roomCode){
         boolean cancelled = phaseScheduler.cancelSchedule(roomCode);
 
         if (cancelled) {
-
-            gameMessagePort.sendToRoom(roomCode, "GAME_COUNTDOWN_CANCELLED", Map.of(
-                    "message", "플레이어가 준비를 취소하여 시작이 중단되었습니다."
-            ));
+            gameMessagePort.sendToRoom(
+                    roomCode,
+                    "GAME_COUNTDOWN_CANCELLED",
+                    Map.of("message", "플레이어가 준비를 취소하여 시작이 중단되었습니다.")
+            );
         }
     }
 
+    /**
+     * 페이즈 진행
+     */
     @EventListener
     public void handlePhaseTimeout(PhaseTimeoutEvent event){
         advancePhase(event.roomCode(), event.version());
     }
 
+    /**
+     * 게임 시작
+     */
     @EventListener
     public void handleGameStart(GameStartEvent event) {
         startGameByKey(event.roomCode(), event.version());
     }
 
+    /**
+     * 게임 시작 로직
+     */
     private void startGameByKey(String roomCode, long expectedVersion) {
         RoomId roomId = new RoomId(roomCode);
 
@@ -232,13 +389,30 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                 return;
             }
 
+            List<PlayerResult> initialPlayers = updatedRoom.getPlayers().values().stream()
+                    .map(p -> PlayerResult.of(
+                            p.getUserId().value(),
+                            p.getDisplayName(),
+                            p.getGameRole(),
+                            true // 게임 시작 시 모두 생존
+                    ))
+                    .collect(Collectors.toList());
+
+            gameLogRedisPort.initGameLog(roomCode, initialPlayers, Instant.now());
             handlePhaseChangeMessages(updatedRoom, roomCode);
 
         } catch (Exception e) {
-            gameMessagePort.sendToRoom(roomCode, "ERROR", Map.of("message", "게임 시작 중 오류가 발생했습니다."));
+            gameMessagePort.sendToRoom(
+                    roomCode,
+                    "ERROR",
+                    Map.of("message", "게임 시작 중 오류가 발생했습니다.")
+            );
         }
     }
 
+    /**
+     * 페이즈 진행 로직
+     */
     private void advancePhase(String roomCode, long expectedVersion) {
         RoomId roomId = new RoomId(roomCode);
         try {
@@ -257,7 +431,11 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
             handlePhaseChangeMessages(updatedRoom, roomCode);
         } catch (Exception e) {
-            gameMessagePort.sendToRoom(roomCode, "ERROR", Map.of("message", "페이즈 전환 중 오류가 발생했습니다."));
+            gameMessagePort.sendToRoom(
+                    roomCode,
+                    "ERROR",
+                    Map.of("message", "페이즈 전환 중 오류가 발생했습니다.")
+            );
         }
 
     }
@@ -277,10 +455,77 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
         gameMessagePort.sendToRoom(roomCode, "PHASE_CHANGED", phasePayload);
 
 
-        phaseScheduler.scheduleEvent(roomCode, room.getGameState().phaseEndsAt(), new PhaseTimeoutEvent(roomCode, room.getVersion()));
+        phaseScheduler.scheduleEvent(
+                roomCode,
+                room.getGameState().phaseEndsAt(),
+                new PhaseTimeoutEvent(roomCode, room.getVersion())
+        );
     }
 
-    //todo: 게임종료 메서드 추가
+    @Override
+    public void execute(KickUserCommand command) {
+        String roomCode = command.roomCode();
+        Long hostUserId = command.hostUserId();
+        Long targetUserId = command.targetUserId();
+        String requestId = command.requestId();
 
+        RoomId roomId = new RoomId(roomCode);
+        GameUserId hostId = new GameUserId(hostUserId);
+        GameUserId targetId = new GameUserId(targetUserId);
+        try{
+            RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room ->{
+                if(!room.getHostUserId().equals(hostId)){
+                    throw ApplicationException.of(ExceptionType.FORBIDDEN, "방장만 강퇴할 수 있습니다");
+                }
+                if (room.getStatus() != RoomStatus.WAITING) {
+                    throw ApplicationException.of(ExceptionType.INVALID_GAME_STATE, "게임 대기 중에만 강퇴할 수 있습니다.");
+                }
+                if (hostId.equals(targetId)) {
+                    throw ApplicationException.of(ExceptionType.INVALID_REQUEST, "자기 자신을 강퇴할 수 없습니다.");
+                }
 
+                room.leavePlayer(targetId);
+
+                return room;
+            });
+
+            gameMessagePort.sendToUser(
+                    String.valueOf(targetUserId),
+                    roomCode,
+                    requestId,
+                    "KICKED",
+                    Map.of("reason", "방장에 의해 강퇴되었습니다.")
+            );
+            RoomState roomState = RoomState.from(updatedRoom);
+            Map<String, Object> leaveMessage = Map.of(
+                    "version", updatedRoom.getVersion(),
+                    "userId", targetUserId,
+                    "roomState", roomState
+            );
+            gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_LEFT", leaveMessage);
+
+            if (!updatedRoom.canStart()) {
+                cancelAutoStart(roomCode);
+            }
+
+        } catch (ApplicationException e){
+            gameMessagePort.sendToUser(
+                    String.valueOf(hostUserId),
+                    roomCode,
+                    requestId,
+                    "ERROR",
+                    Map.of("message", e.getMessage())
+            );
+        } catch (Exception e) {
+            gameMessagePort.sendToUser(
+                    String.valueOf(hostUserId),
+                    roomCode,
+                    requestId,
+                    "ERROR",
+                    Map.of("message", "강퇴 처리 중 오류가 발생했습니다.")
+            );
+        }
+    }
+
+    //todo: 게임종료 메서드 추가 게임 종료시 redis에 있는 로그 mongoDB로 로그 전송
 }

@@ -12,6 +12,7 @@ import com.a407.sniffythedog.domain.gamelog.vo.GameLogId;
 import com.a407.sniffythedog.domain.gamelog.vo.PlayerResult;
 
 import java.util.List;
+import java.util.Map;
 
 public class GameLogMapper {
 
@@ -19,14 +20,19 @@ public class GameLogMapper {
     }
 
     public static GameLogDocument toDocument(GameLog gameLog) {
+        // AI 리포트 Map
+        Map<Long, String> aiReports = gameLog.getAiReports();
+
+        // 2. 플레이어를 도큐먼트로 바꿀 때, 맵에서 자기 ID를 열쇠로 리포트를 찾아 넣어줍니다.
         List<PlayerResultDoc> playerDocs = gameLog.getPlayers().stream()
-                .map(GameLogMapper::toPlayerDoc)
+                .map(p -> toPlayerDoc(p, aiReports.getOrDefault(p.odUserId(), "분석 중...")))
                 .toList();
 
         List<GameEventDoc> eventDocs = gameLog.getEvents().stream()
                 .map(GameLogMapper::toEventDoc)
                 .toList();
 
+        // 3. Document 생성자 순서에 맞춰서 데이터 전달
         return new GameLogDocument(
                 gameLog.getId() != null ? gameLog.getId().value() : null,
                 gameLog.getRoomId(),
@@ -34,7 +40,8 @@ public class GameLogMapper {
                 eventDocs,
                 gameLog.getWinner() != null ? gameLog.getWinner().name() : null,
                 gameLog.getStartedAt(),
-                gameLog.getEndedAt()
+                gameLog.getEndedAt(),
+                gameLog.getTotalSummary()
         );
     }
 
@@ -47,7 +54,7 @@ public class GameLogMapper {
                 .map(GameLogMapper::toGameEvent)
                 .toList();
 
-        return GameLog.reconstitute(
+        GameLog gameLog = GameLog.reconstitute(
                 GameLogId.of(doc.getId()),
                 doc.getRoomId(),
                 players,
@@ -56,14 +63,29 @@ public class GameLogMapper {
                 doc.getStartedAt(),
                 doc.getEndedAt()
         );
+
+        // 2. DB에 있던 전체 요약 -> 도메인
+        gameLog.updateTotalSummary(doc.getTotalSummary());
+
+        // 3. DB의 players 리스트 안에 있던 aiReport들 -> GameLog의 aiReports
+        if (doc.getPlayers() != null) {
+            doc.getPlayers().forEach(p -> {
+                if (p.getAiReport() != null) {
+                    gameLog.addAiReport(p.getOdUserId(), p.getAiReport());
+                }
+            });
+        }
+
+        return gameLog;
     }
 
-    private static PlayerResultDoc toPlayerDoc(PlayerResult player) {
+    private static PlayerResultDoc toPlayerDoc(PlayerResult player, String aiReport) {
         return new PlayerResultDoc(
                 player.odUserId(),
                 player.odNickname(),
                 player.role().name(),
-                player.survived()
+                player.survived(),
+                aiReport // 해당 유저의 개인 활약상
         );
     }
 

@@ -39,6 +39,8 @@ bin/
 
 ### Docker ###
 docker-compose.local.yml
+livekit.local.yaml
 
 ### docs ###
 docs/
+.env
