@@ -64,11 +64,11 @@ const GamePage = ({ players = [], myId }) => {
     const handlePhaseChange = () => {
       // 1. 낮 대화 -> 1차 투표
       if (gameStep === "DAY" && phaseSeconds >= 10) {
-        setGameStep("DAY_VOTE"); setPhaseSeconds(0); setDidIVote(false);
+        setGameStep("DEFENSE"); setPhaseSeconds(0); setDidIVote(false);
       } 
       // 2. 1차 투표 -> 투표 결과 발표 (모달 등장)
       else if (gameStep === "DAY_VOTE" && phaseSeconds >= 10) {
-        setGameStep("VOTE_RESULT"); setPhaseSeconds(0);
+        setGameStep("DEFENSE"); setPhaseSeconds(0);
       } 
       // 3. 결과 발표(5초) -> 최후 변론 (DiscussionPage 등장)
       else if (gameStep === "VOTE_RESULT" && phaseSeconds >= 5) {
@@ -76,19 +76,19 @@ const GamePage = ({ players = [], myId }) => {
       } 
       // 4. 최후 변론 -> 찬반 투표 (RealVote 모달 등장)
       else if (gameStep === "DEFENSE" && phaseSeconds >= 10) {
-        setGameStep("FINAL_VOTE"); setPhaseSeconds(0);
+        setGameStep("DEFENSE"); setPhaseSeconds(0);
       } 
       // 5. 찬반 투표(5초) -> 최종 결과 발표 (모달 등장)
       else if (gameStep === "FINAL_VOTE" && phaseSeconds >= 5) {
-        setGameStep("FINAL_RESULT"); setPhaseSeconds(0);
+        setGameStep("DEFENSE"); setPhaseSeconds(0);
       } 
       // 6. 최종 결과(5초) -> 밤
       else if (gameStep === "FINAL_RESULT" && phaseSeconds >= 5) {
-        setGameStep("NIGHT"); setPhaseSeconds(0);
+        setGameStep("DEFENSE"); setPhaseSeconds(0);
       } 
       // 7. 밤(20초) -> 다시 낮 (하루 루프 끝)
       else if (gameStep === "NIGHT" && phaseSeconds >= 20) {
-        setGameStep("DAY"); setPhaseSeconds(0);
+        setGameStep("DEFENSE"); setPhaseSeconds(0);
       }
     };
 
@@ -138,27 +138,27 @@ const GamePage = ({ players = [], myId }) => {
         <TimeScreen timeLeft={formatTime(totalSeconds)} gameStatus={gameStep} />
       </div>
 
-      <main className="flex-1 w-full max-w-[1800px] mx-auto relative flex items-center justify-center p-4">
+      <main className="flex-1 w-full h-full max-w-[1800px] mx-auto relative flex flex-col">
         {gameStep === "DEFENSE" ? (
+          <div className="w-full h-full"> 
           <DiscussionPage roomSession={mockRoomSession} onTimeout={() => {}} />
+        </div>
         ) : (
-          <div className="flex flex-wrap justify-center content-center gap-6 w-full h-full">
+         <div className="flex flex-wrap justify-center content-center gap-6 w-full h-full max-h-[85vh] pt-24">
             {standardizedPlayers.map((player) => (
               <div 
                 key={player.userId} 
-                player={player}
-                onVoteRequest={() => handleVoteClick(player)}
                 className={`flex-grow-0 flex-shrink-0 ${getFlexBasis(capacity)} min-w-[320px] transition-all duration-500`}
               >
-              <div className="w-full h-full">  
-                <GameVideoSlot 
-                  key={player.userId}
-                  player={player}
-                  isMe={player.userId === myId} 
-                  canVote={gameStep === "DAY_VOTE"}
-                  didIVote={didIVote}
-                  onVoteRequest={() => handleVoteClick(player)}
-                />
+              <div className="w-full h-full aspect-video"> 
+                  <GameVideoSlot 
+                    player={player}
+                    isMe={player.userId === myId} 
+                    canVote={gameStep === "DAY_VOTE"}
+                    didIVote={didIVote}
+                    onVoteRequest={() => handleVoteClick(player)}
+                    size="normal" 
+                  />
               </div>
             </div>
             ))}
