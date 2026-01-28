@@ -1,6 +1,6 @@
-package com.a407.sniffythedog.adapter.out.openvidu;
+package com.a407.sniffythedog.adapter.out.livekit;
 
-import com.a407.sniffythedog.application.media.out.OpenViduPort;
+import com.a407.sniffythedog.application.media.out.MediaPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -14,7 +14,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OpenViduAdapter implements OpenViduPort {
+public class MediaAdapter implements MediaPort {
 
     private final RestTemplate openViduRestTemplate;
     private final OpenViduConfig openViduConfig;

@@ -2,7 +2,7 @@ spring:
   application:
     name: bootstrap
   profiles:
-    include: rdb, openvidu, mongo
+    include: rdb, livekit, mongo
   config:
     import: optional:classpath:/application-gms.yml
 
