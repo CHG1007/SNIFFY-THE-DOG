@@ -42,7 +42,7 @@ public class GameLogRedisAdapter implements GameLogRedisPort {
         String key = KEY_PREFIX_EVENTS + roomId;
         String json = gameLogMapper.eventToJson(event);
 
-        // List의 오른쪽에 추가 (순서 보장)
+        // List의 오른쪽에 추가 (순서 보장) , 게임 로그 메타 + 이벤트 리스트 둘다 Redis에 24시간 뒤에 삭제됨
         redisTemplate.opsForList().rightPush(key, json);
         redisTemplate.expire(key, TTL_HOURS, TimeUnit.HOURS);
     }
