@@ -86,6 +86,9 @@ deploy_develop:
     - |
       set -euo pipefail
 
+      echo "DOCKER_USERNAME=${DOCKER_USERNAME:-<empty>}"
+      echo "BACKEND_IMAGE=$BACKEND_IMAGE"
+      echo "NGINX_IMAGE=$NGINX_IMAGE"
       # Backend 이미지 빌드 & 푸시 (병렬)
       docker build -t "$BACKEND_IMAGE:$IMAGE_TAG" -t "$BACKEND_IMAGE:latest" -f back/Dockerfile back &
       BACKEND_PID=$!
