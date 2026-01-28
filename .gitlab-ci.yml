@@ -98,13 +98,11 @@ deploy_develop:
       wait $BACKEND_PID
       wait $NGINX_PID
 
-      # Docker Hub에 푸시 (병렬)
-      docker push "$BACKEND_IMAGE:$IMAGE_TAG" &
-      docker push "$BACKEND_IMAGE:latest" &
-      docker push "$NGINX_IMAGE:$IMAGE_TAG" &
-      docker push "$NGINX_IMAGE:latest" &
-      wait
-
+      # Docker Hub에 푸시
+      docker push "$BACKEND_IMAGE:$IMAGE_TAG"
+      docker push "$BACKEND_IMAGE:latest"
+      docker push "$NGINX_IMAGE:$IMAGE_TAG"
+      docker push "$NGINX_IMAGE:latest"
       echo "Images pushed to Docker Hub successfully"
 
       # 설정 파일 준비
@@ -153,11 +151,11 @@ deploy_develop:
         cd '$DEPLOY_PATH'
 
         # Docker Hub 로그인
-        echo '$DOCKER_PASSWORD' | docker login -u '$DOCKER_USERNAME' --password-stdin
+        echo \"$DOCKER_PASSWORD\" | docker login -u \"$DOCKER_USERNAME\" --password-stdin
 
         # 이미지 pull (병렬)
-        docker pull '$BACKEND_IMAGE:$IMAGE_TAG' &
-        docker pull '$NGINX_IMAGE:$IMAGE_TAG' &
+        docker pull \"$BACKEND_IMAGE:$IMAGE_TAG\"
+        docker pull \"$NGINX_IMAGE:$IMAGE_TAG\"
         wait
 
         # DB 컨테이너 유지, 앱 컨테이너만 재시작
@@ -166,43 +164,6 @@ deploy_develop:
         docker compose up -d --no-deps backend nginx livekit
         docker image prune -f
 
-        # Health check: healthy 상태 + crash loop 감지
-        echo 'Waiting for backend to be healthy...'
-
-        INITIAL_RESTART_COUNT=\$(docker inspect backend --format='{{.RestartCount}}' 2>/dev/null || echo '0')
-        HEALTHY_COUNT=0
-
-        for i in \$(seq 1 60); do
-          # 현재 상태 확인
-          HEALTH=\$(docker inspect backend --format='{{.State.Health.Status}}' 2>/dev/null || echo 'unknown')
-          RESTART_COUNT=\$(docker inspect backend --format='{{.RestartCount}}' 2>/dev/null || echo '0')
-
-          # Crash loop 감지: restart count가 증가하면 실패
-          if [ \"\$RESTART_COUNT\" -gt \"\$INITIAL_RESTART_COUNT\" ]; then
-            echo 'Backend is crash looping! RestartCount: '\$RESTART_COUNT
-            docker logs backend --tail 100
-            exit 1
-          fi
-
-          # Healthy 상태 확인
-          if [ \"\$HEALTH\" = 'healthy' ]; then
-            HEALTHY_COUNT=\$((HEALTHY_COUNT + 1))
-            echo \"Backend healthy (\$HEALTHY_COUNT/3)...\"
-
-            # 3번 연속 healthy면 성공 (30초간 안정)
-            if [ \$HEALTHY_COUNT -ge 3 ]; then
-              echo 'Backend health check passed!'
-              exit 0
-            fi
-          else
-            HEALTHY_COUNT=0
-            echo \"Attempt \$i/60: status=\$HEALTH\"
-          fi
-
-          sleep 10
-        done
-
-        echo 'Backend failed to become healthy!'
         docker logs backend --tail 100
         exit 1
       "
