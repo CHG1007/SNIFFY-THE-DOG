@@ -21,13 +21,14 @@ public class GameLogDocument {
     private String winner;
     private Instant startedAt;
     private Instant endedAt;
+    private String totalSummary;
 
     public GameLogDocument() {
     }
 
     public GameLogDocument(String id, String roomId, List<PlayerResultDoc> players,
                            List<GameEventDoc> events, String winner,
-                           Instant startedAt, Instant endedAt) {
+                           Instant startedAt, Instant endedAt, String totalSummary) {
         this.id = id;
         this.roomId = roomId;
         this.players = players;
@@ -35,6 +36,7 @@ public class GameLogDocument {
         this.winner = winner;
         this.startedAt = startedAt;
         this.endedAt = endedAt;
+        this.totalSummary = totalSummary;
     }
 
     public String getId() {
@@ -93,20 +95,26 @@ public class GameLogDocument {
         this.endedAt = endedAt;
     }
 
+    public String getTotalSummary() { return totalSummary; }
+
+    public void setTotalSummary(String totalSummary) { this.totalSummary = totalSummary; }
+
     public static class PlayerResultDoc {
         private Long odUserId;
         private String odNickname;
         private String role;
         private boolean survived;
+        private String aiReport;
 
         public PlayerResultDoc() {
         }
 
-        public PlayerResultDoc(Long odUserId, String odNickname, String role, boolean survived) {
+        public PlayerResultDoc(Long odUserId, String odNickname, String role, boolean survived, String aiReport) {
             this.odUserId = odUserId;
             this.odNickname = odNickname;
             this.role = role;
             this.survived = survived;
+            this.aiReport = aiReport;
         }
 
         public Long getOdUserId() {
@@ -140,6 +148,10 @@ public class GameLogDocument {
         public void setSurvived(boolean survived) {
             this.survived = survived;
         }
+
+        public String getAiReport() { return aiReport; }
+
+        public void setAiReport(String aiReport) { this.aiReport = aiReport; }
     }
 
     public static class GameEventDoc {

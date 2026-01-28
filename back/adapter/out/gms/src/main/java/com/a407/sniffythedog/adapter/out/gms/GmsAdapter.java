@@ -1,15 +1,15 @@
 package com.a407.sniffythedog.adapter.out.gms;
 
 import com.a407.sniffythedog.application.analysis.out.GmsPort;
+import com.a407.sniffythedog.application.gamelog.out.GameLogGmsPort;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-
 import java.util.*;
 
 @Component
-public class GmsAdapter implements GmsPort {
+public class GmsAdapter implements GmsPort, GameLogGmsPort {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -22,6 +22,7 @@ public class GmsAdapter implements GmsPort {
     @Value("${gms.api-key}")
     private String apiKey;
 
+    // 감정 분석
     @Override
     public String analyze(String modelName, List<Map<String, Object>> payload) {
         String url = baseUrl + path;
@@ -46,6 +47,51 @@ public class GmsAdapter implements GmsPort {
         return extractText(response.getBody());
     }
 
+    //
+    @Override
+    public String generateReport(List<String> playerInfos, List<String> eventTexts) {
+        String url = baseUrl + path;
+
+        // 1. 어댑터 내부에서 AI에게 시킬 명령(프롬프트)을 생성합니다.
+        // AI에게 전체 요약 1문장과 플레이어별 활약상을 JSON 형식으로 달라고 명령합니다.
+        String prompt = "너는 마피아 게임 분석 전문가야. 아래 로그를 읽고 다음 JSON 형식으로만 응답해.\n" +
+                "{\n" +
+                "  \"totalSummary\": \"게임 전체 흐름 요약(세 문장)\",\n" +
+                "  \"playerReports\": {\n" +
+                "    \"유저ID\": \"해당 유저만의 개인 활약상 두 문장\"\n" +
+                "  }\n" +
+                "}\n" +
+                "분석 대상 플레이어(ID:닉네임:역할): " + String.join(", ", playerInfos);
+
+        // 2. OpenAI 규격에 맞는 요청 바디(Body)를 구성합니다.
+        Map<String, Object> body = Map.of(
+                "model", "gpt-5-mini",
+                "messages", List.of(
+                        Map.of("role", "system", "content", prompt),
+                        Map.of("role", "user", "content", "게임 로그 데이터: " + eventTexts.toString())
+                )
+        );
+
+        // 3. HTTP 헤더 설정 (JSON 타입 및 API 키 인증)
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiKey);
+
+        // 4. AI 서버에 HTTP POST 요청
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    url,
+                    new HttpEntity<>(body, headers),
+                    Map.class
+            );
+            return extractText(Objects.requireNonNull(response.getBody()));
+        } catch (Exception e) {
+            // 통신 실패 시 JSON 형태를 반환
+            return "{}";
+        }
+    }
+
+    // 결과 추출
     private String extractText(Map response) {
         try {
             List<Map> choices = (List<Map>) response.get("choices");
