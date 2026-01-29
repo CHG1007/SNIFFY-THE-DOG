@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import OnboardingPage from './pages/OnboardingPage';
 import TutorialPage from './pages/TutorialPage';
 import RoomPage from './pages/RoomPage';
+import VideoTestPage from './pages/VideoTestPage';
 import MyPage from './pages/MyPage';
 import AdminPage from './pages/AdminPage';
 import Header from './components/common/Header';
@@ -32,6 +33,9 @@ function App() {
 
         {/* 관리자 페이지 */}
         <Route path="/admin" element={<><Header /><AdminPage /></>} />
+
+        {/* 화상 테스트 페이지 */}
+        <Route path="/video-test" element={<VideoTestPage />} />
       </Routes>
     </BrowserRouter>
   );

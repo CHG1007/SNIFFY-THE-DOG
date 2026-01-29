@@ -4,6 +4,7 @@ import com.a407.sniffythedog.adapter.out.mongo.gamelog.document.GameLogDocument;
 import com.a407.sniffythedog.adapter.out.mongo.gamelog.document.GameLogDocument.GameEventDoc;
 import com.a407.sniffythedog.adapter.out.mongo.gamelog.document.GameLogDocument.PlayerResultDoc;
 import com.a407.sniffythedog.domain.game.enums.GameRole;
+import com.a407.sniffythedog.domain.game.enums.Phase;
 import com.a407.sniffythedog.domain.game.enums.Winner;
 import com.a407.sniffythedog.domain.gamelog.entity.GameLog;
 import com.a407.sniffythedog.domain.gamelog.enums.GameEventType;
@@ -99,7 +100,7 @@ public class GameLogMapper {
     }
 
     private static GameEventDoc toEventDoc(GameEvent event) {
-        return new GameEventDoc(
+        GameEventDoc doc = new GameEventDoc(
                 event.type().name(),
                 event.round(),
                 event.actorUserId(),
@@ -107,6 +108,17 @@ public class GameLogMapper {
                 event.voteResult(),
                 event.timestamp()
         );
+
+        doc.setMafiaTargetUserId(event.mafiaTargetUserId());
+        doc.setDoctorTargetUserId(event.doctorTargetUserId());
+        doc.setKilledUserId(event.killedUserId());
+        doc.setIsMafia(event.isMafia());
+        doc.setSaved(event.saved());
+
+        doc.setPhase(event.phase() == null ? null : event.phase().name());
+        doc.setWinnerTeam(event.winnerTeam());
+
+        return doc;
     }
 
     private static GameEvent toGameEvent(GameEventDoc doc) {
@@ -116,6 +128,17 @@ public class GameLogMapper {
                 doc.getActorUserId(),
                 doc.getTargetUserId(),
                 doc.getVoteResult(),
+
+                doc.getIsMafia(),
+
+                doc.getMafiaTargetUserId(),
+                doc.getDoctorTargetUserId(),
+                doc.getKilledUserId(),
+                doc.getSaved(),
+
+                doc.getPhase() == null ? null : Phase.valueOf(doc.getPhase()),
+                doc.getWinnerTeam(),
+
                 doc.getTimestamp()
         );
     }

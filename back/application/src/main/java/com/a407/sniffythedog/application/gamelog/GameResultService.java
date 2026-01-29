@@ -117,20 +117,20 @@ public class GameResultService {
             List<GameEvent> fakeEvents = List.of(
                     // 1라운드: 민수의 죽음
                     GameEvent.mafiaTarget(1, 4L),        // [지영/행동] 민수 타겟팅
-                    GameEvent.policeCheck(1, 2L, 1L),    // [철수/행동] 지영 조사 (실패 혹은 미확신)
+                    GameEvent.policeCheck(1, 2L, 1L, true),    // [철수/행동] 지영 조사 (실패 혹은 미확신)
                     GameEvent.doctorSave(1, 3L, 3L),     // [영희/행동] 자기 자신 치료
                     GameEvent.kill(1, 4L),               // [민수/사건] 마피아에게 살해당함
                     GameEvent.dayVote(1, 4L, 1L),        // [민수/최후] 죽기 전 지영 투표
 
                     // 2라운드: 지영의 여론 조작
-                    GameEvent.policeCheck(2, 2L, 3L),    // [철수/행동] 영희 조사 (시민팀 확인)
+                    GameEvent.policeCheck(2, 2L, 3L, false),    // [철수/행동] 영희 조사 (시민팀 확인)
                     GameEvent.dayVote(2, 1L, 2L),        // [지영/행동] 철수를 마피아로 몰며 투표
                     GameEvent.dayVote(2, 3L, 1L),        // [영희/행동] 지영을 의심하며 투표
                     GameEvent.finalVote(2, 3L, false),   // [영희/행동] 철수 처형 반대 (철수 방어)
                     GameEvent.dayVote(2, 2L, 1L),        // [철수/행동] 지영이 범인이라고 주장
 
                     // 3라운드: 결정적 증거와 암살
-                    GameEvent.policeCheck(3, 2L, 1L),    // [철수/행동] 지영이 마피아임을 확신
+                    GameEvent.policeCheck(3, 2L, 1L, false),    // [철수/행동] 지영이 마피아임을 확신
                     GameEvent.mafiaTarget(3, 2L),        // [지영/행동] 위협적인 경찰 철수 제거 타겟
                     GameEvent.kill(3, 2L),               // [철수/사건] 밤에 지영에게 암살됨
                     GameEvent.doctorSave(3, 3L, 2L),     // [영희/행동] 철수를 살리려 했으나 실패

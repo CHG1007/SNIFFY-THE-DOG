@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.adapter.in.common.room.message;
+package com.a407.sniffythedog.adapter.in.http.room.response;
 import com.a407.sniffythedog.application.game.in.RoomState;
 import lombok.Builder;
 
