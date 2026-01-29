@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Room, RoomEvent, VideoPresets } from 'livekit-client';
-import axios from 'axios';
+import { Room, RoomEvent, VideoPresets, Track } from 'livekit-client';
+import apiClient from '../api/apiClient';
 
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL || 'wss://localhost:7880';
 
@@ -19,8 +19,7 @@ const VideoTestPage = () => {
 
   // 미디어 토큰 요청
   const getMediaToken = async (roomId) => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
-    const response = await axios.get(`${apiBaseUrl}/api/v1/media/token`, {
+    const response = await apiClient.get('/api/v1/media/token', {
       params: { roomId }
     });
     return response.data.data;
@@ -34,7 +33,15 @@ const VideoTestPage = () => {
         audio: true
       });
       if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
+        // div에 video 요소를 동적으로 생성해서 추가
+        const videoElement = document.createElement('video');
+        videoElement.srcObject = stream;
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoElement.muted = true;
+        videoElement.className = 'w-full h-full object-cover scale-x-[-1]';
+        localVideoRef.current.innerHTML = '';
+        localVideoRef.current.appendChild(videoElement);
       }
       setStatus('카메라 준비 완료');
       return stream;
@@ -99,7 +106,14 @@ const VideoTestPage = () => {
       });
 
       room.on(RoomEvent.LocalTrackPublished, (publication) => {
-        console.log('로컬 트랙 발행:', publication.kind);
+        console.log('로컬 트랙 발행:', publication.source);
+        // 카메라 트랙이 발행되면 로컬 비디오에 표시
+        if (publication.source === Track.Source.Camera && publication.track && localVideoRef.current) {
+          const element = publication.track.attach();
+          localVideoRef.current.innerHTML = '';
+          localVideoRef.current.appendChild(element);
+          element.className = 'w-full h-full object-cover scale-x-[-1]';
+        }
       });
 
       // 4. 연결
@@ -108,15 +122,27 @@ const VideoTestPage = () => {
 
       // 5. 카메라/마이크 발행
       setStatus('카메라/마이크 발행 중...');
+      console.log('enableCameraAndMicrophone 호출 전');
       await room.localParticipant.enableCameraAndMicrophone();
+      console.log('enableCameraAndMicrophone 완료');
 
       // 로컬 비디오 표시
-      const videoTrack = room.localParticipant.getTrackPublication('camera')?.track;
-      if (videoTrack && localVideoRef.current) {
-        const element = videoTrack.attach();
+      console.log('localParticipant:', room.localParticipant);
+      console.log('videoTrackPublications:', room.localParticipant.videoTrackPublications);
+
+      const videoPublication = room.localParticipant.getTrackPublication(Track.Source.Camera);
+      console.log('videoPublication:', videoPublication);
+      console.log('localVideoRef.current:', localVideoRef.current);
+
+      if (videoPublication?.track && localVideoRef.current) {
+        console.log('로컬 비디오 attach 시도');
+        const element = videoPublication.track.attach();
         localVideoRef.current.innerHTML = '';
         localVideoRef.current.appendChild(element);
         element.className = 'w-full h-full object-cover scale-x-[-1]';
+        console.log('로컬 비디오 attach 완료');
+      } else {
+        console.log('videoPublication 또는 localVideoRef 없음');
       }
 
       setStatus('연결 완료! 화상 테스트 준비됨');
