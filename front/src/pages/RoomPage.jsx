@@ -17,7 +17,15 @@ const RoomPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center gap-6">
+    <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center gap-6 relative">
+      {/* 화상 테스트 버튼 */}
+      <button
+        onClick={() => navigate('/video-test')}
+        className="absolute top-4 right-4 px-3 py-1.5 bg-white/5 text-white/60 text-xs rounded-lg hover:bg-white/10 hover:text-white transition-all"
+      >
+        화상 테스트
+      </button>
+
       <h1 className="text-4xl font-black text-white mb-10">LOBBY</h1>
 
       {/* 버튼들 */}
