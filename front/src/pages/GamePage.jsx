@@ -138,27 +138,27 @@ const GamePage = ({ players = [], myId }) => {
         <TimeScreen timeLeft={formatTime(totalSeconds)} gameStatus={gameStep} />
       </div>
 
-      <main className="flex-1 w-full max-w-[1800px] mx-auto relative flex items-center justify-center p-4">
+      <main className="flex-1 w-full h-full max-w-[1800px] mx-auto relative flex flex-col">
         {gameStep === "DEFENSE" ? (
+          <div className="w-full h-full"> 
           <DiscussionPage roomSession={mockRoomSession} onTimeout={() => {}} />
+        </div>
         ) : (
-          <div className="flex flex-wrap justify-center content-center gap-6 w-full h-full">
+         <div className="flex flex-wrap justify-center content-center gap-6 w-full h-full max-h-[85vh] pt-24">
             {standardizedPlayers.map((player) => (
               <div 
                 key={player.userId} 
-                player={player}
-                onVoteRequest={() => handleVoteClick(player)}
                 className={`flex-grow-0 flex-shrink-0 ${getFlexBasis(capacity)} min-w-[320px] transition-all duration-500`}
               >
-              <div className="w-full h-full">  
-                <GameVideoSlot 
-                  key={player.userId}
-                  player={player}
-                  isMe={player.userId === myId} 
-                  canVote={gameStep === "DAY_VOTE"}
-                  didIVote={didIVote}
-                  onVoteRequest={() => handleVoteClick(player)}
-                />
+              <div className="w-full h-full aspect-video"> 
+                  <GameVideoSlot 
+                    player={player}
+                    isMe={player.userId === myId} 
+                    canVote={gameStep === "DAY_VOTE"}
+                    didIVote={didIVote}
+                    onVoteRequest={() => handleVoteClick(player)}
+                    size="normal" 
+                  />
               </div>
             </div>
             ))}
