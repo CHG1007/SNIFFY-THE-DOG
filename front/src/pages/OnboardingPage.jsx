@@ -1,45 +1,43 @@
-// src/pages/OnboardingPage.jsx
-import { useState } from 'react';
 import KakaoLogin from 'react-kakao-login';
 import { useNavigate } from 'react-router-dom';
 import { loginWithKakao } from '../api/authApi';
+import useAuthStore from '../stores/useAuthStore';
 import OnboardingBtn from '../components/onboarding/OnboardingBtn';
 
 const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY || '';
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
-
-  const [isKakaoAuthed, setIsKakaoAuthed] = useState(false);
+  const { isAuthenticated, login } = useAuthStore();
 
   const handleKakaoSuccess = async (response) => {
     const token = response?.response?.access_token || '';
 
     if (!token) {
       console.error('Kakao access token missing.');
-      setIsKakaoAuthed(false);
       return;
     }
 
     try {
       const result = await loginWithKakao(token);
-      const { success, error } = result?.data || {};
+      const { success, data, error } = result?.data || {};
 
-      if (success) {
-        setIsKakaoAuthed(true);
+      if (success && data) {
+        login({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          user: data.user,
+        });
       } else {
         console.error('Kakao backend login failed:', error);
-        setIsKakaoAuthed(false);
       }
     } catch (error) {
       console.error('Kakao login request failed:', error);
-      setIsKakaoAuthed(false);
     }
   };
 
   const handleKakaoFail = (error) => {
     console.error('Kakao login failed:', error);
-    setIsKakaoAuthed(false);
   };
 
   const handleStartGame = () => {
@@ -64,7 +62,7 @@ const OnboardingPage = () => {
 
       {/* 버튼 섹션: 정의한 함수들을 onClick에 연결 */}
       <div className="flex flex-col gap-6">
-        {isKakaoAuthed ? (
+        {isAuthenticated ? (
           <OnboardingBtn type="primary" onClick={handleStartGame}>
             게임 시작하기
           </OnboardingBtn>
