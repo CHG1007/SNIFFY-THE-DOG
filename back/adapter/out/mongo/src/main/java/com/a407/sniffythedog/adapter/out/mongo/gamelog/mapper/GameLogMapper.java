@@ -114,6 +114,9 @@ public class GameLogMapper {
                 doc.getKilledUserId(),
                 doc.getSaved(),
 
+                doc.getAgreeCount(),
+                doc.getDisagreeCount(),
+
                 doc.getPhase() == null ? null : Phase.valueOf(doc.getPhase()),
                 doc.getWinnerTeam(),
 
