@@ -168,6 +168,10 @@ public class GameLogDocument {
         private Long killedUserId;
         private Boolean saved;
 
+        private Long agreeCount;
+        private Long disagreeCount;
+
+
         private String phase;
         private String winnerTeam;
 
@@ -212,6 +216,12 @@ public class GameLogDocument {
 
         public Long getKilledUserId() { return killedUserId; }
         public void setKilledUserId(Long killedUserId) { this.killedUserId = killedUserId; }
+
+        public Long getAgreeCount() { return agreeCount; }
+        public void setAgreeCount(Long agreeCount) { this.agreeCount = agreeCount; }
+
+        public Long getDisagreeCount() { return disagreeCount; }
+        public void setDisagreeCount(Long disagreeCount) { this.disagreeCount = disagreeCount; }
 
         public Boolean getSaved() { return saved; }
         public void setSaved(Boolean saved) { this.saved = saved; }

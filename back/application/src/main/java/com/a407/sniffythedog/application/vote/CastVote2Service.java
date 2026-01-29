@@ -2,6 +2,7 @@ package com.a407.sniffythedog.application.vote;
 
 import com.a407.sniffythedog.application.common.exception.ApplicationException;
 import com.a407.sniffythedog.application.common.exception.ExceptionType;
+import com.a407.sniffythedog.application.gamelog.out.GameLogRedisPort;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.application.vote.in.CastVote2Command;
 import com.a407.sniffythedog.application.vote.in.CastVote2UseCase;
@@ -15,6 +16,7 @@ import com.a407.sniffythedog.domain.game.vo.FinalVoteState;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
 import com.a407.sniffythedog.domain.game.vo.TrialState;
+import com.a407.sniffythedog.domain.gamelog.vo.GameEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,7 @@ public class CastVote2Service implements CastVote2UseCase {
 
     private final RedisRoomPort redisRoomPort;
     private final RoomEventPort roomEventPort;
+    private final GameLogRedisPort gameLogRedisPort;
 
     @Override
     public void execute(CastVote2Command command) {
@@ -62,15 +65,19 @@ public class CastVote2Service implements CastVote2UseCase {
             // 투표 반영
             room.castFinalVote(voterId, vote);
 
-            // 전원 투표 완료 시 판결
+            //todo: round 일단 1로 저장함
+            holder.round = 1;
+
+            // 살아있는 사람의 수
             long aliveCount = room.getPlayers().values()
                     .stream().filter(PlayerState::isAlive).count();
-
+            // 지금까지 들어온 투표수
             int totalVotes = room.getGameState().trial()
                     .finalVote().votes().size();
 
             if (totalVotes == aliveCount) {
 
+                holder.resolved = true;
                 // 판결 확정
                 room.concludeTrial();
 
@@ -81,6 +88,12 @@ public class CastVote2Service implements CastVote2UseCase {
                 holder.yes = finalVote.getYesCount();
                 holder.no = finalVote.getNoCount();
                 holder.executedUserId = accused == null ? null : accused.value();
+
+                // 처형 대상이 마피아인지 확인
+                if (accused != null) {
+                    PlayerState accusedPlayer = room.getPlayers().get(accused);
+                    holder.executedIsMafia = (accusedPlayer != null && accusedPlayer.isMafia());
+                }
 
                 // 처형
                 if (holder.approved && accused != null) {
@@ -105,6 +118,12 @@ public class CastVote2Service implements CastVote2UseCase {
                 true
         );
 
+        boolean yes = (vote == YesNo.YES);
+        gameLogRedisPort.saveEvent(
+                command.roomCode(),
+                GameEvent.vote2Cast(holder.round, command.voterUserId(),yes)
+        );
+
         // 판결 결과 알림
         if (holder.resolved()) {
 
@@ -115,6 +134,12 @@ public class CastVote2Service implements CastVote2UseCase {
                     holder.executedUserId,
                     holder.yes,
                     holder.no
+            );
+
+            gameLogRedisPort.saveEvent(
+                    command.roomCode(),
+                    GameEvent.vote2Result(holder.round, holder.approved, holder.executedUserId, holder.executedIsMafia,
+                            holder.yes, holder.no)
             );
 
             if (holder.killed) {
@@ -139,17 +164,22 @@ public class CastVote2Service implements CastVote2UseCase {
     }
 
     private static class ResultHolder {
+        int round = 1;
+
+        boolean resolved = false;
+
         boolean approved;
         long yes;
         long no;
-        Long executedUserId;
-        boolean killed;
 
+        Long executedUserId;
+        Boolean executedIsMafia;
+
+        boolean killed;
         boolean finished;
         String winnerTeam;
 
-        boolean resolved() {
-            return executedUserId != null;
-        }
+        boolean resolved() { return resolved; }
+
     }
 }
