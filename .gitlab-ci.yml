@@ -35,6 +35,7 @@ frontend_build:
     policy: pull-push
   variables:
     VITE_KAKAO_JS_KEY: $KAKAO_JS_KEY
+    VITE_LIVEKIT_URL: "wss://${SERVER_NAME}/livekit/"
   script:
     - cd front
     - npm ci --prefer-offline
