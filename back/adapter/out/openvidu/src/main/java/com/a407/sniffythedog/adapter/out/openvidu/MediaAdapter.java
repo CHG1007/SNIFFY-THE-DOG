@@ -1,4 +1,4 @@
-package com.a407.sniffythedog.adapter.out.livekit;
+package com.a407.sniffythedog.adapter.out.openvidu;
 
 import com.a407.sniffythedog.application.media.out.MediaPort;
 import lombok.RequiredArgsConstructor;

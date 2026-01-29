@@ -120,8 +120,7 @@ deploy_develop:
       # LiveKit 설정 파일 복사
       export LIVEKIT_API_KEY="$LIVEKIT_API_KEY"
       export LIVEKIT_API_SECRET="$LIVEKIT_API_SECRET"
-      export LIVEKIT_NODE_IP="$SERVER_NAME"
-      envsubst '${LIVEKIT_API_KEY} ${LIVEKIT_API_SECRET} ${LIVEKIT_NODE_IP}' < livekit.yaml > deploy/livekit.yaml
+      envsubst '${LIVEKIT_API_KEY} ${LIVEKIT_API_SECRET}' < livekit.yaml > deploy/livekit.yaml
 
       cat > deploy/.env << EOF
       BACKEND_IMAGE=$BACKEND_IMAGE

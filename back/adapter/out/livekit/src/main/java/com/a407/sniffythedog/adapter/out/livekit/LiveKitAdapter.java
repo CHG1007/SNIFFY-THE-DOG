@@ -5,6 +5,9 @@ import io.livekit.server.AccessToken;
 import io.livekit.server.RoomServiceClient;
 import io.livekit.server.RoomJoin;
 import io.livekit.server.RoomName;
+import io.livekit.server.CanPublish;
+import io.livekit.server.CanSubscribe;
+import io.livekit.server.CanPublishData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -43,10 +46,13 @@ public class LiveKitAdapter implements MediaPort {
         token.setIdentity(userId);
         token.setName(userId);
 
-        // 해당 room join 권한 + roomName 지정
+        // 해당 room join 권한 + roomName 지정 + publish/subscribe 권한
         token.addGrants(
                 new RoomJoin(true),
-                new RoomName(sessionId)
+                new RoomName(sessionId),
+                new CanPublish(true),
+                new CanSubscribe(true),
+                new CanPublishData(true)
         );
 
         return token.toJwt();
