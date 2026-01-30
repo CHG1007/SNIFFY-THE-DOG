@@ -1,7 +1,7 @@
 port: 7880
 rtc:
-  port_range_start: 40000
-  port_range_end: 40100
+  port_range_start: 16384
+  port_range_end: 16433
   tcp_port: 7881
   use_external_ip: true
 
