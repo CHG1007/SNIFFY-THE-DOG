@@ -9,34 +9,27 @@ import AdminPage from './pages/AdminPage';
 import Header from './components/common/Header';
 import WaitingRoomPage from './pages/WaitingRoomPage';
 import AiTestLauncher from './components/aitest/AiTestLauncher';
+import WithHeaderLayout from './components/common/WithHeaderLayout';
 
 function App() {
   return (
     <BrowserRouter>
-
-      {/*===== AI 테스트 =====*/}
+      <div className = "min-h-screen overflow-x-hidden">
       <AiTestLauncher/>
-      {/*====================*/}
-
       <Routes>
-        {/* 헤더가 없는 온보딩/튜토리얼 페이지 */}
         <Route path="/" element={<OnboardingPage />} />
         <Route path="/tutorial" element={<TutorialPage />} />
-
-        {/* 헤더가 공통으로 들어가는 메인 서비스 페이지들 */}
-        <Route path="/rooms" element={<><Header /><RoomPage /></>} />
-
-        {/* 방장인지 아닌지 구분하는 페이지 */}
+        <Route path="/rooms" element={
+          <WithHeaderLayout backgroundUrl="/assets/images/roompage/background.png">
+            <RoomPage />
+          </WithHeaderLayout>
+        } />
         <Route path="/rooms/:roomId" element={<><Header /><WaitingRoomPage /></>} />
-
         <Route path="/users" element={<><Header /><MyPage /></>} />
-
-        {/* 관리자 페이지 */}
         <Route path="/admin" element={<><Header /><AdminPage /></>} />
-
-        {/* 화상 테스트 페이지 */}
         <Route path="/video-test" element={<VideoTestPage />} />
       </Routes>
+      </div>
     </BrowserRouter>
   );
 }
