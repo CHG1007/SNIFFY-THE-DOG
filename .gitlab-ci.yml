@@ -156,6 +156,8 @@ deploy_develop:
       # 서버에 설정 파일만 전송 (이미지는 pull)
       ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH' && rm -f '$DEPLOY_PATH/.env'"
 
+      # .env는 숨김파일이라 *로 매칭 안됨 - 명시적으로 복사
+      scp -i ~/.ssh/id_rsa deploy/.env "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/.env"
       scp -i ~/.ssh/id_rsa -r deploy/* "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
 
       # 서버에서 이미지 pull & 배포
