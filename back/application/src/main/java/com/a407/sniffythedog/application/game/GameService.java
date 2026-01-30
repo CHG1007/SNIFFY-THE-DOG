@@ -49,6 +49,9 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
         try {
             RoomSession updatedRoom = redisRoomPort
                     .updateRoomAtomically(roomId, room -> {
+                        if (room.getPlayer(gameUserId) != null) {
+                            return room; // 이미 참가 중이면 변경 없이 리턴
+                        }
                         room.joinPlayer(gameUserId, nickname);
                         return room;
                     });
