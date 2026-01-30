@@ -2,7 +2,7 @@ import AnimatedImageGroup from "./AnimatedImageGroup";
 
 export default function LeftPanel() {
   return (
-    <div className="w-[360px] rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-4 flex flex-col gap-6">
+    <div className="w-[320px] h-fit rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-4 flex flex-col gap-6 shadow-xl">
       <AnimatedImageGroup
         images={[
           "/assets/images/roompage/story1.png",

@@ -8,40 +8,33 @@ export default function LobbyLayout({
   children,
 }) {
   return (
-    <div className="relative flex-1 overflow-hidden">
+    <div className="relative w-full h-full flex flex-col overflow-hidden">
       {/* 배경 */}
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${backgroundUrl})` }}
-      />
-      {/* 어두운 오버레이 */}
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${backgroundUrl})` }} />
       <div className="absolute inset-0 bg-black/35" />
 
       {/* 컨텐츠 */}
-      <div className="relative h-full px-8 py-0">
+      <div className="relative flex-1 flex flex-col px-8 pt-4 min-h-0">
         {/* 화상 테스트 버튼 */}
-        <button
-          onClick={onVideoTest}
-          className="absolute top-6 right-8 px-4 py-2 rounded-xl bg-white/10 text-white/80 text-sm
-                     hover:bg-white/20 hover:text-white transition"
-          type="button"
-        >
-          화상 테스트
-        </button>
+        <button onClick={onVideoTest} className="absolute top-2 right-8 px-4 py-2 ... z-50">화상 테스트</button>
 
         {/* 상단 메뉴 */}
-        <div className="mt-0 flex items-center justify-center gap-28">
-          {topMenus}
+        <div className="h-[15%] min-h-[100px] flex gap-8 items-center">
+          {/* 왼쪽 패널 너비(320px)만큼 빈 공간을 주어 TopMenu를 오른쪽(메인 위)으로 밀어줍니다 */}
+          <div className="w-[320px] shrink-0" /> 
+          <div className="flex-1 flex justify-center gap-20">
+            {topMenus}
+          </div>
         </div>
 
         {/* 메인 영역 */}
-        <div className="mt-0 flex gap-10 h-[68%]">
-          {leftPanel}
-          {mainPanel}
+        <div className="flex-1 min-h-0 flex gap-8 mb-10 items-center justify-center">
+          <div className="shrink-0">{leftPanel}</div>
+          <div className="flex-1 max-w-[1050px] min-h-0">{mainPanel}</div>
         </div>
 
         {/* 하단 */}
-        <div className="absolute left-0 right-0 bottom-8 flex items-center justify-center">
+        <div className="h-10 flex items-center justify-center shrink-0">
           {footer}
         </div>
 

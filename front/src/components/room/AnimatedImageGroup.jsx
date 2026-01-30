@@ -12,7 +12,7 @@ export default function AnimatedImageGroup({ images, delay = 0 }) {
           <img
             src={src}
             alt=""
-            className="w-full object-cover"
+            className="w-full h-auto object-contain"
           />
         </div>
       ))}
