@@ -154,15 +154,18 @@ deploy_develop:
         # Docker Hub 로그인
         echo \"$DOCKER_PASSWORD\" | docker login -u \"$DOCKER_USERNAME\" --password-stdin
 
-        # 이미지 pull (병렬)
-        docker pull \"$BACKEND_IMAGE:$IMAGE_TAG\"
-        docker pull \"$NGINX_IMAGE:$IMAGE_TAG\"
-        wait
+        # (1) .env를 compose가 확실히 읽게 보장
+        docker compose --env-file .env pull --parallel backend nginx livekit
 
-        # DB 컨테이너 유지, 앱 컨테이너만 재시작
+        # (2) DB는 유지
         docker compose up -d --no-recreate mysql redis mongodb
-        docker rm -f backend nginx livekit 2>/dev/null || true
-        docker compose up -d --no-deps backend nginx livekit
+
+        # (3) 앱은 항상 최신 pull 기준 + 강제 재생성
+        docker compose --env-file .env up -d \
+          --pull always \
+          --force-recreate \
+          --no-deps \
+          backend nginx livekit
         docker image prune -f
 
         docker logs backend --tail 100
