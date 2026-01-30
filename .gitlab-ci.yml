@@ -122,6 +122,13 @@ deploy_develop:
       export LIVEKIT_API_SECRET="$LIVEKIT_API_SECRET"
       envsubst '${LIVEKIT_API_KEY} ${LIVEKIT_API_SECRET}' < livekit.yaml > deploy/livekit.yaml
 
+      # 디버그: CI 변수 확인
+      echo "=== CI Variables ==="
+      echo "BACKEND_IMAGE=$BACKEND_IMAGE"
+      echo "NGINX_IMAGE=$NGINX_IMAGE"
+      echo "IMAGE_TAG=$IMAGE_TAG"
+
+      # .env 파일 생성
       printf '%s\n' \
         "BACKEND_IMAGE=$BACKEND_IMAGE" \
         "NGINX_IMAGE=$NGINX_IMAGE" \
@@ -142,6 +149,10 @@ deploy_develop:
         "SERVER_NAME=$SERVER_NAME" \
         > deploy/.env
 
+      # 디버그: 생성된 .env 파일 확인
+      echo "=== Generated .env file ==="
+      cat deploy/.env | grep -E "^(BACKEND_IMAGE|NGINX_IMAGE|IMAGE_TAG)="
+
       # 서버에 설정 파일만 전송 (이미지는 pull)
       ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
 
@@ -150,6 +161,10 @@ deploy_develop:
       # 서버에서 이미지 pull & 배포
       ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "
         cd '$DEPLOY_PATH'
+
+        # 디버그: 서버에 전송된 .env 파일 확인
+        echo '=== Server .env file ==='
+        cat .env | grep -E '^(BACKEND_IMAGE|NGINX_IMAGE|IMAGE_TAG)='
 
         # Docker Hub 로그인
         echo \"$DOCKER_PASSWORD\" | docker login -u \"$DOCKER_USERNAME\" --password-stdin
