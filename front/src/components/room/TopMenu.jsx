@@ -3,7 +3,7 @@ export default function TopMenu({ label, onClick }) {
     <button
       onClick={onClick}
       type="button"
-      className="group relative w-31 h-31 select-none"
+      className="group relative w-28 h-28 select-none flex-shrink-0"
       style={{
         backgroundImage: "url(/assets/images/roompage/goldbox.svg)",
         backgroundRepeat: "no-repeat",
@@ -13,10 +13,7 @@ export default function TopMenu({ label, onClick }) {
     >
       {/* 텍스트를 아이콘 위에 올리기 */}
       <span
-        className="absolute inset-0 flex items-center justify-center
-                   text-white text-3xl font-black tracking-tight leading-none
-                   drop-shadow-[0_2px_2px_rgba(0,0,0,0.6)]
-                   group-hover:scale-[1.02] transition"
+        className="absolute inset-0 flex items-center justify-center text-white text-2xl font-black drop-shadow-md group-hover:scale-105 transition"
       >
         {label}
       </span>
