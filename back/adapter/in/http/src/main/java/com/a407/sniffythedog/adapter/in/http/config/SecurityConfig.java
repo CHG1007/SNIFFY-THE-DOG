@@ -59,7 +59,8 @@ public class SecurityConfig {
                                 "/api/swagger-ui/**",
                                 "/api/swagger-ui.html",
                                 "/actuator/health/**",
-                                "/actuator/info"
+                                "/actuator/info",
+                                "/ws/**"
                         ).permitAll()
                         // 1. [구체적인 규칙] 로그아웃은 인증해야 함
                         .requestMatchers("/api/v1/auth/logout").authenticated()
