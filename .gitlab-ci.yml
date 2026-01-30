@@ -122,7 +122,7 @@ deploy_develop:
       export LIVEKIT_API_SECRET="$LIVEKIT_API_SECRET"
       envsubst '${LIVEKIT_API_KEY} ${LIVEKIT_API_SECRET}' < livekit.yaml > deploy/livekit.yaml
 
-      cat > deploy/.env << EOF
+      cat << 'ENVEOF' | sed 's/^[[:space:]]*//' | envsubst > deploy/.env
       BACKEND_IMAGE=$BACKEND_IMAGE
       NGINX_IMAGE=$NGINX_IMAGE
       IMAGE_TAG=$IMAGE_TAG
@@ -140,7 +140,7 @@ deploy_develop:
       LIVEKIT_API_KEY=$LIVEKIT_API_KEY
       LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET
       SERVER_NAME=$SERVER_NAME
-      EOF
+      ENVEOF
 
       # 서버에 설정 파일만 전송 (이미지는 pull)
       ssh -i ~/.ssh/id_rsa "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
