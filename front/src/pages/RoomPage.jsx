@@ -1,70 +1,61 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import FindGameModal from '../components/modals/FindGameModal'; 
+import FindGameModal from '../components/modals/FindGameModal';
 import CreateGameModal from '../components/modals/CreateGameModal';
+
+import LeftPanel from "../components/room/LeftPanel";
+import LobbyLayout from '../components/room/LobbyLayout';
+import TopMenu from '../components/room/TopMenu';
+import RoomCard from '../components/room/RoomCard';
+import Pagination from '../components/room/Pagination';
 
 const RoomPage = () => {
   const navigate = useNavigate();
-  // 로직: 모달의 열림/닫힘 상태를 관리 (초기값은 false)
   const [isFindGameOpen, setIsFindGameOpen] = useState(false);
   const [isCreateGameOpen, setIsCreateGameOpen] = useState(false);
 
   const handleQuickJoin = () => {
-    // 실제로는 API(3-2) 호출: POST /api/v1/rooms/quick-join
-    const mockRoomId = "r_quick_123";
-    console.log("빠른 입장 시도 중...");
-    navigate(`/rooms/${mockRoomId}`); // 유저 대기방 경로로 이동
+    const mockRoomId = 'r_quick_123';
+    console.log('빠른 입장 시도 중...');
+    navigate(`/rooms/${mockRoomId}`);
   };
 
   return (
-    <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center gap-6 relative">
-      {/* 화상 테스트 버튼 */}
-      <button
-        onClick={() => navigate('/video-test')}
-        className="absolute top-4 right-4 px-3 py-1.5 bg-white/5 text-white/60 text-xs rounded-lg hover:bg-white/10 hover:text-white transition-all"
+    <div className="w-full overflow-hidden">
+      <LobbyLayout
+        backgroundUrl="/assets/images/roompage/background.png"
+        onVideoTest={() => navigate('/video-test')}
+        topMenus={
+          <>
+            <TopMenu label="게임찾기" onClick={() => setIsFindGameOpen(true)} />
+            <TopMenu label="게임생성" onClick={() => setIsCreateGameOpen(true)} />
+            <TopMenu label="게임시작" onClick={handleQuickJoin} />
+          </>
+        }
+        leftPanel={<LeftPanel />}
+        mainPanel={
+          <div className="flex-1 rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-4 flex flex-col">
+            <div className="grid grid-cols-3 gap-6 flex-1">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <RoomCard
+                  key={idx}
+                  roomCode="ROOM-001"
+                  title="입장하세요"
+                  hostName="SSAFY 407팀 화이팅"
+                  current={5}
+                  capacity={8}
+                />
+              ))}
+            </div>
+            <Pagination currentPage={1} totalPages={3} onPrev={() => {}} onNext={() => {}} onSelect={() => {}} />
+          </div>
+        }
       >
-        화상 테스트
-      </button>
-
-      <h1 className="text-4xl font-black text-white mb-10">LOBBY</h1>
-
-      {/* 버튼들 */}
-      <div className="flex gap-4">
-        {/* 게임 찾기 버튼을 누르면 상태를 true로 변경 */}
-        <button 
-          onClick={() => setIsFindGameOpen(true)}
-          className="px-8 py-4 bg-white/10 text-white rounded-xl font-bold hover:bg-white/20 transition-all cursor-pointer"
-        >
-          게임 찾기
-        </button>
-
-        <button 
-          onClick={() => setIsCreateGameOpen(true)}
-          className="px-8 py-4 bg-[#ff8a00] text-white rounded-xl font-bold hover:bg-[#ffaa44] transition-all cursor-pointer"
-        >
-          게임 생성
-        </button>
-
-        <button onClick={handleQuickJoin} 
-        className="px-8 py-4 bg-[#ff8a00] text-white rounded-xl font-bold hover:bg-[#ffaa44] transition-all cursor-pointer">
-          게임 시작
-        </button>
-      </div>
-
-      {/* 모달 컴포넌트 배치 */}
-      {/* isOpen: 현재 상태 전달 / onClose: 상태를 다시 false로 바꾸는 함수 전달 */}
-      <FindGameModal 
-        isOpen={isFindGameOpen} 
-        onClose={() => setIsFindGameOpen(false)} 
-      />
-      {/* 게임 생성 모달 */}
-      {isCreateGameOpen && (
-        <CreateGameModal 
-          isOpen={isCreateGameOpen} 
-          onClose={() => setIsCreateGameOpen(false)} 
-        />
-      )}
-
+        <FindGameModal isOpen={isFindGameOpen} onClose={() => setIsFindGameOpen(false)} />
+        {isCreateGameOpen && (
+          <CreateGameModal isOpen={isCreateGameOpen} onClose={() => setIsCreateGameOpen(false)} />
+        )}
+      </LobbyLayout>
     </div>
   );
 };
