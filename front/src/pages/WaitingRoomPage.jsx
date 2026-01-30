@@ -1,85 +1,184 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+
+import websocketClient from '../api/websocketClient';
+
 import CreatorWaitingPage from './CreatorWaitingPage';
 import UserWaitingPage from './UserWaitingPage';
 import LoadingPage from './LoadingPage';
-import GamePage from './GamePage';
+import GameStartCountdown from '../components/waiting/GameStartCountdown';
+import GameAlertModal from '../components/modals/GameAlertModal';
 
 const WaitingRoomPage = () => {
-  const { roomId } = useParams();
-  const location = useLocation();
-  const [roomData, setRoomData] = useState(null);
-  
-  // 상태 관리: 'WAITING' | 'STARTING' | 'PLAYING'
-  const [status, setStatus] = useState('WAITING'); 
-  // navigate에서 보낸 state가 있으면 사용, 없으면 기본값 false
-  const amIHost = location.state?.isHost || false;
-  // 방장이 수정 버튼 클릭 시 데이터 업데이트
-  const updateRoomData = (newData) => {
-    setRoomData(prev => ({
-      ...prev,
-      ...newData // 넘겨받은 제목, 인원수 등을 기존 데이터에 덮어씌움
-    }));
-  };
+  const { roomId } = useParams(); // roomId = roomCode
+  const navigate = useNavigate();
 
-  // 게임 시작 함수 (카운트다운 완료 시 호출)
-  const handleGameStart = () => {
-    setStatus('STARTING'); // 로딩 화면으로 전환
-    setTimeout(() => {
-      setStatus('PLAYING'); // 2초 후 실제 게임 화면으로 전환
-    }, 2000);
-  };
+  // --- 상태 관리 ---
+  const [players, setPlayers] = useState([]);
+  const [roomInfo, setRoomInfo] = useState(null);
+  const [myInfo, setMyInfo] = useState(null);
+  const [countdown, setCountdown] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
 
-  useEffect(() => {
-    // API 명세서: 방 상세 조회 호출 시뮬레이션
-    const fetchRoomData = () => {
-      const createdData = location.state?.createdData;
+  // --- 소켓 메시지 핸들러 ---
+  const handleSocketMessage = useCallback((msg) => {
+    const { type, data } = msg;
+
+    if (import.meta.env.DEV) console.log("[WS Recv]", type, data);
+
+    switch (type) {
+      case 'JOIN_ACK':
+        setPlayers(data.roomState.players);
+        setRoomInfo({
+          title: "즐거운 마피아 게임", // 백엔드에 필드 추가되면 data.roomState.title로 변경
+          capacity: 8,
+          hostUserId: data.roomState.hostUserId,
+          status: data.roomState.status,
+          inviteCode: data.roomState.roomCode || roomId 
+        });
+        setMyInfo(data.my);
+        break;
+
+      case 'ROOM_PLAYER_JOINED':
+        setPlayers((prev) => {
+          if (prev.find(p => p.userId === data.player.userId)) return prev;
+          return [...prev, data.player];
+        });
+        if (data.roomState) {
+          setRoomInfo(prev => ({ ...prev, hostUserId: data.roomState.hostUserId }));
+        }
+        break;
+
+      case 'ROOM_PLAYER_LEFT':
+        setPlayers((prev) => prev.filter(p => p.userId !== data.userId));
+        if (data.roomState) {
+          setRoomInfo(prev => ({ ...prev, hostUserId: data.roomState.hostUserId }));
+        }
+        break;
+
+      case 'PLAYER_STATUS_CHANGED':
+      case 'ROOM_READY_UPDATED':
+        setPlayers((prev) => prev.map(p => 
+          p.userId === data.userId ? { ...p, ready: data.ready } : p
+        ));
+        if (myInfo && data.userId === myInfo.userId) {
+          setMyInfo(prev => ({ ...prev, ready: data.ready }));
+        }
+        break;
+
+      case 'GAME_COUNTDOWN':
+        setCountdown(data.seconds);
+        break;
+
+      case 'GAME_COUNTDOWN_CANCELLED':
+        setCountdown(null);
+        break;
+
+      case 'PHASE_CHANGED':
+        if (data.phase === 'DAY') {
+          navigate(`/game/${roomId}`, { 
+            state: { myInfo, players } 
+          });
+        }
+        break;
+
+      case 'KICKED':
+        alert("방장에 의해 강퇴되었습니다.");
+        navigate('/');
+        break;
       
-      const mockData = {
-        roomId: roomId,
-        title: createdData?.title || "같이 즐겜해요~",
-        hostUserId: amIHost ? 1 : 2, // 방장의 ID
-        capacity: createdData?.capacity || 8,
-        inviteCode: "PKDIEJDL21443",
-        players: [
-          // 이미지는 추후 수정해야 함
-          { userId: 1, displayName: "태환", ready: true, isHost: true, photo: "https://pds.joongang.co.kr/news/component/htmlphoto_mmdata/202302/11/9e7b87f1-2ca5-45af-ac7b-358ad794b1bc.jpg" },
-          { userId: 2, displayName: "유저2", ready: true, isHost: false, photo: "https://img.vogue.co.kr/vogue/2023/10/style_65387f34c898c-930x1203.jpg" },
-          { userId: 3, displayName: "루피", ready: true, isHost: false, photo: "https://pds.joongang.co.kr/news/component/htmlphoto_mmdata/202302/11/9e7b87f1-2ca5-45af-ac7b-358ad794b1bc.jpg" }, 
-          { userId: 4, displayName: "조로", ready: true, isHost: false, photo: "https://img.vogue.co.kr/vogue/2023/10/style_65387f34c898c-930x1203.jpg" }, 
-          { userId: 5, displayName: "나미", ready: true, isHost: false, photo: "https://pds.joongang.co.kr/news/component/htmlphoto_mmdata/202302/11/9e7b87f1-2ca5-45af-ac7b-358ad794b1bc.jpg" }, 
-          { userId: 6, displayName: "상디", ready: true, isHost: false, photo: "https://img.vogue.co.kr/vogue/2023/10/style_65387f34c898c-930x1203.jpg" },
-  
-        ]
-      };
-      setRoomData(mockData);
-    };
-    
-    setTimeout(fetchRoomData, 1000); 
-  }, [roomId, amIHost, location.state]);
+      case 'JOIN_REJECTED':
+      case 'ERROR':
+        setErrorMsg(data.message || "오류가 발생했습니다.");
+        if (type === 'JOIN_REJECTED' && !data.retryable) {
+          navigate('/');
+        }
+        break;
 
-  // 데이터가 아직 없을 때(null) 로딩 페이지
-  if (!roomData) {
-    return <LoadingPage />;
+      default:
+        break;
+    }
+  }, [navigate, roomId, myInfo]);
+
+  // --- 라이프사이클 ---
+  useEffect(() => {
+    websocketClient.connect(roomId, handleSocketMessage);
+    return () => websocketClient.disconnect();
+  }, [roomId, handleSocketMessage]);
+
+  // --- 사용자 액션 ---
+  const handleToggleReady = () => {
+    if (!myInfo) return;
+    websocketClient.publish('ready', { ready: !myInfo.ready });
+  };
+
+  const handleGameStartRequest = () => {
+    websocketClient.publish('start'); 
+  };
+
+  const handleKickUser = (targetUserId) => {
+    const targetId = typeof targetUserId === 'object' ? targetUserId.userId : targetUserId;
+    websocketClient.publish('kick', { targetUserId: targetId });
+  };
+
+  const updateRoomData = (newData) => {
+    console.log("Update room info:", newData);
+  };
+
+  // --- 렌더링 ---
+  if (!roomInfo || !myInfo) {
+    return <LoadingPage message="Connecting to Server..." />;
   }
 
-  // 게임 시작 전 로딩 (직업 배정 연출)
-  if (status === 'STARTING') {
-    return <LoadingPage message="Assigning Roles..." subMessage="당신의 정체를 숨기고 배신자를 찾으십시오." />;
-  }
+  const formattedRoomData = {
+    roomId: roomId,
+    title: roomInfo.title,
+    hostUserId: roomInfo.hostUserId,
+    capacity: roomInfo.capacity,
+    inviteCode: roomInfo.inviteCode,
+    players: players.map(p => ({
+        userId: p.userId,
+        displayName: p.nickname,
+        ready: p.ready,
+        isHost: p.userId === roomInfo.hostUserId,
+        photo: p.profileImage || "https://via.placeholder.com/150",
+    }))
+  };
 
-  // 실제 게임 화면
-  // photo는 추후 삭제 예정
-  if (status === 'PLAYING') {
-    return <GamePage players={roomData.players.map(p => ({ id: p.userId, name: p.displayName, ready: p.ready, photo: p.photo  }))} myId={1} />;
-  }
+  const amIHost = myInfo.userId === roomInfo.hostUserId;
 
-  // 판단 결과에 따라 미리 만들어둔 컴포넌트로 데이터를 토스(Toss)
-  return amIHost ? (
-    <CreatorWaitingPage roomData={roomData} updateRoomData={updateRoomData} onGameStart={handleGameStart} />
-  ) : (
-    <UserWaitingPage roomData={roomData} onGameStart={handleGameStart} />
+  return (
+    <>
+      {amIHost ? (
+        <CreatorWaitingPage 
+            roomData={formattedRoomData} 
+            updateRoomData={updateRoomData} 
+            onGameStart={handleGameStartRequest}
+            onKick={handleKickUser}
+            myId={myInfo.userId} // ✅ 내 ID 전달 (중요)
+        />
+      ) : (
+        <UserWaitingPage 
+            roomData={formattedRoomData} 
+            onReady={handleToggleReady} // ✅ 이름 변경 (onGameStart -> onReady)
+            myId={myInfo.userId} // ✅ 내 ID 전달 (중요)
+        />
+      )}
+
+      {countdown !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+           <GameStartCountdown count={countdown} />
+        </div>
+      )}
+
+      {errorMsg && (
+        <GameAlertModal 
+          isOpen={!!errorMsg} 
+          onClose={() => setErrorMsg(null)} 
+          message={errorMsg} 
+        />
+      )}
+    </>
   );
 };
 

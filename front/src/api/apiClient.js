@@ -25,6 +25,8 @@ const processQueue = (error, token = null) => {
 apiClient.interceptors.request.use(
   (config) => {
     const accessToken = useAuthStore.getState().accessToken;
+    console.log("🚀 [API 요청] URL:", config.url);
+    console.log("🔑 [보내는 토큰]:", accessToken ? accessToken.substring(0, 10) + "..." : "없음(NULL) 😱");
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }

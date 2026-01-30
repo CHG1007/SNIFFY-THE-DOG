@@ -26,6 +26,9 @@ function App() {
         {/* 헤더가 공통으로 들어가는 메인 서비스 페이지들 */}
         <Route path="/rooms" element={<><Header /><RoomPage /></>} />
 
+        {/* 대기방 경로를 '/waiting-room/:roomId'로 변경하여 모달과 일치시킴 */}
+        <Route path="/waiting-room/:roomId" element={<><Header /><WaitingRoomPage /></>} />
+
         {/* 방장인지 아닌지 구분하는 페이지 */}
         <Route path="/rooms/:roomId" element={<><Header /><WaitingRoomPage /></>} />
 
