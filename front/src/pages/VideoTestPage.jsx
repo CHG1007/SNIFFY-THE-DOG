@@ -5,17 +5,46 @@ import apiClient from '../api/apiClient';
 
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL || 'wss://localhost:7880';
 
+// 비디오 렌더링을 위한 별도 컴포넌트
+const VideoComponent = ({ track, participantIdentity, local = false }) => {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (track && videoElement) {
+      track.attach(videoElement);
+      return () => {
+        track.detach(videoElement);
+      };
+    }
+  }, [track]);
+
+  return (
+    <div className="aspect-video bg-black/50 rounded-lg overflow-hidden relative">
+      <video
+        ref={videoRef}
+        className={`w-full h-full object-cover ${local ? 'scale-x-[-1]' : ''}`}
+      />
+      <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 rounded text-xs select-none pointer-events-none">
+        {local ? '나 (로컬)' : participantIdentity}
+      </div>
+    </div>
+  );
+};
+
 const VideoTestPage = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState('대기 중');
   const [roomId, setRoomId] = useState('test-room-' + Date.now());
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
-  const [participants, setParticipants] = useState([]);
+
+  // 상태 관리 개선
+  const [participants, setParticipants] = useState([]); // [identity, ...]
+  const [tracks, setTracks] = useState({}); // { identity: videoTrack }
+  const [localTrack, setLocalTrack] = useState(null);
 
   const roomRef = useRef(null);
-  const localVideoRef = useRef(null);
-  const remoteVideosRef = useRef({});
 
   // 미디어 토큰 요청
   const getMediaToken = async (roomId) => {
@@ -25,26 +54,25 @@ const VideoTestPage = () => {
     return response.data.data;
   };
 
-  // 로컬 비디오 미리보기
+  // 로컬 비디오 미리보기 (LiveKit 연결 없이 단순 미리보기)
   const startLocalPreview = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true
       });
-      if (localVideoRef.current) {
-        // div에 video 요소를 동적으로 생성해서 추가
-        const videoElement = document.createElement('video');
-        videoElement.srcObject = stream;
-        videoElement.autoplay = true;
-        videoElement.playsInline = true;
-        videoElement.muted = true;
-        videoElement.className = 'w-full h-full object-cover scale-x-[-1]';
-        localVideoRef.current.innerHTML = '';
-        localVideoRef.current.appendChild(videoElement);
-      }
-      setStatus('카메라 준비 완료');
-      return stream;
+      // 단순 미리보기용 임시 트랙 생성은 복잡하므로, 
+      // 여기서는 연결 전에는 HTMLVideoElement로 직접 보여주는 것이 나을 수 있으나,
+      // 기존 로직과 통일성을 위해 LiveKit 연결을 권장하거나 
+      // 미리보기 전용 video 태그를 따로 둘 수 있습니다.
+      // 현재 구조상 'LiveKit 연결' 버튼을 누르면 이 스트림을 쓰는게 아니라 새로 enableCameraAndMicrophone을 하므로
+      // 여기서는 단순 피드백만 줍니다.
+
+      setStatus('카메라 권한 획득 성공 (연결 버튼을 눌러주세요)');
+
+      // 스트림 해제 (실제 연결 시 다시 요청함)
+      stream.getTracks().forEach(track => track.stop());
+
     } catch (err) {
       setError('카메라/마이크 접근 실패: ' + err.message);
       throw err;
@@ -75,11 +103,30 @@ const VideoTestPage = () => {
       room.on(RoomEvent.Connected, () => {
         setStatus('LiveKit 연결 성공!');
         setIsConnected(true);
+
+        // 이미 접속해 있는 참가자 처리
+        const existingParticipants = Array.from(room.remoteParticipants.values());
+        setParticipants(existingParticipants.map(p => p.identity));
+
+        // 기존 참가자들의 트랙 처리
+        existingParticipants.forEach(p => {
+          p.videoTrackPublications.forEach(publication => {
+            if (publication.track) { // isSubscribed 확인은 할 수 있으나 track이 있으면 이미 구독된 것
+              setTracks(prev => ({
+                ...prev,
+                [p.identity]: publication.track
+              }));
+            }
+          });
+        });
       });
 
       room.on(RoomEvent.Disconnected, () => {
         setStatus('연결 해제됨');
         setIsConnected(false);
+        setParticipants([]);
+        setTracks({});
+        setLocalTrack(null);
       });
 
       room.on(RoomEvent.ParticipantConnected, (participant) => {
@@ -88,31 +135,40 @@ const VideoTestPage = () => {
       });
 
       room.on(RoomEvent.ParticipantDisconnected, (participant) => {
-        console.log('참가자 퇴장:', participant.identity);
+        console.log('참가자 퇴장: ', participant.identity);
         setParticipants(prev => prev.filter(p => p !== participant.identity));
+        setTracks(prev => {
+          const newTracks = { ...prev };
+          delete newTracks[participant.identity];
+          return newTracks;
+        });
       });
 
       room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
         console.log('트랙 구독:', track.kind, participant.identity);
         if (track.kind === 'video') {
-          const element = track.attach();
-          element.className = 'w-full h-full object-cover';
-          const container = document.getElementById(`video-${participant.identity}`);
-          if (container) {
-            container.innerHTML = '';
-            container.appendChild(element);
-          }
+          setTracks(prev => ({
+            ...prev,
+            [participant.identity]: track
+          }));
+        }
+      });
+
+      room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+        console.log('트랙 구독 해제:', track.kind, participant.identity);
+        if (track.kind === 'video') {
+          setTracks(prev => {
+            const newTracks = { ...prev };
+            delete newTracks[participant.identity];
+            return newTracks;
+          });
         }
       });
 
       room.on(RoomEvent.LocalTrackPublished, (publication) => {
         console.log('로컬 트랙 발행:', publication.source);
-        // 카메라 트랙이 발행되면 로컬 비디오에 표시
-        if (publication.source === Track.Source.Camera && publication.track && localVideoRef.current) {
-          const element = publication.track.attach();
-          localVideoRef.current.innerHTML = '';
-          localVideoRef.current.appendChild(element);
-          element.className = 'w-full h-full object-cover scale-x-[-1]';
+        if (publication.source === Track.Source.Camera && publication.track) {
+          setLocalTrack(publication.track);
         }
       });
 
@@ -122,34 +178,15 @@ const VideoTestPage = () => {
 
       // 5. 카메라/마이크 발행
       setStatus('카메라/마이크 발행 중...');
-      console.log('enableCameraAndMicrophone 호출 전');
       await room.localParticipant.enableCameraAndMicrophone();
-      console.log('enableCameraAndMicrophone 완료');
-
-      // 로컬 비디오 표시
-      console.log('localParticipant:', room.localParticipant);
-      console.log('videoTrackPublications:', room.localParticipant.videoTrackPublications);
-
-      const videoPublication = room.localParticipant.getTrackPublication(Track.Source.Camera);
-      console.log('videoPublication:', videoPublication);
-      console.log('localVideoRef.current:', localVideoRef.current);
-
-      if (videoPublication?.track && localVideoRef.current) {
-        console.log('로컬 비디오 attach 시도');
-        const element = videoPublication.track.attach();
-        localVideoRef.current.innerHTML = '';
-        localVideoRef.current.appendChild(element);
-        element.className = 'w-full h-full object-cover scale-x-[-1]';
-        console.log('로컬 비디오 attach 완료');
-      } else {
-        console.log('videoPublication 또는 localVideoRef 없음');
-      }
 
       setStatus('연결 완료! 화상 테스트 준비됨');
 
     } catch (err) {
       console.error('연결 오류:', err);
-      setError(err.response?.data?.error?.message || err.message);
+      // 에러 메시지 추출 개선
+      const errMsg = err.response?.data?.error?.message || err.message || JSON.stringify(err);
+      setError(errMsg);
       setStatus('연결 실패');
     }
   };
@@ -160,11 +197,10 @@ const VideoTestPage = () => {
       roomRef.current.disconnect();
       roomRef.current = null;
     }
-    if (localVideoRef.current) {
-      localVideoRef.current.innerHTML = '';
-    }
     setIsConnected(false);
     setParticipants([]);
+    setTracks({});
+    setLocalTrack(null);
     setStatus('연결 해제됨');
   };
 
@@ -224,7 +260,7 @@ const VideoTestPage = () => {
           disabled={isConnected}
           className="px-6 py-3 bg-blue-600 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-all"
         >
-          카메라 미리보기
+          카메라 권한 확인
         </button>
         <button
           onClick={connectToLiveKit}
@@ -246,22 +282,25 @@ const VideoTestPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* 로컬 비디오 */}
         <div className="aspect-video bg-black/50 rounded-lg overflow-hidden relative">
-          <div ref={localVideoRef} className="w-full h-full"></div>
-          <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 rounded text-xs">
+          {localTrack ? (
+            <VideoComponent track={localTrack} participantIdentity="Me" local={true} />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-white/50">
+              {isConnected ? '카메라 로딩중...' : '대기중'}
+            </div>
+          )}
+          <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 rounded text-xs pointer-events-none">
             나 (로컬)
           </div>
         </div>
 
         {/* 리모트 참가자들 */}
         {participants.map((identity) => (
-          <div key={identity} className="aspect-video bg-black/50 rounded-lg overflow-hidden relative">
-            <div id={`video-${identity}`} className="w-full h-full flex items-center justify-center text-white/50">
-              연결 중...
-            </div>
-            <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 rounded text-xs">
-              {identity}
-            </div>
-          </div>
+          <VideoComponent
+            key={identity}
+            track={tracks[identity]}
+            participantIdentity={identity}
+          />
         ))}
       </div>
 
@@ -270,7 +309,8 @@ const VideoTestPage = () => {
         <h3 className="font-medium mb-2">디버그 정보</h3>
         <div className="text-sm text-white/70 space-y-1">
           <div>연결 상태: {isConnected ? '연결됨' : '미연결'}</div>
-          <div>참가자 수: {participants.length}</div>
+          <div>참가자(Remote) 수: {participants.length}</div>
+          <div>트랙 수: {Object.keys(tracks).length}</div>
           <div>Room ID: {roomId}</div>
         </div>
       </div>
