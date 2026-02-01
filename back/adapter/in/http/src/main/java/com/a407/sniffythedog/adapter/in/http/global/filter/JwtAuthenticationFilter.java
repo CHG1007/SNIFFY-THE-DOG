@@ -25,9 +25,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-        HttpServletRequest request,
-        HttpServletResponse response,
-        FilterChain filterChain
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
     ) throws ServletException, IOException {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (header != null && header.startsWith("Bearer ")) {
@@ -41,13 +41,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         return;
                     }
                     List<SimpleGrantedAuthority> authorities = role != null
-                        ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                        : List.of();
+                            ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                            : List.of();
 
                     // Build authentication from token claims and store it in the SecurityContext.
                     AuthenticatedUser principal = new AuthenticatedUser(userId, role);
                     UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                            new UsernamePasswordAuthenticationToken(principal, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 } catch (RuntimeException ignored) {
                     // If token parsing fails, continue without authentication.
@@ -57,17 +57,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, response);
     }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
 
-        return uri.startsWith("/v3/api-docs")
-                || uri.startsWith("/swagger-ui")
-                || uri.equals("/swagger-ui.html")
-                || uri.startsWith("/api/v3/api-docs")
-                || uri.startsWith("/api/swagger-ui")
-                || uri.equals("/api/swagger-ui.html")
-                || uri.equals("/api/v1/auth/kakao");
+        return uri.contains("/v3/api-docs")
+                || uri.contains("/swagger-ui")
+                || uri.endsWith("/swagger-ui.html")
+                || uri.startsWith("/actuator")
+                || uri.endsWith("/api/v1/auth/kakao");
     }
-
 }
