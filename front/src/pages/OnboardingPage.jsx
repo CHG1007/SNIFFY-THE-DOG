@@ -1,14 +1,17 @@
+import { useState } from 'react';
 import KakaoLogin from 'react-kakao-login';
 import { useNavigate } from 'react-router-dom';
 import { loginWithKakao } from '../api/authApi';
 import useAuthStore from '../stores/useAuthStore';
 import OnboardingBtn from '../components/onboarding/OnboardingBtn';
+import AdminLoginModal from '../components/modals/AdminLoginModal';
 
 const KAKAO_JS_KEY = import.meta.env.VITE_KAKAO_JS_KEY || '';
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, login } = useAuthStore();
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
   const handleKakaoSuccess = async (response) => {
     const token = response?.response?.access_token || '';
@@ -50,7 +53,18 @@ const OnboardingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center relative">
+      
+      {/* 관리자 로그인 트리거 (좌측 하단 투명 영역) */}
+      <div 
+        className="fixed bottom-0 left-0 w-24 h-24 z-[9999]"
+        onDoubleClick={() => setIsAdminModalOpen(true)}
+      />
+
+      <AdminLoginModal 
+        isOpen={isAdminModalOpen} 
+        onClose={() => setIsAdminModalOpen(false)} 
+      />
       
       {/* 로고 섹션 */}
       <div className="mb-16 text-center">
