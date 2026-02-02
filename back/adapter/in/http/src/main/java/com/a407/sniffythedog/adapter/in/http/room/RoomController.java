@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 public class RoomController {
 
     private final CreateRoomUseCase createRoomUseCase;
-    private final GetPublicRoomUseCase getAllRoomUseCase;
+    private final GetPublicRoomUseCase getPublicRoomUseCase;
     private final GetRoomByInviteCodeUseCase getRoomByInviteCodeUseCase;
     private final GetRoomByRoomIdUseCase getRoomByRoomIdUseCase;
 
@@ -31,11 +31,11 @@ public class RoomController {
     ) {
 
         CreateRoomCommand command = new CreateRoomCommand(
-                request.getTitle(),
-                request.getCapacity(),
+                request.title(),
+                request.capacity(),
                 request.isPrivate(),
                 user.userId(),
-                request.getHostDisplayName()
+                request.hostDisplayName()
         );
 
         CreateRoomResult result = createRoomUseCase.createRoom(command);
@@ -49,11 +49,11 @@ public class RoomController {
     }
 
     @GetMapping()
-    public ApiResponse<List<RoomSummaryResponse>> getRoomInfo(
+    public ApiResponse<List<RoomSummaryResponse>> getPublicRooms(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "6") int size
     ) {
-        List<GetPublicRoomResult> results = getAllRoomUseCase.getPublicRooms(page, size);
+        List<GetPublicRoomResult> results = getPublicRoomUseCase.getPublicRooms(page, size);
 
         List<RoomSummaryResponse> response = results.stream()
                 .map(result -> RoomSummaryResponse.builder()

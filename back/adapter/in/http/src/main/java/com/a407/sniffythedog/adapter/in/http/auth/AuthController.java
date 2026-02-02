@@ -1,7 +1,11 @@
 package com.a407.sniffythedog.adapter.in.http.auth;
 
+import com.a407.sniffythedog.adapter.in.http.auth.request.AdminLoginRequest;
 import com.a407.sniffythedog.adapter.in.http.auth.request.KakaoLoginRequest;
 import com.a407.sniffythedog.adapter.in.http.auth.request.RefreshTokenRequest;
+import com.a407.sniffythedog.adapter.in.http.auth.request.SocialLoginRequest;
+import com.a407.sniffythedog.adapter.in.http.auth.response.AdminLoginResponse;
+import com.a407.sniffythedog.adapter.in.http.auth.response.KakaoLoginResponse;
 import com.a407.sniffythedog.adapter.in.http.auth.request.SocialLoginRequest;
 import com.a407.sniffythedog.adapter.in.http.auth.response.KakaoLoginResponse;
 import com.a407.sniffythedog.adapter.in.http.auth.response.RefreshTokenResponse;
@@ -9,6 +13,7 @@ import com.a407.sniffythedog.adapter.in.http.auth.response.SocialLoginResponse;
 import com.a407.sniffythedog.adapter.in.http.common.response.ApiResponse;
 import com.a407.sniffythedog.adapter.in.http.global.jwt.JwtProvider;
 import com.a407.sniffythedog.application.auth.in.AuthUseCase;
+import com.a407.sniffythedog.application.auth.in.AdminLoginResult;
 import com.a407.sniffythedog.application.auth.in.KakaoLoginResult;
 import com.a407.sniffythedog.application.auth.in.LogoutUseCase;
 import com.a407.sniffythedog.application.auth.in.ReissueTokenResult;
@@ -36,6 +41,12 @@ public class AuthController {
     private final ReissueTokenUseCase reissueTokenUseCase;
     private final LogoutUseCase logoutUseCase;
     private final JwtProvider jwtProvider;
+
+    @PostMapping("/api/v1/auth/admin")
+    public ApiResponse<AdminLoginResponse> loginWithAdmin(@Valid @RequestBody AdminLoginRequest request) {
+        AdminLoginResult result = authUseCase.adminLogin(request.toCommand());
+        return ApiResponse.success(AdminLoginResponse.from(result));
+    }
 
     @PostMapping("/api/auth/login/kakao")
     public ApiResponse<KakaoLoginResponse> loginWithKakao(@Valid @RequestBody KakaoLoginRequest request) {

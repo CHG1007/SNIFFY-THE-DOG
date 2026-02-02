@@ -1,6 +1,8 @@
 package com.a407.sniffythedog.application.auth;
 
 import com.a407.sniffythedog.application.auth.in.AuthUseCase;
+import com.a407.sniffythedog.application.auth.in.AdminLoginCommand;
+import com.a407.sniffythedog.application.auth.in.AdminLoginResult;
 import com.a407.sniffythedog.application.auth.in.KakaoLoginCommand;
 import com.a407.sniffythedog.application.auth.in.KakaoLoginResult;
 import com.a407.sniffythedog.application.auth.in.LogoutUseCase;
@@ -69,6 +71,19 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
             user.getSocialProvider().name(),
             isNew
         );
+    }
+
+    @Override
+    public AdminLoginResult adminLogin(AdminLoginCommand command) {
+        if (!"admin".equals(command.id()) || !"1234".equals(command.password())) {
+            throw ApplicationException.of(ExceptionType.BAD_REQUEST, "Invalid admin credentials");
+        }
+
+        // 0L is used for admin user which doesn't exist in DB
+        IssuedToken accessToken = tokenIssuerPort.issueAccessToken(0L, "ROLE_ADMIN");
+        IssuedToken refreshToken = tokenIssuerPort.issueRefreshToken(0L);
+
+        return new AdminLoginResult(accessToken.token(), refreshToken.token());
     }
 
     @Override

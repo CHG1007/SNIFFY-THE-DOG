@@ -31,19 +31,26 @@ public class RoomRedisRepositoryAdapter implements RedisRoomPort {
 
     @Override
     public void saveRoom(RoomSession roomSession) {
+        // 1. 방 정보(JSON) 저장
         String jsonValue = roomMapper.toRedisJson(roomSession);
-
         String key = ROOM_KEY_PREFIX + roomSession.getId().value();
-
         redisTemplate.opsForValue().set(key, jsonValue);
 
         ZSetOperations<String, String> zSet = redisTemplate.opsForZSet();
+
+        // 2. 공개/비공개 여부에 따라 목록 관리
         if (!roomSession.isPrivate()) {
+            // ✅ 공개 방: 목록(ZSet)에 추가
             double score = roomSession.getCreatedAt().toEpochMilli();
             zSet.add(PUBLIC_ROOMS_KEY, roomSession.getId().value(), score);
         } else {
+            // ✅ 비공개 방: 초대 코드 매핑 저장
             String inviteKey = INVITE_KEY_PREFIX + roomSession.getInviteCode();
             redisTemplate.opsForValue().set(inviteKey, roomSession.getId().value());
+
+            // ⚠️ [핵심 수정] 공개 목록(ZSet)에서 반드시 삭제!
+            // 이 줄이 없으면, 공개였다가 비공개로 바꾼 방이나 잘못 들어간 방이 계속 목록에 뜹니다.
+            zSet.remove(PUBLIC_ROOMS_KEY, roomSession.getId().value());
         }
     }
 

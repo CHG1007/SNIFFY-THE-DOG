@@ -102,6 +102,7 @@ public class SecurityConfig {
                         .permitAll()
                         // 1. [구체적인 규칙] 로그아웃은 인증해야 함
                         .requestMatchers("/api/v1/auth/logout").authenticated()
+                        .requestMatchers("/api/v1/auth/admin").permitAll()
                         // 프론트엔드 URL (/api/v1/auth/kakao) 허용
                         // 2. [넓은 규칙] 나머지 auth는 다 허용
                         .requestMatchers("/api/v1/auth/**", "/api/auth/**").permitAll()
