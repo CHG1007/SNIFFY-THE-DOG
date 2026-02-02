@@ -11,8 +11,8 @@ services:
       - mysql_data:/var/lib/mysql
     networks:
       - appnet
-    expose:
-      - "3306"
+    ports:
+      - "3306:3306"
     restart: unless-stopped
 
   redis:
@@ -22,8 +22,8 @@ services:
       - redis_data:/data
     networks:
       - appnet
-    expose:
-      - "6379"
+    ports:
+      - "6379:6379"
     restart: unless-stopped
 
   mongodb:
@@ -37,8 +37,8 @@ services:
       - mongo_data:/data/db
     networks:
       - appnet
-    expose:
-      - "27017"
+    ports:
+      - "27017:27017"
     restart: unless-stopped
 
   backend:
