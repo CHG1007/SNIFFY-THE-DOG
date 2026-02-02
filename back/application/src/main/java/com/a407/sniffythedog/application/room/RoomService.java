@@ -50,6 +50,7 @@ public class RoomService implements CreateRoomUseCase, GetPublicRoomUseCase, Get
         List<RoomSession> sessions = redisRoomPort.loadPublicRooms(page, size);
 
         return sessions.stream()
+                .filter(room -> !room.isPrivate())
                 .map(room -> new GetPublicRoomResult(
                         room.getId().value(),
                         room.getTitle().value(),
