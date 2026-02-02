@@ -26,6 +26,21 @@ const useAuthStore = create(
         });
       },
 
+      loginAsAdmin: ({ accessToken, refreshToken }) => {
+        set({
+          isAuthenticated: true,
+          user: {
+            nickname: 'GM_Sniffy',
+            role: 'ADMIN',
+            id: 0,
+            isAdmin: true, // 프론트 편의상 유지
+            profileImage: null,
+          },
+          accessToken,
+          refreshToken,
+        });
+      },
+
       logout: () => {
         set({
           accessToken: null,
