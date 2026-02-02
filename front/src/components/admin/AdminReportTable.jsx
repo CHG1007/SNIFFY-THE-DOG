@@ -1,4 +1,5 @@
 import React from 'react';
+import Pagination from '../common/Pagination';
 
 const AdminReportTable = ({ reports, pageInfo, onPageChange }) => {
   // 상태 뱃지 스타일링 함수
@@ -34,50 +35,6 @@ const AdminReportTable = ({ reports, pageInfo, onPageChange }) => {
       month: '2-digit',
       day: '2-digit',
     });
-  };
-
-  // 페이지네이션 렌더링
-  const renderPagination = () => {
-    if (!pageInfo) return null;
-
-    const { totalPages, currPage } = pageInfo;
-    const pages = [];
-
-    for (let i = 0; i < totalPages; i++) {
-      pages.push(
-        <button
-          key={i}
-          onClick={() => onPageChange(i)}
-          className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${
-            currPage === i
-              ? 'bg-[#ff8a00] text-black'
-              : 'bg-[#2a2a2a] text-gray-400 hover:bg-[#3a3a3a] hover:text-white'
-          }`}
-        >
-          {i + 1}
-        </button>
-      );
-    }
-
-    return (
-      <div className="flex items-center gap-2 mt-6 justify-center">
-        <button
-          onClick={() => onPageChange(Math.max(0, currPage - 1))}
-          disabled={currPage === 0}
-          className="px-3 py-1.5 rounded-lg bg-[#2a2a2a] text-gray-400 hover:bg-[#3a3a3a] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-        >
-          이전
-        </button>
-        <div className="flex gap-2 mx-2 flex-wrap justify-center">{pages}</div>
-        <button
-          onClick={() => onPageChange(Math.min(totalPages - 1, currPage + 1))}
-          disabled={currPage === totalPages - 1}
-          className="px-3 py-1.5 rounded-lg bg-[#2a2a2a] text-gray-400 hover:bg-[#3a3a3a] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-        >
-          다음
-        </button>
-      </div>
-    );
   };
 
   return (
@@ -131,8 +88,16 @@ const AdminReportTable = ({ reports, pageInfo, onPageChange }) => {
         </table>
       </div>
 
-      {/* 페이지네이션 */}
-      {renderPagination()}
+      {/* 서버 사이드 페이지네이션 컴포넌트 */}
+      {/* 백엔드 currPage는 0부터 시작하므로 +1 해줌 */}
+      {/* Pagination 컴포넌트는 1부터 시작하는 page 번호를 반환하므로 핸들러에서 -1 처리 */}
+      {pageInfo && (
+        <Pagination
+          currentPage={pageInfo.currPage + 1}
+          totalPages={pageInfo.totalPages}
+          onPageChange={(page) => onPageChange(page - 1)}
+        />
+      )}
     </div>
   );
 };
