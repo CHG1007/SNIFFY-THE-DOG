@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Copy, Check } from 'lucide-react';
 import { createRoom } from '../../api/roomApi';
 import useAuthStore from '../../stores/useAuthStore';
+import { useRoomEntry } from '../../hooks/useRoomEntry';
 import ModalWrapper from './ModalWrapper';
 import ConfirmBtn from '../common/ConfirmBtn';
 import TextInput from '../common/TextInput';
@@ -17,6 +18,7 @@ const CreateGameModal = ({
   inviteCode 
 }) => {
   const navigate = useNavigate();
+  const { enterRoom } = useRoomEntry();
   const userNickname = useAuthStore((state) => state.nickname || state.user?.nickname || "익명 유저");
 
   const [title, setTitle] = useState(initialData?.title || '');
@@ -27,10 +29,9 @@ const CreateGameModal = ({
   const [error, setError] = useState("");
   const [isCopied, setIsCopied] = useState(false);
 
-  // ✅ [기능] 방장이 아니면(isEdit=true && !isHost) 읽기 전용 모드 (Code 1 로직)
+  // 방장이 아니면 읽기 전용
   const isReadOnly = isEdit && !isHost;
 
-  // ✅ [기능] Code 1의 로직 사용 (navigate로 state 전달)
   const handleAction = async () => {
     if (isReadOnly) {
       onClose();
@@ -68,12 +69,12 @@ const CreateGameModal = ({
 
         if (roomId) {
           onClose();
-          // Code 1의 핵심 로직: state에 createdData를 담아서 이동
-          navigate(`/waiting-room/${roomId}`, { 
-            state: { 
-              isHost: true,
-              createdData: { title, capacity, isPrivate }
-            } 
+          enterRoom(roomId, true, {
+            createdData: {
+              title,
+              capacity,
+              isPrivate
+            }
           });
         } else {
           setError("방 생성 코드를 받지 못했습니다.");
@@ -117,7 +118,7 @@ const CreateGameModal = ({
            </h2>
         </div>
 
-        {/* ✅ [디자인] Code 2 스타일 적용: 초대 코드 */}
+        {/* 초대 코드 표시 */}
         {isEdit && isPrivate && inviteCode && (
           <div className="w-full flex items-center gap-4 mb-6">
              <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-[#ff8a00]">CODE</span>
@@ -126,7 +127,6 @@ const CreateGameModal = ({
                 <button 
                   onClick={handleCopyCode}
                   className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 group"
-                  title="초대 코드 복사"
                 >
                   {isCopied ? <Check size={20} className="text-green-500" /> : <Copy size={20} className="text-gray-400 group-hover:text-white" />}
                 </button>
@@ -139,12 +139,8 @@ const CreateGameModal = ({
           <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-[#ff8a00]">TITLE</span>
           <TextInput 
             value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              // [디자인] 입력 시 에러 메시지 제거 (Code 2 UX)
-              if (e.target.value.trim() !== "") setError("");
-            }}
-            placeholder="방 제목을 입력해주세요"
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="방 제목"
             errorMsg={error}
             disabled={isReadOnly}
             className={isReadOnly ? "opacity-70 cursor-not-allowed" : ""}
@@ -156,21 +152,14 @@ const CreateGameModal = ({
           <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-[#ff8a00]">MAX</span>
           <div className={`flex items-center gap-4 bg-[#1a1a1a] p-1 rounded-xl border border-white/10 ${isReadOnly ? 'opacity-50' : ''}`}>
             {!isReadOnly && (
-              <button 
-                onClick={() => changeCapacity(-1)} 
-                className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] rounded-lg text-2xl hover:bg-[#3a3a3a] cursor-pointer transition-colors"
-              >-</button>
+              <button onClick={() => changeCapacity(-1)} className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] rounded-lg text-2xl hover:bg-[#3a3a3a]">-</button>
             )}
             <span className={`text-2xl font-black w-8 text-center ${isReadOnly ? 'mx-2' : ''}`}>{capacity}</span>
             {!isReadOnly && (
-              <button 
-                onClick={() => changeCapacity(1)} 
-                className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] rounded-lg text-2xl hover:bg-[#3a3a3a] cursor-pointer transition-colors"
-              >+</button>
+              <button onClick={() => changeCapacity(1)} className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] rounded-lg text-2xl hover:bg-[#3a3a3a]">+</button>
             )}
           </div>
-          {/* [디자인] 읽기 전용이 아닐 때만 힌트 표시 (Code 2 스타일) */}
-          {!isReadOnly && <span className="text-gray-500 text-sm font-bold ml-2">(6 ~ 8 Players)</span>}
+          <span className="text-gray-500 text-sm font-bold ml-2">(6 ~ 8 Players)</span>
         </div>
 
         {/* 3. 비공개 여부 */}
@@ -184,13 +173,14 @@ const CreateGameModal = ({
             <div className={`bg-white w-5 h-5 rounded-full shadow-md transition-transform transform ${isPrivate ? 'translate-x-7' : 'translate-x-0'}`} />
           </button>
           <span className="text-gray-400 text-sm">
-            {isPrivate ? "비공개 방 (초대 코드 생성)" : "공개 방"}
+            {isPrivate ? "비공개 방" : "공개 방"}
           </span>
         </div>
 
-        {/* 4. 버튼 영역 (✅ 기능: 방장 권한 체크 / 디자인: Code 2 스타일) */}
+        {/* 4. 버튼 영역 (✅ 수정됨: 방장만 저장 가능) */}
         <div className="flex w-full gap-4 mt-auto mb-4">
-          {!isReadOnly ? (
+          {isHost ? (
+            /* 방장: SAVE / CANCEL 버튼 */
             <>
               <ConfirmBtn 
                 text={isLoading ? "처리 중..." : (isEdit ? "SAVE" : "CREATE")} 
@@ -207,6 +197,7 @@ const CreateGameModal = ({
               />
             </>
           ) : (
+            /* 일반 유저: CLOSE 버튼만 */
             <ConfirmBtn 
               text="CLOSE" 
               variant="secondary" 
