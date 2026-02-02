@@ -1,57 +1,43 @@
-// import ProfileCard from '../components/mypage/ProfileCard';
-// import UserHistorySection from '../components/mypage/UserHistorySection';
-
-// const MyPage = () => {
-//   return (
-//     /* 1. 전체 배경 설정: public/assets/images/mypage/ 폴더의 배경화면 적용 */
-//     /* bg-fixed를 사용하면 스크롤 시 배경은 고정되고 컨텐츠만 움직여서 더 고급스러워요. */
-//     <div 
-//       className="min-h-screen w-full bg-cover bg-center bg-fixed relative overflow-x-hidden flex items-center justify-center py-20"
-//       style={{ backgroundImage: "url('/assets/images/mypage/MyPageBackground.png')" }}
-//     >
-//       {/* 2. 어두운 오버레이: 배경을 살짝 어둡게 해서 글자 가독성을 높입니다. (40% 투명도) */}
-//       <div className="absolute inset-0 bg-black/40"></div>
-      
-//       {/* 3. 컨텐츠 레이어: z-10으로 오버레이 위로 올리고, 디자인 시안처럼 가로 배치 */}
-//       <div className="relative z-10 w-full max-w-[1200px] px-10">
-//         <div className="flex flex-col md:flex-row items-start justify-center gap-12 lg:gap-20">
-          
-//           {/* 왼쪽 영역: 프로필 이미지 및 티어 (ProfileCard) */}
-//           {/* 이미지만큼의 너비를 유지하도록 flex-shrink-0 적용 */}
-//           <aside className="flex-shrink-0 mx-auto md:mx-0">
-//             <ProfileCard />
-//           </aside>
-
-//           {/* 오른쪽 영역: 닉네임, 전적 타이틀, 전적 테이블 (UserHistorySection) */}
-//           {/* 남은 공간을 꽉 채우도록 flex-grow 적용 */}
-//           <main className="flex-grow w-full">
-//             <UserHistorySection />
-//           </main>
-          
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ProfileCard from '../components/mypage/ProfileCard';
 import UserHistorySection from '../components/mypage/UserHistorySection';
 
 const MyPage = () => {
-  const [nickname, setNickname] = useState("킁킁강아지123");
+  const API_BASE_URL = 'http://localhost:8080/api/v1';
+
+  const [nickname, setNickname] = useState("");
+  const [games, setGames] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
-  const realName = "김덕근"; 
 
-  // 1. 테이블에 표시할 데이터를 여기에 만듭니다.
-  const [games] = useState([
-    { date: "2026.01.15", role: "MAFIA", result: "LOSE", team: "최고" },
-    { date: "2026.01.15", role: "MAFIA", result: "WIN", team: "최악" },
-    { date: "2026.01.15", role: "POLICE", result: "WIN", team: "보통" },
-  ]);
+  // 1. 페이지가 로드될 때, DB 값 가져오기
+  useEffect(() => {
+    fetchUserData();
+  }, []);
 
-  const handleEditClick = () => {
-    if (isEditing) console.log("저장됨:", nickname);
+  // 1. MySQL에서 내 정보 가져오기
+  const fetchUserData = async () => {
+    try {
+      const response = await axios.get('${API_BASE_URL}/users/me');
+      const { nickname, realName, games } = response.data;
+      
+      setNickname(nickname);
+      setRealName(realName);
+      setGames(games || []);
+    } catch (error) {
+      console.error("DB 데이터를 불러오는데 실패했습니다:", error);
+    }
+  };
+
+  const handleEditClick = async () => {
+    if (isEditing) {
+      try {
+        await axios.patch('${API_BASE_URL}/users/me/nickname', {nickname: nickname});
+        console.log("DB 저장 완료: ", nickname);
+      } catch (error) {
+        console.log("닉네임 저장 실패: ", error);
+        return;
+      }
+    }
     setIsEditing(!isEditing);
   };
 
@@ -71,7 +57,6 @@ const MyPage = () => {
           <ProfileCard 
             nickname={nickname}
             setNickname={setNickname}
-            realName={realName}
             isEditing={isEditing}
             onEditClick={handleEditClick}
           />
