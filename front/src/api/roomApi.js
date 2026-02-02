@@ -3,7 +3,7 @@ import { apiClient } from './authApi';
 export const createRoom = async (roomData) => {
   // roomData: { title, capacity, timeLimit, isPrivate, password }
   const response = await apiClient.post('/api/v1/rooms', roomData);
-  return response.data; 
+  return response.data;
 };
 
 // 2. 공개 방 목록 조회 (페이지네이션 지원)
@@ -12,10 +12,19 @@ export const getRoomList = async (page = 0, size = 10) => {
   const response = await apiClient.get('/api/v1/rooms', {
     params: { page, size }
   });
-  return response.data; 
+  return response.data;
 };
 
-// 2. 초대 코드로 입장 (게임 찾기)
+// 2. 초대 코드로 방 상태 조회
+export const getRoomByInviteCode = async (inviteCode) => {
+  // GET /api/v1/rooms?inviteCode={code}
+  const response = await apiClient.get('/api/v1/rooms', {
+    params: { inviteCode }
+  });
+  return response.data;
+};
+
+// [DEPRECATED] 초대 코드로 입장 - getRoomByInviteCode 사용 권장
 export const joinByCode = async (inviteCode) => {
   // POST /api/v1/rooms/join-by-code (명세에 맞게 수정 가능)
   const response = await apiClient.post('/api/v1/rooms/join-by-code', { inviteCode });
@@ -38,10 +47,10 @@ export const updateRoomInfo = async (roomId, roomData) => {
   // ⚠️ 현재 백엔드(GameService) 코드에는 방 정보 수정 기능이 없으므로,
   // 에러를 방지하기 위해 임시로 '성공' 응답을 흉내 냅니다.
   console.log(`[API] 방 정보 수정 요청 (Room: ${roomId})`, roomData);
-  return { 
-    data: { 
+  return {
+    data: {
       success: true,
       message: "방 정보가 수정되었습니다 (로컬 반영)"
-    } 
+    }
   };
 };
