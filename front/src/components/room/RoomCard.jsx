@@ -10,8 +10,8 @@ export default function RoomCard({
 
   return (
     <div
-      className="relative rounded-xl overflow-visible shadow-lg border border-black/10 bg-[#efe6c8]"
-      onClick={onJoin}
+      className="relative rounded-xl overflow-visible shadow-lg border border-black/10 bg-[#efe6c8] max-w-[300px] cursor-pointer"
+      onClick={() => !isFull && onJoin()}
       role={onJoin ? "button" : undefined}
       tabIndex={onJoin ? 0 : undefined}
     >
@@ -20,20 +20,20 @@ export default function RoomCard({
         <span className="text-white text-xs font-black">JOIN</span>
       </div>
 
-      <div className="p-5">
+      <div className="p-4">
         <div className="text-[10px] tracking-widest text-black/50 font-bold">
           {roomCode}
         </div>
 
-        <div className="mt-2 text-2xl font-black text-black/80">
+        <div className="mt-1 text-2xl font-black text-black/80 transform translate-y-2">
           {title}
         </div>
 
-        <div className="mt-4 text-sm text-black/60">
+        <div className="mt-4 text-sm text-black/60 transform translate-y-1">
           {hostName}
         </div>
 
-        <div className="mt-6 flex items-end justify-between">
+        <div className="mt-4 justify-end flex">
           <div className={["text-lg font-black", isFull ? "text-red-500" : "text-black/70"].join(" ")}>
             {current} / {capacity}
           </div>

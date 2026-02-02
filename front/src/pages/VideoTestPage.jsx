@@ -8,7 +8,7 @@ const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL || 'wss://localhost:7880';
 const VideoTestPage = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState('대기 중');
-  const [roomId, setRoomId] = useState('test-room-' + Date.now());
+  const [roomId, setRoomId] = useState(() => 'test-room-' + Date.now());
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const [participants, setParticipants] = useState([]);

@@ -2,39 +2,52 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ModalWrapper from './ModalWrapper';
 import TextInput from '../common/TextInput';
+import apiClient from '../../api/apiClient';
 
 const FindGameModal = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
     const [inviteCode, setInviteCode] = useState("");
     const [error, setError] = useState("");
 
-  const handleJoin = async () => {
+const handleJoin = async () => {
+    // 1. 입력값 검증 (클라이언트 단)
     if (inviteCode.trim() === "") {
       setError("입장 코드를 입력해주세요.");
-    } else {
-      setError("");
-      
-      try {
-        /* 실제 API 호출(백엔드 연결 시 해당 코드 활용) :
-          const response = await api.post('/api/v1/rooms/join-by-code', { inviteCode });
-          const { success, data } = response.data;
-        */
+      return;
+    }
 
-        // 임시 테스트용 가공 데이터
-        const mockSuccess = true;
-        const mockRoomId = "r_private_1"; // 서버에서 받아올 roomId
+    setError(""); // 이전 에러 초기화
 
-        if (mockSuccess) {
-          console.log("입장 성공! 방 ID:", mockRoomId);
-          onClose(); // 모달 닫기
-          // API 명세서 경로를 고려하여 라우팅 이동
-          // 브라우저 주소창은 /rooms/{roomId} 형식을 사용합니다.
-          navigate(`/rooms/${mockRoomId}`, { state: { isHost: false } });
+    try {
+      // 2. 백엔드 API 호출 (GET /api/v1/rooms)
+      const response = await apiClient.get('/api/v1/rooms', {
+        params: { 
+          inviteCode: inviteCode.trim(),
+          page: 0, 
+          size: 1 
         }
-      } catch (err) {
-        setError("초대 코드가 존재하지 않거나 만료되었습니다.");
-        console.error(err)
+      });
+
+      // 3. 서버 응답 처리
+      const { success, data, error: serverError } = response.data;
+
+      if (success && data) {
+        // 성공 시 해당 roomId로 이동
+        const targetRoomId = data.roomId; 
+        onClose();
+        navigate(`/rooms/${targetRoomId}`, { state: { isHost: false } });
+      } else {
+        // 서버에서 논리적으로 거부한 경우 (예: 방 만원, 비활성 코드 등)
+        setError(serverError?.message || "초대 코드가 유효하지 않습니다.");
       }
+
+    } catch (err) {
+      // 4. 네트워크 에러 및 서버 연결 실패 처리
+      console.error("입장 처리 중 에러 발생:", err);
+      
+      // 튕김 현상이 발생한다면 apiClient 인터셉터 영향일 수 있으나, 
+      // 로직상으로는 여기서 에러 메시지를 보여주는 것이 맞습니다.
+      setError("서버와의 연결이 원활하지 않습니다. 다시 시도해 주세요.");
     }
   };
 

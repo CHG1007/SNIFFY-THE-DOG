@@ -40,9 +40,25 @@ const CreateGameModal = ({ isOpen, onClose, initialData, isEdit = false, onSave,
     try {
       if (isEdit) {
         // [수정 모드] 나중에 백엔드 PATCH API 연결 부분
-        onSave({ title, capacity, isPrivate });
+        onSave({ title, capacity, private: isPrivate });
       } else {
-        // [생성 모드] 명세서 3-3 API 연결 부분
+      // [생성 모드] 명세서 3-3 API 연결 부분
+      /*
+      const response = await apiClient.post('/api/v1/rooms', {
+        title,
+        capacity,
+        private: isPrivate, // Swagger 필드명에 맞춤
+        hostUserId: 1 // 실제 유저 ID (현재는 임시)
+      });
+      
+      const { success, data } = response.data;
+      if (success) {
+        navigate(`/rooms/${data.roomId}`, { 
+          state: { isHost: true, createdData: data } 
+        });
+      }
+      */
+        
         const newInviteCode = generateInviteCode();
         const mockRoomId = "r_" + Math.random().toString(36).substr(2, 9);
         navigate(`/rooms/${mockRoomId}`, { state: { isHost: true, createdData: { title, capacity, inviteCode: newInviteCode, isPrivate } } });

@@ -30,7 +30,7 @@ const CreatorWaitingPage = ({ roomData, updateRoomData, onGameStart } ) => {
        players={roomData.players.map(p => ({
           id: p.userId,
           name: p.displayName,
-          isReady: p.ready,
+          ready: p.ready,
           isHost: p.isHost
         }))} 
         myId={1}

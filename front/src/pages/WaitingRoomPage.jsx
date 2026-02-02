@@ -25,40 +25,39 @@ const WaitingRoomPage = () => {
   const amIHost = location.state?.isHost || false;
   const myId = amIHost ? 1 : 2; // Simulation ID
 
-  // --- Mock Data Initialization ---
+ // 1. 데이터 가져오는 로직 (단 하나만 유지)
   useEffect(() => {
-    // Simulate API Fetch
-    setTimeout(() => {
-      setRoomData({
-        roomId,
-        title: location.state?.createdData?.title || "죽음의 마피아 게임",
-        hostUserId: 1,
-        capacity: location.state?.createdData?.capacity || 8,
-        inviteCode: location.state?.createdData?.inviteCode || "X9Z2A1",
-        isPrivate: location.state?.createdData?.isPrivate || false,
-        players: [
-          // Mock data updated with isMicOn, isVideoOn
-          { userId: 1, name: "유저001", isHost: true, isReady: false, isMicOn: true, isVideoOn: true, stream: null },
-          { userId: 2, name: "시민1", isHost: false, isReady: false, isMicOn: false, isVideoOn: true, stream: null },
-          { userId: 3, name: "경찰", isHost: false, isReady: true, isMicOn: true, isVideoOn: false, stream: null },
-          { userId: 4, name: "의사", isHost: false, isReady: false, isMicOn: false, isVideoOn: false, stream: null },
-          { userId: 5, name: "유저101", isHost: false, isReady: true, isMicOn: true, isVideoOn: true, stream: null },
-          { userId: 6, name: "유저100", isHost: false, isReady: true, isMicOn: true, isVideoOn: true, stream: null },
-        ]
-      });
-    }, 800);
-  }, [roomId, location.state]);
+    let isMounted = true; // 언마운트 시 상태 업데이트 방지
 
-  // --- Auto-Start Logic ---
-  useEffect(() => {
-    if (roomData && roomData.players.length >= 2) {
-      const allReady = roomData.players.every(p => p.isReady);
-      if (allReady && status === 'WAITING') {
-        setStatus('STARTING');
+    const fetchInitialData = async () => {
+      // 실제로는 여기서 API를 호출합니다.
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      if (isMounted) {
+        const initialData = {
+          roomId,
+          title: location.state?.createdData?.title || "죽음의 마피아 게임",
+          hostUserId: 1,
+          capacity: location.state?.createdData?.capacity || 8,
+          inviteCode: location.state?.createdData?.inviteCode || "X9Z2A1",
+          isPrivate: location.state?.createdData?.isPrivate || false,
+          players: [
+            { userId: 1, displayName: "유저001", isHost: true, ready: false, isMicOn: true, isVideoOn: true },
+            { userId: 2, displayName: "시민1", isHost: false, ready: false, isMicOn: false, isVideoOn: true },
+            { userId: 3, displayName: "경찰", isHost: false, ready: true, isMicOn: true, isVideoOn: false },
+            { userId: 4, displayName: "의사", isHost: false, ready: false, isMicOn: false, isVideoOn: false },
+            { userId: 5, displayName: "유저101", isHost: false, ready: true, isMicOn: true, isVideoOn: true },
+            { userId: 6, displayName: "유저100", isHost: false, ready: true, isMicOn: true, isVideoOn: true },
+          ]
+        };
+        setRoomData(initialData);
       }
-    }
-  }, [roomData, status]);
+    };
 
+    fetchInitialData();
+    return () => { isMounted = false; }; // Cleanup 함수
+  }, [roomId, location.state]);
+  
   // --- Handlers ---
 
   const handleUpdateRoom = (newData) => {
@@ -67,22 +66,45 @@ const WaitingRoomPage = () => {
   };
 
   const handleKick = () => {
-    if (!targetKickPlayer) return;
-    setRoomData(prev => ({
-      ...prev,
-      players: prev.players.filter(p => p.userId !== targetKickPlayer.userId)
-    }));
-    setTargetKickPlayer(null);
+  if (!targetKickPlayer) return;
+
+  setRoomData(prev => {
+    // 1. 해당 플레이어 제외
+    const newPlayers = prev.players.filter(p => p.userId !== targetKickPlayer.userId);
+    
+    // 2. 남은 인원 체크
+    const allReady = newPlayers.length >= 2 && newPlayers.every(p => p.ready);
+    if (allReady) {
+      setStatus('STARTING');
+    }
+
+    return { ...prev, players: newPlayers };
+  });
+
+  setTargetKickPlayer(null);
+};
+
+  // 2번 useEffect는 삭제하고, 핸들러를 수정합니다.
+  const handleReady = () => {
+  setRoomData(prev => {
+    // 1. 새로운 플레이어 목록 계산
+    const newPlayers = prev.players.map(p => 
+      p.userId === myId ? { ...p, ready: !p.ready } : p
+    );
+    
+    // 2. 새로운 목록을 바탕으로 시작 조건 체크
+    const allReady = newPlayers.length >= 2 && newPlayers.every(p => p.ready);
+    
+    // 3. 조건 만족 시 상태 변경 (함수 실행 도중 호출해도 안전합니다)
+    if (allReady) {
+      setStatus('STARTING');
+    }
+
+    // 4. 업데이트된 객체 반환
+    return { ...prev, players: newPlayers };
+    });
   };
 
-  const handleReady = () => {
-    setRoomData(prev => ({
-      ...prev,
-      players: prev.players.map(p => 
-        p.userId === myId ? { ...p, isReady: !p.isReady } : p
-      )
-    }));
-  };
 
   const handleToggleMic = () => {
     const newMicState = !isMicOn;
@@ -118,10 +140,10 @@ const WaitingRoomPage = () => {
 
   if (!roomData) return <LoadingPage />; 
   if (status === 'STARTING') return <GameStartCountdown onComplete={handleCountdownComplete} />; 
-  if (status === 'PLAYING') return <GamePage players={roomData.players.map(p => ({ id: p.userId, name: p.name, ready: p.isReady }))} myId={myId} />; 
+  if (status === 'PLAYING') return <GamePage players={roomData.players.map(p => ({ id: p.userId, name: p.displayName, ready: p.ready }))} myId={myId} />; 
 
   const myPlayer = roomData.players.find(p => p.userId === myId);
-  const amIReady = myPlayer?.isReady || false;
+  const amIReady = myPlayer?.ready || false;
 
   return (
     // [FEATURE A: Global Header Removal Hack] 
