@@ -1,42 +1,60 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getRoomByInviteCode } from '../../api/roomApi';
+import { useRoomEntry } from '../../hooks/useRoomEntry';
 import ModalWrapper from './ModalWrapper';
 import TextInput from '../common/TextInput';
 
 const FindGameModal = ({ isOpen, onClose }) => {
-    const navigate = useNavigate();
-    const [inviteCode, setInviteCode] = useState("");
-    const [error, setError] = useState("");
+  const navigate = useNavigate();
+  const [inviteCode, setInviteCode] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { enterRoom } = useRoomEntry();
 
   const handleJoin = async () => {
     if (inviteCode.trim() === "") {
       setError("입장 코드를 입력해주세요.");
-    } else {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
       setError("");
-      
-      try {
-        /* 실제 API 호출(백엔드 연결 시 해당 코드 활용) :
-          const response = await api.post('/api/v1/rooms/join-by-code', { inviteCode });
-          const { success, data } = response.data;
-        */
 
-        // 임시 테스트용 가공 데이터
-        const mockSuccess = true;
-        const mockRoomId = "r_private_1"; // 서버에서 받아올 roomId
+      // 1. 초대 코드로 방 정보 조회 (REST API)
+      const response = await getRoomByInviteCode(inviteCode);
+      const roomData = response.data;
 
-        if (mockSuccess) {
-          console.log("입장 성공! 방 ID:", mockRoomId);
-          onClose(); // 모달 닫기
-          // API 명세서 경로를 고려하여 라우팅 이동
-          // 브라우저 주소창은 /rooms/{roomId} 형식을 사용합니다.
-          navigate(`/rooms/${mockRoomId}`, { state: { isHost: false } });
-        }
-      } catch (err) {
-        setError("초대 코드가 존재하지 않거나 만료되었습니다.");
-        console.error(err)
+      if (!roomData) {
+        throw new Error("방 정보를 찾을 수 없습니다.");
       }
+
+      // 2. 입장 가능 여부 확인 (방 상태 체크)
+      if (roomData.status !== 'WAITING') {
+        if (roomData.status === 'PLAYING') {
+          setError("이미 게임이 진행 중인 방입니다.");
+        } else if (roomData.status === 'ENDED') {
+          setError("이미 종료된 방입니다.");
+        } else {
+          setError("현재 입장할 수 없는 방입니다.");
+        }
+        return;
+      }
+
+      // 3. 입장 로직 시작 (WSS 연결을 위한 페이지 이동)
+      onClose();
+      enterRoom(roomData.roomId, false);
+
+    } catch (err) {
+      console.error("Join Error:", err);
+      setError(err.response?.data?.message || "초대 코드가 존재하지 않거나 만료되었습니다.");
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <ModalWrapper isOpen={isOpen} onClose={onClose}>
@@ -46,22 +64,23 @@ const FindGameModal = ({ isOpen, onClose }) => {
         </h2>
 
         <div className="w-full">
-          <TextInput 
+          <TextInput
             value={inviteCode}
             onChange={(e) => {
               setInviteCode(e.target.value);
-              if (e.target.value.trim() !== "") setError(""); // 타이핑 시작하면 에러 삭제
+              if (e.target.value.trim() !== "") setError("");
             }}
             placeholder="입장 코드를 입력해주세요"
-            errorMsg={error} // 상태로 관리되는 error 전달
+            errorMsg={error}
           />
         </div>
 
-        <button 
-          onClick={handleJoin} // 이제 이 함수에서 체크함
-          className="w-full py-3 bg-[#ff8a00] hover:bg-[#ffaa44] text-white text-2xl font-black rounded-xl transition-all shadow-lg active:scale-95 mt-2"
+        <button
+          onClick={handleJoin}
+          disabled={isLoading}
+          className="w-full py-3 bg-[#ff8a00] hover:bg-[#ffaa44] disabled:bg-gray-600 text-white text-2xl font-black rounded-xl transition-all shadow-lg active:scale-95 mt-2 cursor-pointer"
         >
-          입장 하기
+          {isLoading ? "입장 중..." : "입장 하기"}
         </button>
       </div>
     </ModalWrapper>

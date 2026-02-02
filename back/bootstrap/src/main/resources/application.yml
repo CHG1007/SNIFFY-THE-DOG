@@ -17,14 +17,12 @@ jwt:
 
 server:
   servlet:
-    context-path: /api
+    context-path: /
 
 
 springdoc:
   api-docs:
-    path: /v3/api-docs
+    path: /api/v3/api-docs
   swagger-ui:
-    path: /swagger-ui.html
+    path: /api/swagger-ui.html
     disable-swagger-default-url: true
-
-

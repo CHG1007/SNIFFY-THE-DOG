@@ -1,6 +1,8 @@
 import axios from 'axios';
 import apiClient from './apiClient';
 
+export { apiClient };
+
 const baseURL = import.meta.env.VITE_API_BASE_URL || '';
 
 // 로그인은 토큰이 필요없으므로 별도 인스턴스 사용
