@@ -10,25 +10,27 @@ import Header from './components/common/Header';
 import WaitingRoomPage from './pages/WaitingRoomPage';
 import AiTestLauncher from './components/aitest/AiTestLauncher';
 import WithHeaderLayout from './components/common/WithHeaderLayout';
+import ResultPage from './pages/ResultPage';
 
 function App() {
   return (
     <BrowserRouter>
       <div className = "min-h-screen overflow-x-hidden">
       <AiTestLauncher/>
-      <Routes>
-        <Route path="/" element={<OnboardingPage />} />
-        <Route path="/tutorial" element={<TutorialPage />} />
-        <Route path="/rooms" element={
-          <WithHeaderLayout backgroundUrl="/assets/images/roompage/background.png">
-            <RoomPage />
-          </WithHeaderLayout>
-        } />
-        <Route path="/rooms/:roomId" element={<><Header /><WaitingRoomPage /></>} />
-        <Route path="/users" element={<><Header /><MyPage /></>} />
-        <Route path="/admin" element={<><Header /><AdminPage /></>} />
-        <Route path="/video-test" element={<VideoTestPage />} />
-      </Routes>
+            <Routes>    
+                <Route path="/" element={<OnboardingPage />} />
+                <Route path="/tutorial" element={<TutorialPage />} />
+                <Route path="/rooms" element={
+                    <WithHeaderLayout backgroundUrl="/assets/images/roompage/background.png">
+                        <RoomPage />
+                    </WithHeaderLayout>
+            } />
+                <Route path="/rooms/:roomId" element={<><Header /><WaitingRoomPage /></>} />
+                <Route path="/users" element={<><Header /><MyPage /></>} />
+                <Route path="/admin" element={<><Header /><AdminPage /></>} />
+                <Route path="/video-test" element={<VideoTestPage />} />
+                <Route path="/result" element={<ResultPage />} />
+        </Routes>
       </div>
     </BrowserRouter>
   );
