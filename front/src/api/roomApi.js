@@ -24,6 +24,13 @@ export const getRoomByInviteCode = async (inviteCode) => {
   return response.data;
 };
 
+// 3. 방 ID로 상세 조회
+export const getRoomDetail = async (roomId) => {
+  // GET /api/v1/rooms/{roomId}
+  const response = await apiClient.get(`/api/v1/rooms/${roomId}`);
+  return response.data;
+};
+
 // [DEPRECATED] 초대 코드로 입장 - getRoomByInviteCode 사용 권장
 export const joinByCode = async (inviteCode) => {
   // POST /api/v1/rooms/join-by-code (명세에 맞게 수정 가능)
