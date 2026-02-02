@@ -84,18 +84,25 @@ class WebSocketClient {
 
   // [내부용] 입장 메시지 자동 전송
   _sendJoinRequest() {
-    // 닉네임은 토큰에서 백엔드가 추출하거나, 필요하면 여기서 보냄
-    const nickname = useAuthStore.getState().user?.nickname || 'Guest'; 
-    
+    const user = useAuthStore.getState().user;
+    const nickname = user?.nickname || 'Guest';
+
     this.publish('join', {
       nickname: nickname,
       clientType: 'WEB',
-      requestId: `req-${Date.now()}`
+      requestId: `join-${Date.now()}`
+    });
+  }
+
+  // 동기화 요청 (추가)
+  sync(lastKnownVersion = 0) {
+    this.publish('sync', {
+      lastKnownVersion,
+      requestId: `sync-${Date.now()}`
     });
   }
 
   // 메시지 전송 (Publish) - 외부에서 사용
-  // type 예시: 'join', 'ready', 'start', 'kick', 'leave'
   publish(type, payload = {}) {
     if (!this.client || !this.client.active) {
       console.warn('⚠️ Cannot publish, socket not active.');
