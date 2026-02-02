@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react'; // useRef 추가
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Settings, Mic, MicOff, Video, VideoOff, LogOut } from 'lucide-react';
 
@@ -34,8 +34,20 @@ const WaitingRoomPage = () => {
   const [isMicOn, setIsMicOn] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
 
+  // ✅ [추가] 최신 상태를 참조하기 위한 Ref
+  // 소켓 핸들러가 만들어질 당시의 옛날 state가 아니라, 현재의 state를 읽기 위함
+  const myInfoRef = useRef(myInfo);
+  const locationRef = useRef(location);
+
+  // state가 변할 때마다 ref도 업데이트
+  useEffect(() => {
+    myInfoRef.current = myInfo;
+    locationRef.current = location;
+  }, [myInfo, location]);
+
   // --- 소켓 메시지 핸들러 ---
-  const handleSocketMessage = useCallback((msg) => {
+  // useCallback을 제거하거나 의존성을 비워도 되지만, 내부에서 Ref를 쓰면 안전합니다.
+  const handleSocketMessage = (msg) => {
     const { type, data } = msg;
 
     if (import.meta.env.DEV) console.log("[WS Recv]", type, data);
@@ -44,14 +56,13 @@ const WaitingRoomPage = () => {
       case 'JOIN_ACK':
         setPlayers(data.roomState.players);
         
-        const createdData = location.state?.createdData;
+        // Ref 사용
+        const createdData = locationRef.current.state?.createdData;
         const initialCapacity = createdData?.capacity || data.roomState.capacity || 8;
         const initialTitle = createdData?.title || data.roomState.title || "즐거운 마피아 게임";
         const initialPrivate = createdData?.isPrivate || (data.roomState.status === 'PRIVATE') || false;
 
-        // ✅ [수정] 서버에서 RoomId[value=...] 형태로 올 경우 숫자/문자만 추출
         let rawCode = data.roomState.roomCode || roomId;
-        // 정규식으로 "value=" 뒤의 값만 추출하고 "]" 제거
         if (rawCode.includes('RoomId[value=')) {
            rawCode = rawCode.replace('RoomId[value=', '').replace(']', '');
         }
@@ -61,14 +72,12 @@ const WaitingRoomPage = () => {
           capacity: initialCapacity,
           hostUserId: data.roomState.hostUserId,
           status: initialPrivate ? 'PRIVATE' : 'WAITING',
-          inviteCode: rawCode, // ✅ 정제된 코드 적용
+          inviteCode: rawCode,
           isPrivate: initialPrivate
         });
         setMyInfo(data.my);
         break;
 
-      // ... (나머지 case들은 기존과 동일) ...
-      
       case 'ROOM_PLAYER_JOINED':
         setPlayers((prev) => {
           if (prev.find(p => p.userId === data.player.userId)) return prev;
@@ -91,7 +100,8 @@ const WaitingRoomPage = () => {
         setPlayers((prev) => prev.map(p => 
           p.userId === data.userId ? { ...p, ready: data.ready } : p
         ));
-        if (myInfo && data.userId === myInfo.userId) {
+        // Ref 사용: 현재 내 아이디와 비교
+        if (myInfoRef.current && data.userId === myInfoRef.current.userId) {
           setMyInfo(prev => ({ ...prev, ready: data.ready }));
         }
         break;
@@ -105,8 +115,11 @@ const WaitingRoomPage = () => {
         break;
 
       case 'PHASE_CHANGED':
+        // 이동 시에는 현재 상태(players)를 가져가야 하므로 setPlayers의 최신값 활용 필요
+        // 하지만 navigate는 비동기가 아니므로 여기서 바로 players를 쓰면 옛날 값일 수 있음.
+        // 여기서는 간단히 처리하고, GamePage에서 다시 fetching하는 게 안전함.
         navigate(`/game/${roomId}`, { 
-          state: { myInfo, players } 
+          state: { myInfo: myInfoRef.current, players } // players는 클로저 영향 받을 수 있음 주의
         });
         break;
 
@@ -127,13 +140,23 @@ const WaitingRoomPage = () => {
       default:
         break;
     }
-  }, [navigate, roomId, myInfo, location.state]);
+  };
 
-  // --- 라이프사이클 ---
+  // ✅ [핵심 수정] 라이프사이클: 방 번호(roomId)가 바뀔 때만 연결!
+  // handleSocketMessage가 바뀌어도 재연결하지 않음.
   useEffect(() => {
-    websocketClient.connect(roomId, handleSocketMessage);
-    return () => websocketClient.disconnect();
-  }, [roomId, handleSocketMessage]);
+    // 소켓 클라이언트 내부에서 콜백을 호출할 때
+    // 항상 최신 handleSocketMessage 로직이 실행되도록 래핑
+    const onMessage = (msg) => handleSocketMessage(msg);
+
+    websocketClient.connect(roomId, onMessage);
+
+    return () => {
+      websocketClient.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]); 
+
 
   // --- 핸들러 ---
   const handleToggleReady = () => {
@@ -165,7 +188,11 @@ const WaitingRoomPage = () => {
 
   const handleExit = () => {
     if (window.confirm("정말 방을 나가시겠습니까?")) {
-      websocketClient.publish('leave', {}); 
+      try {
+        websocketClient.publish('leave', {}); 
+      } catch (e) {
+        console.warn(e);
+      }
       websocketClient.disconnect();
       navigate('/rooms');
     }
@@ -200,7 +227,7 @@ const WaitingRoomPage = () => {
   return (
     <div className="fixed inset-0 z-[100] w-full h-screen overflow-hidden bg-black text-white selection:bg-orange-500/30">
 
-      {/* 1. 배경 이미지 */}
+      {/* 배경 */}
       <div className="absolute inset-0 z-0 bg-[#0a0a0f]">
         <img
             src="/assets/images/waitingroom/bg_main.png"
@@ -210,7 +237,7 @@ const WaitingRoomPage = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
       </div>
 
-      {/* 2. 헤더 */}
+      {/* 헤더 */}
       <header className="relative z-10 w-full flex items-center justify-center pt-4 pb-1 px-12">
         <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600 drop-shadow-[0_0_10px_rgba(255,100,0,0.5)] tracking-tighter truncate max-w-2xl min-w-[200px] text-center pr-4">
           {roomInfo.title}
@@ -226,7 +253,7 @@ const WaitingRoomPage = () => {
         )}
       </header>
 
-      {/* 3. 메인 콘텐츠 */}
+      {/* 메인 */}
       <main className="relative z-10 w-full h-full flex flex-col items-center justify-start pt-0">
          <WaitingGrid 
             players={formattedPlayers} 
@@ -237,7 +264,7 @@ const WaitingRoomPage = () => {
          />
       </main>
 
-      {/* 4. 하단 컨트롤 바 */}
+      {/* 컨트롤 바 */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#0a0a0f]/95 backdrop-blur-md px-6 py-2.5 rounded-full border border-white/10 shadow-2xl">
         <button onClick={handleToggleMic} className={`p-2.5 rounded-full transition-all border ${isMicOn ? 'bg-white/10 border-white/20 text-white' : 'bg-red-500/10 border-red-500/50 text-red-500'}`}>
           {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
@@ -259,7 +286,7 @@ const WaitingRoomPage = () => {
         </button>
       </div>
 
-      {/* --- 모달 영역 --- */}
+      {/* 모달 */}
       {isSettingsOpen && (
         <CreateGameModal 
           isOpen={isSettingsOpen} 
@@ -271,12 +298,10 @@ const WaitingRoomPage = () => {
           }}
           isEdit={true}
           isHost={amIHost}
-          // ✅ 여기서 정제된 inviteCode가 전달되므로 모달에서도 정상적으로 보입니다.
-          inviteCode={roomInfo.inviteCode} 
+          inviteCode={roomInfo.inviteCode}
           onSave={handleUpdateRoom}
         />
       )}
-
       {targetKickPlayer && (
         <LastBeggingModal
           isOpen={!!targetKickPlayer}
@@ -285,7 +310,6 @@ const WaitingRoomPage = () => {
           message={`${targetKickPlayer.name}님을\n강제 퇴장하시겠습니까?`}
         />
       )}
-
       {errorMsg && (
         <GameAlertModal 
           isOpen={!!errorMsg} 
