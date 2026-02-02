@@ -18,7 +18,7 @@ import GameAlertModal from '../components/modals/GameAlertModal';
 const WaitingRoomPage = () => {
   const { roomId } = useParams(); // roomId = roomCode
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useLocation(); // ✅ 방 생성 정보를 받기 위해 location 사용
 
   // --- 상태 관리 (Global Sync State) ---
   const [players, setPlayers] = useState([]);
@@ -42,12 +42,18 @@ const WaitingRoomPage = () => {
     switch (type) {
       case 'JOIN_ACK':
         setPlayers(data.roomState.players);
+        
+        // ✅ [핵심 수정] 서버 데이터가 비었으면 방 생성 시 넘겨받은 데이터(createdData)를 사용
+        const initialCapacity = data.roomState.capacity || location.state?.createdData?.capacity || 8;
+        const initialTitle = data.roomState.title || location.state?.createdData?.title || "즐거운 마피아 게임";
+        const initialPrivate = (data.roomState.status === 'PRIVATE') || location.state?.createdData?.isPrivate || false;
+
         setRoomInfo({
-          title: data.roomState.title || "즐거운 마피아 게임",
-          capacity: data.roomState.capacity || 8,
+          title: initialTitle,
+          capacity: initialCapacity,
           hostUserId: data.roomState.hostUserId,
-          status: data.roomState.status,
-          inviteCode: data.roomState.roomCode || roomId
+          status: initialPrivate ? 'PRIVATE' : 'WAITING',
+          inviteCode: data.roomState.roomCode || roomId 
         });
         setMyInfo(data.my);
         break;
@@ -71,8 +77,8 @@ const WaitingRoomPage = () => {
 
       case 'PLAYER_STATUS_CHANGED':
       case 'ROOM_READY_UPDATED':
-        setPlayers((prev) => prev.map(p =>
-            p.userId === data.userId ? { ...p, ready: data.ready } : p
+        setPlayers((prev) => prev.map(p => 
+          p.userId === data.userId ? { ...p, ready: data.ready } : p
         ));
         if (myInfo && data.userId === myInfo.userId) {
           setMyInfo(prev => ({ ...prev, ready: data.ready }));
@@ -88,10 +94,8 @@ const WaitingRoomPage = () => {
         break;
 
       case 'PHASE_CHANGED':
-        // 게임 시작 시 Phase가 변경되면 게임 페이지로 이동
-        // (보통 GAME_START 이벤트가 따로 있거나, 첫 Phase인 DAY로 체크)
-        navigate(`/game/${roomId}`, {
-          state: { myInfo, players }
+        navigate(`/game/${roomId}`, { 
+          state: { myInfo, players } 
         });
         break;
 
@@ -99,7 +103,7 @@ const WaitingRoomPage = () => {
         alert("방장에 의해 강퇴되었습니다.");
         navigate('/');
         break;
-
+      
       case 'JOIN_REJECTED':
       case 'ERROR':
         setErrorMsg(data.message || "오류가 발생했습니다.");
@@ -111,7 +115,7 @@ const WaitingRoomPage = () => {
       default:
         break;
     }
-  }, [navigate, roomId, myInfo]);
+  }, [navigate, roomId, myInfo, location.state]);
 
   // --- 라이프사이클 (WebSocket 연결) ---
   useEffect(() => {
@@ -121,35 +125,26 @@ const WaitingRoomPage = () => {
 
   // --- 핸들러 (User Interactions) ---
 
-  // 1. 레디 / 시작 토글
   const handleToggleReady = () => {
     if (!myInfo) return;
-    // 준비 상태 변경 요청 (서버로 전송)
     websocketClient.publish('ready', { ready: !myInfo.ready });
   };
 
-  // 2. 강퇴
   const handleKickConfirm = () => {
     if (!targetKickPlayer) return;
     websocketClient.publish('kick', { targetUserId: targetKickPlayer.userId });
     setTargetKickPlayer(null);
   };
 
-  // 3. 방 설정 업데이트 (방장 전용)
   const handleUpdateRoom = (newData) => {
-    // TODO: 백엔드에 방 설정 변경 API가 있다면 호출 (현재는 로컬 state만 변경하거나 로그 출력)
-    console.log("Update room info:", newData);
-    // 예: websocketClient.publish('updateRoom', newData);
-    // 임시로 로컬 타이틀 변경 (서버 응답 전)
+    // 서버 응답 전 로컬 상태 즉시 반영 (UX 향상)
     setRoomInfo(prev => ({ ...prev, ...newData }));
     setIsSettingsOpen(false);
   };
 
-  // 4. 로컬 미디어 토글 (UI Only - WebRTC 연결 전)
   const handleToggleMic = () => setIsMicOn(!isMicOn);
   const handleToggleVideo = () => setIsVideoOn(!isVideoOn);
 
-  // 5. 나가기
   const handleExit = () => {
     if (window.confirm("정말 방을 나가시겠습니까?")) {
       websocketClient.disconnect();
@@ -157,10 +152,8 @@ const WaitingRoomPage = () => {
     }
   };
 
-  // 6. 카운트다운 완료 핸들러 (실제 이동은 소켓 이벤트에서 처리)
   const handleCountdownComplete = () => {
-    // UI상 카운트다운이 끝났을 때 처리 (보통은 서버에서 Phase Change 메시지를 기다림)
-    console.log("Countdown finished!");
+     console.log("Countdown finished!");
   };
 
 
@@ -172,150 +165,138 @@ const WaitingRoomPage = () => {
   const amIHost = myInfo.userId === roomInfo.hostUserId;
   const amIReady = myInfo.ready;
 
-  // UI 컴포넌트에 전달할 포맷으로 변환
   const formattedPlayers = players.map(p => ({
     userId: p.userId,
     name: p.nickname || p.displayName,
     isHost: p.userId === roomInfo.hostUserId,
     isReady: p.ready,
-    isMicOn: p.userId === myInfo.userId ? isMicOn : false, // 실제 구현 시 다른 유저 상태도 받아야 함
+    isMicOn: p.userId === myInfo.userId ? isMicOn : false, 
     isVideoOn: p.userId === myInfo.userId ? isVideoOn : true,
-    photo: p.profileImage, // 프로필 이미지 필드 확인 필요
+    photo: p.profileImage, 
   }));
 
-  // 카운트다운 중이면 화면 전환
   if (countdown !== null) {
-    return <GameStartCountdown count={countdown} onComplete={handleCountdownComplete} />;
+      return <GameStartCountdown count={countdown} onComplete={handleCountdownComplete} />;
   }
 
   return (
-      // [UI Style] Full Screen Background
-      <div className="fixed inset-0 z-[100] w-full h-screen overflow-hidden bg-black text-white selection:bg-orange-500/30">
+    <div className="fixed inset-0 z-[100] w-full h-screen overflow-hidden bg-black text-white selection:bg-orange-500/30">
 
-        {/* 1. Background Image */}
-        <div className="absolute inset-0 z-0 bg-[#0a0a0f]">
-          <img
-              src="/assets/images/waitingroom/bg_main.png"
-              alt="Background"
-              className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
-        </div>
+      {/* 1. Background Image */}
+      <div className="absolute inset-0 z-0 bg-[#0a0a0f]">
+        <img
+            src="/assets/images/waitingroom/bg_main.png"
+            alt="Background"
+            className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
+      </div>
 
-        {/* 2. Header */}
-        <header className="relative z-10 w-full flex items-center justify-center pt-4 pb-1 px-12">
-          <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600 drop-shadow-[0_0_10px_rgba(255,100,0,0.5)] tracking-tighter truncate max-w-2xl min-w-[200px] text-center pr-4">
-            {roomInfo.title}
-          </h1>
+      {/* 2. Header */}
+      <header className="relative z-10 w-full flex items-center justify-center pt-4 pb-1 px-12">
+        <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600 drop-shadow-[0_0_10px_rgba(255,100,0,0.5)] tracking-tighter truncate max-w-2xl min-w-[200px] text-center pr-4">
+          {roomInfo.title}
+        </h1>
 
-          {/* Settings Button (Host & Guest Visible) */}
-          <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="absolute right-8 top-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-all border border-white/5 hover:border-orange-500/50"
-          >
-            <Settings size={20} />
-          </button>
-        </header>
+        <button 
+          onClick={() => setIsSettingsOpen(true)}
+          className="absolute right-8 top-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-all border border-white/5 hover:border-orange-500/50"
+        >
+          <Settings size={20} />
+        </button>
+      </header>
 
-        {/* 3. Main Content: Waiting Grid */}
-        <main className="relative z-10 w-full h-full flex flex-col items-center justify-start pt-0">
-          <WaitingGrid
-              players={formattedPlayers}
-              myId={myInfo.userId}
-              isHost={amIHost}
-              onKick={setTargetKickPlayer} // 강퇴 대상 설정 (모달 오픈)
-              capacity={roomInfo.capacity}
-          />
-        </main>
+      {/* 3. Main Content: Waiting Grid */}
+      <main className="relative z-10 w-full h-full flex flex-col items-center justify-start pt-0">
+         <WaitingGrid 
+            players={formattedPlayers} 
+            myId={myInfo.userId} 
+            isHost={amIHost} 
+            onKick={setTargetKickPlayer} 
+            capacity={roomInfo.capacity} 
+         />
+      </main>
 
-        {/* 4. Bottom Control Bar */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#0a0a0f]/95 backdrop-blur-md px-6 py-2.5 rounded-full border border-white/10 shadow-2xl">
+      {/* 4. Bottom Control Bar */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#0a0a0f]/95 backdrop-blur-md px-6 py-2.5 rounded-full border border-white/10 shadow-2xl">
+        
+        <button 
+          onClick={handleToggleMic}
+          className={`p-2.5 rounded-full transition-all border ${isMicOn ? 'bg-white/10 border-white/20 text-white' : 'bg-red-500/10 border-red-500/50 text-red-500'}`}
+        >
+          {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
+        </button>
 
-          {/* Mic Toggle */}
-          <button
-              onClick={handleToggleMic}
-              className={`p-2.5 rounded-full transition-all border ${isMicOn ? 'bg-white/10 border-white/20 text-white' : 'bg-red-500/10 border-red-500/50 text-red-500'}`}
-          >
-            {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
-          </button>
+        <button 
+          onClick={handleToggleVideo}
+          className={`p-2.5 rounded-full transition-all border ${isVideoOn ? 'bg-white/10 border-white/20 text-white' : 'bg-red-500/10 border-red-500/50 text-red-500'}`}
+        >
+          {isVideoOn ? <Video size={20} /> : <VideoOff size={20} />}
+        </button>
 
-          {/* Video Toggle */}
-          <button
-              onClick={handleToggleVideo}
-              className={`p-2.5 rounded-full transition-all border ${isVideoOn ? 'bg-white/10 border-white/20 text-white' : 'bg-red-500/10 border-red-500/50 text-red-500'}`}
-          >
-            {isVideoOn ? <Video size={20} /> : <VideoOff size={20} />}
-          </button>
+        <div className="w-[1px] h-8 bg-white/10 mx-1" />
 
-          <div className="w-[1px] h-8 bg-white/10 mx-1" />
-
-          {/* READY / CANCEL Button */}
-          <button
-              onClick={handleToggleReady}
-              className={`
+        <button
+          onClick={handleToggleReady}
+          className={`
             group relative px-8 py-2.5 rounded-full font-black text-lg italic tracking-wider transition-all duration-300 overflow-hidden shadow-[0_0_15px_rgba(0,0,0,0.5)] min-w-[140px] flex items-center justify-center
-            ${amIReady
-                  ? 'bg-transparent text-gray-400 border border-white/10 hover:bg-white/5'
-                  : 'bg-white text-black hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]'
-              }
+            ${amIReady 
+              ? 'bg-transparent text-gray-400 border border-white/10 hover:bg-white/5' 
+              : 'bg-white text-black hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]'
+            }
           `}
-          >
+        >
           <span className="relative z-10">
              {amIReady ? "CANCEL" : "READY"}
           </span>
-            {!amIReady && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />}
-          </button>
+          {!amIReady && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />}
+        </button>
 
-          <div className="w-[1px] h-8 bg-white/10 mx-1" />
+        <div className="w-[1px] h-8 bg-white/10 mx-1" />
 
-          {/* Exit Button */}
-          <button
-              onClick={handleExit}
-              className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-500 transition-all text-white/70"
-          >
-            <LogOut size={20} />
-          </button>
-        </div>
-
-        {/* Modals */}
-
-        {/* 1. 방 정보 수정 / 확인 모달 */}
-        {isSettingsOpen && (
-            <CreateGameModal
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-                initialData={{
-                  title: roomInfo.title,
-                  capacity: roomInfo.capacity,
-                  isPrivate: roomInfo.status === 'PRIVATE' // status 확인 필요
-                }}
-                isEdit={true}
-                isHost={amIHost}
-                inviteCode={roomInfo.inviteCode}
-                onSave={handleUpdateRoom}
-            />
-        )}
-
-        {/* 2. 강퇴 확인 모달 */}
-        {targetKickPlayer && (
-            <LastBeggingModal
-                isOpen={!!targetKickPlayer}
-                onClose={() => setTargetKickPlayer(null)}
-                onConfirm={handleKickConfirm}
-                message={`${targetKickPlayer.name}님을\n강제 퇴장하시겠습니까?`}
-            />
-        )}
-
-        {/* 3. 에러 알림 모달 */}
-        {errorMsg && (
-            <GameAlertModal
-                isOpen={!!errorMsg}
-                onClose={() => setErrorMsg(null)}
-                message={errorMsg}
-            />
-        )}
-
+        <button 
+          onClick={handleExit}
+          className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-500 transition-all text-white/70"
+        >
+          <LogOut size={20} />
+        </button>
       </div>
+
+      {/* Modals */}
+      {isSettingsOpen && (
+        <CreateGameModal 
+          isOpen={isSettingsOpen} 
+          onClose={() => setIsSettingsOpen(false)}
+          initialData={{ 
+            title: roomInfo.title, 
+            capacity: roomInfo.capacity, 
+            isPrivate: roomInfo.status === 'PRIVATE' 
+          }}
+          isEdit={true}
+          isHost={amIHost}
+          inviteCode={roomInfo.inviteCode}
+          onSave={handleUpdateRoom}
+        />
+      )}
+
+      {targetKickPlayer && (
+        <LastBeggingModal
+          isOpen={!!targetKickPlayer}
+          onClose={() => setTargetKickPlayer(null)}
+          onConfirm={handleKickConfirm}
+          message={`${targetKickPlayer.name}님을\n강제 퇴장하시겠습니까?`}
+        />
+      )}
+
+      {errorMsg && (
+        <GameAlertModal 
+          isOpen={!!errorMsg} 
+          onClose={() => setErrorMsg(null)} 
+          message={errorMsg} 
+        />
+      )}
+
+    </div>
   );
 };
 
