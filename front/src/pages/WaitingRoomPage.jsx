@@ -31,7 +31,7 @@ const WaitingRoomPage = () => {
   const [isMicOn, setIsMicOn] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
 
-  // Ref (최신 상태 참조용)
+  // Ref
   const myInfoRef = useRef(myInfo);
   const locationRef = useRef(location);
 
@@ -74,7 +74,6 @@ const WaitingRoomPage = () => {
       case 'ROOM_PLAYER_JOINED':
         setPlayers((prev) => {
           const newPlayer = data.player;
-          // ID를 문자열로 변환하여 중복 방지 및 비교
           if (prev.find(p => String(p.userId) === String(newPlayer.userId))) return prev;
           return [...prev, newPlayer];
         });
@@ -83,6 +82,7 @@ const WaitingRoomPage = () => {
         }
         break;
 
+      // ✅ [강퇴/퇴장 처리] GameService의 execute(KickUserCommand) -> ROOM_PLAYER_LEFT 브로드캐스트
       case 'ROOM_PLAYER_LEFT':
         setPlayers((prev) => prev.filter(p => String(p.userId) !== String(data.userId)));
         if (data.roomState) {
@@ -93,15 +93,10 @@ const WaitingRoomPage = () => {
       case 'PLAYER_STATUS_CHANGED':
       case 'ROOM_READY_UPDATED':
         console.log("🔥 [Ready Update Recv]", data); 
-
-        // 1. 전체 플레이어 목록 갱신 (ID 문자열 비교)
         setPlayers((prev) => prev.map(p => 
           String(p.userId) === String(data.userId) ? { ...p, ready: data.ready } : p
         ));
-
-        // 2. 내 상태(myInfo) 갱신 -> 버튼 색상 변경 트리거
         if (myInfoRef.current && String(data.userId) === String(myInfoRef.current.userId)) {
-          console.log("✅ 내 레디 상태 변경됨:", data.ready);
           setMyInfo(prev => ({ ...prev, ready: data.ready }));
         }
         break;
@@ -120,6 +115,7 @@ const WaitingRoomPage = () => {
         });
         break;
 
+      // ✅ [강퇴 당한 당사자 처리] GameService -> sendToUser("KICKED")
       case 'KICKED':
         alert(data.reason || "방장에 의해 강퇴되었습니다.");
         try { websocketClient.disconnect(); } catch(e) {}
@@ -151,25 +147,24 @@ const WaitingRoomPage = () => {
 
   // --- 핸들러 ---
   const handleToggleReady = () => {
-    // Ref를 사용해 최신 상태를 가져옴
     const currentInfo = myInfoRef.current;
     if (!currentInfo) return;
     
     const nextState = !currentInfo.ready;
     console.log("📤 [Send Ready]", nextState);
 
-    // ✅ [핵심 수정] requestId를 포함하여 전송 (백엔드 요구사항 충족)
     websocketClient.publish('ready', { 
       ready: nextState,
       requestId: `req-${Date.now()}` 
     });
   };
 
+  // ✅ [강퇴 요청 핸들러] 백엔드 KickReqeust DTO 매핑
   const handleKickUser = (targetUserId) => {
-    // 강퇴 시에도 requestId 필요할 수 있으므로 확인 필요 (보통 공통 포맷 사용)
+    console.log(`📤 [Kick User] Target: ${targetUserId}`);
     websocketClient.publish('kick', { 
-      targetUserId,
-      requestId: `req-${Date.now()}` 
+      targetUserId: targetUserId,    // 백엔드: Long targetUserId
+      requestId: `req-${Date.now()}` // 백엔드: String requestId
     });
   };
 
@@ -180,7 +175,6 @@ const WaitingRoomPage = () => {
       setIsSettingsOpen(false);
     } catch (err) {
       console.error("방 정보 수정 실패:", err);
-      // 로컬 낙관적 업데이트
       setRoomInfo(prev => ({ ...prev, ...newData }));
       setIsSettingsOpen(false);
     }
@@ -200,7 +194,6 @@ const WaitingRoomPage = () => {
   if (!roomInfo || !myInfo) return <LoadingPage message="대기방 입장 중..." />;
 
   const amIHost = myInfo.userId === roomInfo.hostUserId;
-  // 내 레디 상태 (boolean 변환)
   const amIReady = myInfo.ready === true; 
 
   const formattedPlayers = players.map(p => ({
@@ -227,14 +220,12 @@ const WaitingRoomPage = () => {
         <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600 drop-shadow-[0_0_10px_rgba(255,100,0,0.5)] tracking-tighter truncate max-w-2xl min-w-[200px] text-center pr-4">
           {roomInfo.title}
         </h1>
-        {amIHost && (
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
-            className="absolute right-8 top-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-all border border-white/5 hover:border-orange-500/50"
-          >
-            <Settings size={20} />
-          </button>
-        )}
+        <button 
+          onClick={() => setIsSettingsOpen(true)}
+          className="absolute right-8 top-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-all border border-white/5 hover:border-orange-500/50"
+        >
+          <Settings size={20} />
+        </button>
       </header>
 
       {/* 메인 콘텐츠 */}
@@ -244,7 +235,7 @@ const WaitingRoomPage = () => {
               roomInfo={roomInfo}
               players={formattedPlayers}
               myId={myInfo.userId}
-              onKick={handleKickUser}
+              onKick={handleKickUser} // ✅ 강퇴 핸들러 전달
               onUpdate={handleUpdateRoom}
             />
          ) : (
@@ -267,7 +258,6 @@ const WaitingRoomPage = () => {
         </button>
         <div className="w-[1px] h-8 bg-white/10 mx-1" />
         
-        {/* 레디 버튼 (상태에 따라 색상 변경) */}
         <button
           onClick={handleToggleReady}
           className={`
@@ -291,13 +281,13 @@ const WaitingRoomPage = () => {
       </div>
 
       {/* 모달 */}
-      {isSettingsOpen && amIHost && (
+      {isSettingsOpen && (
         <CreateGameModal 
           isOpen={isSettingsOpen} 
           onClose={() => setIsSettingsOpen(false)}
           initialData={roomInfo}
           isEdit={true}
-          isHost={true}
+          isHost={amIHost} 
           inviteCode={roomInfo.inviteCode}
           onSave={handleUpdateRoom}
         />
