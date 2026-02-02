@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // API
-import { quickJoin, getRoomList, getRoomByInviteCode } from '../api/roomApi';
+import { quickJoin, getRoomList, getRoomDetail } from '../api/roomApi';
 import { useRoomEntry } from '../hooks/useRoomEntry';
 import { useEffect } from 'react';
 // UI Components
@@ -53,9 +53,8 @@ const RoomPage = () => {
   // 방 직접 입장 핸들러
   const handleJoinRoom = async (room) => {
     try {
-      // 입장 가능 앱 상태 체크 (REST)
-      // 공개방도 상세 조회를 통해 상태 확인 후 입장하는 것이 안전
-      const response = await getRoomByInviteCode(room.roomId);
+      // 입장 가능 앱 상태 체크 (REST - RoomId 사용)
+      const response = await getRoomDetail(room.roomId);
       if (response.success && response.data.status === 'WAITING') {
         enterRoom(room.roomId, false);
       } else {
