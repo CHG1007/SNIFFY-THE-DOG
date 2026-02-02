@@ -1,14 +1,28 @@
 import { Link, useNavigate } from 'react-router-dom';
+import useAuthStore from '../../stores/useAuthStore';
+import { logout as logoutApi } from '../../api/authApi';
 
 const Header = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
 
   // 로그아웃 처리 함수
-  const handleLogout = () => {
-    // 1. 여기서 로그아웃 API 호출 (POST /api/v1/auth/logout)
-    // 2. 성공 시 온보딩 페이지('/')로 이동
-    console.log("로그아웃 로직 실행");
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      // 1. 로그아웃 API 호출
+      await logoutApi();
+    } catch (error) {
+      console.error('Logout API failed:', error);
+    } finally {
+      // 2. 전역 상태 초기화
+      logout();
+      
+      // 3. 로컬 스토리지 명시적 삭제 (persist 미들웨어 키)
+      localStorage.removeItem('auth-storage');
+      
+      console.log("로그아웃 성공");
+      navigate('/');
+    }
   };
 
   return (
@@ -28,11 +42,11 @@ const Header = () => {
           <div className="w-8 h-8 rounded-full bg-gray-600 overflow-hidden border border-gray-500">
             {/* 없는 api 호출 임시 수정 <img src="/api/placeholder/32/32" alt="profile" /> */}
             <img
-                src="https://ui-avatars.com/api/?name=User&background=random"
+                src={user?.profileImage || "https://ui-avatars.com/api/?name=User&background=random"}
                 alt="profile"
             />
           </div>
-          <span className="font-bold">user123 님</span>
+          <span className="font-bold">{user?.nickname || 'user123'} 님</span>
         </div>
 
         {/* 드롭다운 메뉴 영역 */}
@@ -44,6 +58,14 @@ const Header = () => {
           >
             마이페이지
           </li>
+          {user?.isAdmin && (
+            <li 
+              onClick={() => navigate('/admin')}
+              className="px-4 py-3 text-sm hover:bg-[#ff8a00] hover:text-white transition-colors cursor-pointer border-b border-gray-800"
+            >
+              관리자 페이지
+            </li>
+          )}
           <li 
             onClick={handleLogout}
             className="px-4 py-3 text-sm text-red-500 hover:bg-red-500 hover:text-white transition-colors cursor-pointer"
