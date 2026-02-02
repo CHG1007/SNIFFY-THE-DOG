@@ -1,9 +1,19 @@
 import { Client } from '@stomp/stompjs';
 import useAuthStore from '../stores/useAuthStore';
 
-// HTTP URL을 WebSocket URL로 변환 (예: http:// -> ws://, https:// -> wss://)
+// ✅ [핵심 수정] WebSocket URL 자동 감지 함수
 const getSocketUrl = () => {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+  // 1. 환경 변수가 설정되어 있다면 그것을 우선 사용
+  let baseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  // 2. 환경 변수가 없다면(배포 환경 등), 현재 브라우저의 주소(Origin)를 사용
+  //    (예: https://my-game.com 에서 접속 시 -> https://my-game.com 사용)
+  if (!baseUrl) {
+    baseUrl = window.location.origin;
+  }
+
+  // 3. 프로토콜 변환: http -> ws, https -> wss
+  //    (뒤에 /ws 엔드포인트 붙임)
   return baseUrl.replace(/^http/, 'ws') + '/ws';
 };
 
@@ -18,14 +28,16 @@ class WebSocketClient {
     this.roomCode = roomCode;
     const accessToken = useAuthStore.getState().accessToken; // 스토어에서 토큰 가져오기
 
+    console.log(`🔌 Connecting to WebSocket: ${getSocketUrl()}`);
+
     this.client = new Client({
-      brokerURL: getSocketUrl(),
+      brokerURL: getSocketUrl(), // ✅ 수정된 함수 사용
       connectHeaders: {
         Authorization: `Bearer ${accessToken}`, // 헤더에 토큰 추가
       },
       reconnectDelay: 5000, // 연결 끊기면 5초 뒤 재연결 시도
       debug: (str) => {
-        // 개발 모드에서만 로그 출력 (선택 사항)
+        // 개발 모드에서만 로그 출력
         if (import.meta.env.DEV) console.log('[WS Debug]', str);
       },
       onConnect: () => {
@@ -48,7 +60,7 @@ class WebSocketClient {
   // 연결 종료
   disconnect() {
     if (this.client && this.client.active) {
-      // 퇴장 메시지 전송 (선택 사항, 필요 시 활성화)
+      // 퇴장 메시지 전송 (필요 시 주석 해제)
       // this.publish('leave', {}); 
       this.client.deactivate();
       console.log('qw WebSocket Disconnected');

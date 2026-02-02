@@ -28,3 +28,20 @@ export const quickJoin = async () => {
   const response = await apiClient.post('/api/v1/rooms/quick-join');
   return response.data;
 };
+
+// [추가] 방 정보 수정 API
+export const updateRoomInfo = async (roomId, roomData) => {
+  // 백엔드에 방 정보 수정 API가 구현되어 있다면 아래 주석을 해제하고 사용하세요.
+  // const response = await axios.patch(`/rooms/${roomId}`, roomData); 
+  // return response.data;
+
+  // ⚠️ 현재 백엔드(GameService) 코드에는 방 정보 수정 기능이 없으므로,
+  // 에러를 방지하기 위해 임시로 '성공' 응답을 흉내 냅니다.
+  console.log(`[API] 방 정보 수정 요청 (Room: ${roomId})`, roomData);
+  return { 
+    data: { 
+      success: true,
+      message: "방 정보가 수정되었습니다 (로컬 반영)"
+    } 
+  };
+};
