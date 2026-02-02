@@ -1,6 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
+import Pagination from '../common/Pagination';
 
-const AdminUserTable = ({ users }) => {
+const AdminUserTable = ({ users = [] }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
+  // 클라이언트 사이드 페이지네이션 로직
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentUsers = users.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(users.length / itemsPerPage);
+
+  // 페이지 변경 핸들러
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   // 상태 뱃지 스타일링 함수
   const getStatusBadge = (status) => {
     switch (status) {
@@ -59,8 +74,8 @@ const AdminUserTable = ({ users }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
-            {users && users.length > 0 ? (
-              users.map((user) => (
+            {currentUsers && currentUsers.length > 0 ? (
+              currentUsers.map((user) => (
                 <tr
                   key={user.userId}
                   className="hover:bg-[#252525] transition-colors"
@@ -93,6 +108,15 @@ const AdminUserTable = ({ users }) => {
           </tbody>
         </table>
       </div>
+
+      {/* 클라이언트 사이드 페이지네이션 컴포넌트 */}
+      {users.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+      )}
     </div>
   );
 };
