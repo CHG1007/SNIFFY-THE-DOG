@@ -62,10 +62,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
 
-        return uri.contains("/v3/api-docs")
-                || uri.contains("/swagger-ui")
-                || uri.endsWith("/swagger-ui.html")
-                || uri.startsWith("/actuator")
-                || uri.endsWith("/api/v1/auth/kakao");
+        // 두 코드의 장점을 병합했습니다.
+        return uri.contains("/v3/api-docs")       // Swagger 문서 (범용적 포함)
+                || uri.contains("/swagger-ui")    // Swagger UI (범용적 포함)
+                || uri.startsWith("/actuator")    // 헬스 체크 등 (코드 2 반영)
+                || uri.endsWith("/api/v1/auth/kakao") // 카카오 로그인 (코드 2 반영)
+                || uri.startsWith("/ws");         // [중요] 웹소켓 연결은 JWT 필터 제외 (코드 1 반영, 게임 필수)
     }
 }

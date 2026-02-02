@@ -21,7 +21,7 @@ public record RedisRoomJson(
         Instant updatedAt,
         Instant startedAt,
         Instant endedAt,
-        Map<GameUserId, PlayerState> players,
+        Map<String, RedisPlayerState> players,
         GameState gameState
 ) {
 }

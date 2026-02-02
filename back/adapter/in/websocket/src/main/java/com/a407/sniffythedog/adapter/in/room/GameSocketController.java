@@ -82,7 +82,7 @@ public class GameSocketController {
         setReadyUseCase.execute(command);
     }
 
-    @MessageMapping("/room/{roomCode}/kick")
+    @MessageMapping("/rooms/{roomCode}/kick")
     public void kickUser(
             @DestinationVariable String roomCode,
             @Payload KickReqeust kickReqeust,

@@ -11,4 +11,8 @@ public record GameUserId(Long value) {
     public static GameUserId of(Long value) {
         return new GameUserId(value);
     }
+
+    public String toString() {
+        return String.valueOf(value);
+    }
 }
