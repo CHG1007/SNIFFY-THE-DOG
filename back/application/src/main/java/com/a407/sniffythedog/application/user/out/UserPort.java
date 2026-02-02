@@ -5,6 +5,7 @@ import com.a407.sniffythedog.domain.user.enums.SocialProvider;
 import com.a407.sniffythedog.domain.user.vo.SocialUuid;
 import com.a407.sniffythedog.domain.user.vo.UserId;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -14,6 +15,8 @@ public interface UserPort {
     User findById(UserId userId);
 
     User findBySocialProviderAndSocialUuid(SocialProvider provider, SocialUuid socialUuid);
+
+    List<User> findAll();
 
     User save(User user);
 }
