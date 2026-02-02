@@ -25,9 +25,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-        HttpServletRequest request,
-        HttpServletResponse response,
-        FilterChain filterChain
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
     ) throws ServletException, IOException {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (header != null && header.startsWith("Bearer ")) {
@@ -41,13 +41,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         return;
                     }
                     List<SimpleGrantedAuthority> authorities = role != null
-                        ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                        : List.of();
+                            ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                            : List.of();
 
                     // Build authentication from token claims and store it in the SecurityContext.
                     AuthenticatedUser principal = new AuthenticatedUser(userId, role);
                     UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                            new UsernamePasswordAuthenticationToken(principal, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 } catch (RuntimeException ignored) {
                     // If token parsing fails, continue without authentication.
@@ -57,18 +57,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, response);
     }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
 
-        return uri.startsWith("/v3/api-docs")
-                || uri.startsWith("/swagger-ui")
-                || uri.equals("/swagger-ui.html")
-                || uri.startsWith("/api/v3/api-docs")
-                || uri.startsWith("/api/swagger-ui")
-                || uri.equals("/api/swagger-ui.html")
-                || uri.equals("/api/v1/auth/kakao")
-                || uri.startsWith("/ws");
+        // 두 코드의 장점을 병합했습니다.
+        return uri.contains("/v3/api-docs")       // Swagger 문서 (범용적 포함)
+                || uri.contains("/swagger-ui")    // Swagger UI (범용적 포함)
+                || uri.startsWith("/actuator")    // 헬스 체크 등 (코드 2 반영)
+                || uri.endsWith("/api/v1/auth/kakao") // 카카오 로그인 (코드 2 반영)
+                || uri.startsWith("/ws");         // [중요] 웹소켓 연결은 JWT 필터 제외 (코드 1 반영, 게임 필수)
     }
-
 }

@@ -1,9 +1,17 @@
 package com.a407.sniffythedog.adapter.in.http.config;
+import com.a407.sniffythedog.adapter.in.http.common.response.ApiResponse;
 import com.a407.sniffythedog.adapter.in.http.global.filter.JwtAuthenticationFilter;
 import com.a407.sniffythedog.adapter.in.http.global.jwt.JwtProvider;
+import com.a407.sniffythedog.application.common.exception.ExceptionType;
+import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -11,9 +19,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
 
@@ -21,7 +31,41 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
+    @PostConstruct
+    public void loaded() {
+        log.info("### SecurityConfig LOADED ###");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResource(NoResourceFoundException e, HttpServletRequest req) {
+        log.warn("NoResourceFound: path={} msg={}", req.getRequestURI(), e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.fail("S404", "Not Found"));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<?> handleException(Exception e, HttpServletRequest req) {
+        String path = req.getRequestURI();
+        log.error("Unhandled Exception: path={}", path, e);
+
+        // swagger / api-docs는 포장하지 말고 그대로 500만 던져라 -
+        if (path.contains("api-docs") || path.contains("swagger")) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
+        return ResponseEntity
+                .status(ExceptionType.INTERNAL_SERVER_ERROR.getHttpStatusCode())
+                .body(ApiResponse.fail(
+                        ExceptionType.INTERNAL_SERVER_ERROR.getErrorCode(),
+                        ExceptionType.INTERNAL_SERVER_ERROR.getMessage()
+                ));
+    }
+
     @Bean
+    @Order(0)
     public SecurityFilterChain securityFilterChain(
         HttpSecurity http,
         JwtAuthenticationFilter jwtAuthenticationFilter
@@ -55,9 +99,6 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/api/v3/api-docs/**",
-                                "/api/swagger-ui/**",
-                                "/api/swagger-ui.html",
                                 "/actuator/health/**",
                                 "/actuator/info",
                                 "/ws/**"

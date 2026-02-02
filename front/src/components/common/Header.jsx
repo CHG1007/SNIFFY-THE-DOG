@@ -12,13 +12,13 @@ const Header = () => {
   };
 
   return (
-    <header className="flex relative z-50 justify-between items-center px-10 py-3.5 bg-[#121212] border-b border-gray-800 text-white">
+    <header className="flex relative z-50 justify-between items-center px-10 py-2.5 bg-[#121212] border-b border-gray-800 text-white">
       {/* 1. 로고: 클릭 시 무조건 /rooms로 이동 */}
       <div className="flex items-center">
         <Link to="/rooms" className="text-2xl font-black tracking-tighter">
           <span className="text-[#ff8a00]">SNIFFY</span> <span className="text-white">the DOG</span>
         </Link>
-      </div>
+      </div> 
 
       {/* 2. 유저 메뉴 섹션 */}
       <div className="relative group">

@@ -1,73 +1,58 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { quickJoin } from '../api/roomApi'; // ✅ API import
-import FindGameModal from '../components/modals/FindGameModal'; 
-import CreateGameModal from '../components/modals/CreateGameModal';
+// src/App.jsx
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
-const RoomPage = () => {
-  const navigate = useNavigate();
-  const [isFindGameOpen, setIsFindGameOpen] = useState(false);
-  const [isCreateGameOpen, setIsCreateGameOpen] = useState(false);
+// Pages
+import OnboardingPage from './pages/OnboardingPage';
+import TutorialPage from './pages/TutorialPage';
+import RoomPage from './pages/RoomPage';
+import VideoTestPage from './pages/VideoTestPage';
+import MyPage from './pages/MyPage';
+import AdminPage from './pages/AdminPage';
+import WaitingRoomPage from './pages/WaitingRoomPage';
 
-  const handleQuickJoin = async () => {
-    try {
-      console.log("빠른 입장 시도 중...");
-      // ✅ 실제 API 호출
-      const response = await quickJoin();
-      const roomId = response.data?.roomId || response.data?.roomCode;
+// Components
+import Header from './components/common/Header';
+import WithHeaderLayout from './components/common/WithHeaderLayout';
+import AiTestLauncher from './components/aitest/AiTestLauncher';
 
-      if (roomId) {
-        navigate(`/waiting-room/${roomId}`);
-      }
-    } catch (error) {
-      console.error(error);
-      alert("빠른 입장에 실패했습니다. 입장 가능한 방이 없습니다.");
-    }
-  };
+function App() {
+    return (
+        <BrowserRouter>
+            {/* 전체 레이아웃 스타일 적용 (가로 스크롤 방지 및 최소 높이) */}
+            <div className="min-h-screen overflow-x-hidden">
 
-  return (
-    <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center gap-6">
-      <h1 className="text-4xl font-black text-white mb-10">LOBBY</h1>
+                {/*===== AI 테스트 =====*/}
+                <AiTestLauncher />
+                {/*====================*/}
 
-      {/* 버튼들 */}
-      <div className="flex gap-4">
-        <button 
-          onClick={() => setIsFindGameOpen(true)}
-          className="px-8 py-4 bg-white/10 text-white rounded-xl font-bold hover:bg-white/20 transition-all cursor-pointer"
-        >
-          게임 찾기
-        </button>
+                <Routes>
+                    {/* 1. 헤더가 없는 페이지 */}
+                    <Route path="/" element={<OnboardingPage />} />
+                    <Route path="/tutorial" element={<TutorialPage />} />
 
-        <button 
-          onClick={() => setIsCreateGameOpen(true)}
-          className="px-8 py-4 bg-[#ff8a00] text-white rounded-xl font-bold hover:bg-[#ffaa44] transition-all cursor-pointer"
-        >
-          게임 생성
-        </button>
+                    {/* 2. 대기실 리스트 (배경이 있는 헤더 레이아웃) */}
+                    <Route path="/rooms" element={
+                        <WithHeaderLayout backgroundUrl="/assets/images/roompage/background.png">
+                            <RoomPage />
+                        </WithHeaderLayout>
+                    } />
 
-        <button 
-          onClick={handleQuickJoin} 
-          className="px-8 py-4 bg-[#ff8a00] text-white rounded-xl font-bold hover:bg-[#ffaa44] transition-all cursor-pointer"
-        >
-          게임 시작
-        </button>
-      </div>
+                    {/* 3. 게임 대기방 (두 가지 경로 모두 지원) */}
+                    {/* CreateGameModal에서 이동하는 경로 */}
+                    <Route path="/waiting-room/:roomId" element={<><Header /><WaitingRoomPage /></>} />
+                    {/* 일반적인 RESTful 경로 */}
+                    <Route path="/rooms/:roomId" element={<><Header /><WaitingRoomPage /></>} />
 
-      {/* 모달 컴포넌트 */}
-      <FindGameModal 
-        isOpen={isFindGameOpen} 
-        onClose={() => setIsFindGameOpen(false)} 
-      />
-      
-      {isCreateGameOpen && (
-        <CreateGameModal 
-          isOpen={isCreateGameOpen} 
-          onClose={() => setIsCreateGameOpen(false)} 
-        />
-      )}
+                    {/* 4. 마이페이지 및 관리자 */}
+                    <Route path="/users" element={<><Header /><MyPage /></>} />
+                    <Route path="/admin" element={<><Header /><AdminPage /></>} />
 
-    </div>
-  );
-};
+                    {/* 5. 테스트 페이지 */}
+                    <Route path="/video-test" element={<VideoTestPage />} />
+                </Routes>
+            </div>
+        </BrowserRouter>
+    );
+}
 
-export default RoomPage;
+export default App;

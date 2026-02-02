@@ -4,11 +4,12 @@ jar.enabled = false
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.15"
 
     runtimeOnly project(":adapter:out:redis")
     runtimeOnly project(":domain")
     runtimeOnly project(":application")
-    runtimeOnly project(":adapter:in:http")
+    implementation project(":adapter:in:http")
     runtimeOnly project(":adapter:out:rdb")
     runtimeOnly project(":adapter:out:livekit")
     runtimeOnly project(":adapter:in:websocket")
