@@ -52,7 +52,6 @@ public class RoomController {
     public ApiResponse<List<RoomSummaryResponse>> getRoomInfo(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "6") int size
-            //todo:@Authentication 추가
     ) {
         List<GetPublicRoomResult> results = getAllRoomUseCase.getPublicRooms(page, size);
 

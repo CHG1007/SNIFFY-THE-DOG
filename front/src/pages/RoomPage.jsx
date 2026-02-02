@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // API
-import { quickJoin } from '../api/roomApi'; 
-
+import { quickJoin, getRoomList, getRoomByInviteCode } from '../api/roomApi';
+import { useRoomEntry } from '../hooks/useRoomEntry';
+import { useEffect } from 'react';
 // UI Components
 import LeftPanel from "../components/room/LeftPanel";
 import LobbyLayout from '../components/room/LobbyLayout';
@@ -17,10 +18,55 @@ import CreateGameModal from '../components/modals/CreateGameModal';
 
 const RoomPage = () => {
   const navigate = useNavigate();
-  
+  const { enterRoom } = useRoomEntry();
+
+  // 상태 관리
+  const [rooms, setRooms] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6; // 한 페이지당 6개 (현재 그리드 기준)
+
   // 모달 상태 관리
   const [isFindGameOpen, setIsFindGameOpen] = useState(false);
   const [isCreateGameOpen, setIsCreateGameOpen] = useState(false);
+
+  // 방 목록 조회 로직
+  const fetchRooms = async (page) => {
+    try {
+      setIsLoading(true);
+      // 백엔드는 0-based page 사용
+      const response = await getRoomList(page - 1, pageSize);
+      if (response.success) {
+        setRooms(response.data || []);
+      }
+    } catch (error) {
+      console.error("방 목록 로딩 실패:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRooms(currentPage);
+  }, [currentPage]);
+
+  // 방 직접 입장 핸들러
+  const handleJoinRoom = async (room) => {
+    try {
+      // 입장 가능 앱 상태 체크 (REST)
+      // 공개방도 상세 조회를 통해 상태 확인 후 입장하는 것이 안전
+      const response = await getRoomByInviteCode(room.roomId);
+      if (response.success && response.data.status === 'WAITING') {
+        enterRoom(room.roomId, false);
+      } else {
+        alert("이미 게임이 진행 중이거나 입장이 불가한 방입니다.");
+        fetchRooms(currentPage); // 목록 갱신
+      }
+    } catch (error) {
+      console.error("입장 실패:", error);
+      alert("방 입장에 실패했습니다.");
+    }
+  };
 
   // [Logic Integration] 빠른 입장 핸들러 (Version A의 API 로직 사용)
   const handleQuickJoin = async () => {
@@ -59,24 +105,43 @@ const RoomPage = () => {
           <div className="h-fit max-h-[90%] self-center flex flex-col rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-6 overflow-hidden shadow-2xl">
             {/* 내부 콘텐츠 컨테이너 */}
             <div className="w-full max-w-[1000px] mx-auto flex flex-col min-h-0">
-              
-              {/* 방 목록 그리드 (추후 API로 방 목록 받아와서 map 돌려야 함) */}
-              <div className="grid grid-cols-3 gap-6 overflow-y-auto pt-4 px-4 custom-scrollbar content-start">
-                {Array.from({ length: 6 }).map((_, idx) => (
-                  <RoomCard
-                    key={idx}
-                    roomCode={`ROOM-${idx + 1}`}
-                    title="입장하세요"
-                    hostName="SSAFY 407팀"
-                    current={5}
-                    capacity={8}
-                  />
-                ))}
+
+              {/* 방 목록 그리드 */}
+              <div className="grid grid-cols-3 gap-6 overflow-y-auto pt-4 px-4 custom-scrollbar content-start flex-1">
+                {isLoading ? (
+                  <div className="col-span-3 flex justify-center items-center h-40">
+                    <span className="text-white text-xl animate-pulse">방 목록을 불러오고 있습니다...</span>
+                  </div>
+                ) : rooms.length > 0 ? (
+                  rooms.map((room) => (
+                    <RoomCard
+                      key={room.roomId}
+                      roomCode={room.roomId.substring(0, 8)}
+                      title={room.title}
+                      hostName={room.isPrivate ? "PRIVATE" : "PUBLIC"}
+                      current={room.currentCount}
+                      capacity={room.capacity}
+                      onJoin={() => handleJoinRoom(room)}
+                    />
+                  ))
+                ) : (
+                  <div className="col-span-3 flex justify-center items-center h-40">
+                    <span className="text-white/50 text-xl italic uppercase tracking-widest">
+                      입장 가능한 방이 없습니다
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* 페이지네이션 */}
+              {/* 페이지네이션 (백엔드 totalPages 지원 시 연동 가능) */}
               <div className="shrink-0 flex justify-center pt-4 pb-2">
-                <Pagination currentPage={1} totalPages={3} onPrev={() => {}} onNext={() => {}} onSelect={() => {}} />
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={rooms.length === pageSize ? currentPage + 1 : currentPage}
+                  onPrev={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  onNext={() => setCurrentPage(prev => prev + 1)}
+                  onSelect={(p) => setCurrentPage(p)}
+                />
               </div>
             </div>
           </div>
