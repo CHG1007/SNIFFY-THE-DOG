@@ -1,6 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from "../../stores/useAuthStore";
-import axios from 'axios';
 import { useState, useEffect, useRef } from 'react';
 
 const Header = () => {
@@ -68,7 +67,7 @@ const Header = () => {
 
         {/* 세 번째 사진 스타일의 드롭다운 */}
         {isMenuOpen && (
-          <ul className="absolute top-[118%] left-0 w-[190px] bg-[#121212] border border-gray-800 shadow-2xl z-[60]">          
+          <ul className="absolute top-[118%] left-0 w-[170px] bg-[#121212] border border-gray-800 shadow-2xl z-[60]">          
             <li 
               onClick={() => { navigate('/users'); setIsMenuOpen(false); }}
               className="py-4 text-center text-lg hover:text-primary transition-colors cursor-pointer border-b border-gray-800"
