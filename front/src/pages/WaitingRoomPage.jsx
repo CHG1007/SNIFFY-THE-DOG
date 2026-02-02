@@ -38,6 +38,24 @@ const WaitingRoomPage = () => {
   const myInfoRef = useRef(myInfo);
   const locationRef = useRef(location);
 
+  // ✅ [초기화] 방 입장 시 넘어온 state(초대코드 등)를 활용해 roomInfo 미리 세팅
+  useEffect(() => {
+    const state = location.state || {};
+    const created = state.createdData;
+    
+    // 방 생성 직후라면 inviteCode가 state에 포함되어 있음
+    if (created) {
+      setRoomInfo({
+        title: created.title || "즐거운 마피아 게임",
+        capacity: created.capacity || 8,
+        isPrivate: created.isPrivate || false,
+        inviteCode: state.inviteCode || null, // CreateModal에서 넘겨준 코드
+        status: created.isPrivate ? 'PRIVATE' : 'WAITING',
+        hostUserId: null // 아직 모름 (소켓 연결 후 갱신)
+      });
+    }
+  }, [location.state]);
+
   useEffect(() => {
     myInfoRef.current = myInfo;
     locationRef.current = location;
@@ -53,24 +71,33 @@ const WaitingRoomPage = () => {
       case 'JOIN_ACK':
         setPlayers(data.roomState.players);
         
-        const createdData = locationRef.current.state?.createdData;
-        const initialCapacity = createdData?.capacity || data.roomState.capacity || 8;
-        const initialTitle = createdData?.title || data.roomState.title || "즐거운 마피아 게임";
-        const initialPrivate = createdData?.isPrivate || (data.roomState.status === 'PRIVATE') || false;
+        // 기존에 알고 있던 정보 (방 생성 시점의 데이터)
+        const initialData = locationRef.current.state?.createdData || {};
+        const passedInviteCode = locationRef.current.state?.inviteCode;
 
-        let rawCode = data.roomState.roomCode || roomId;
-        if (typeof rawCode === 'string' && rawCode.includes('RoomId[value=')) {
-           rawCode = rawCode.replace('RoomId[value=', '').replace(']', '');
+        // 서버 데이터 파싱
+        let serverCode = data.roomState.roomCode || roomId;
+        if (typeof serverCode === 'string' && serverCode.includes('RoomId[value=')) {
+           serverCode = serverCode.replace('RoomId[value=', '').replace(']', '');
         }
 
-        setRoomInfo({
-          title: initialTitle,
-          capacity: initialCapacity,
+        // ✅ [우선순위 로직] 
+        // 1. 방금 생성해서 들고 온 inviteCode가 가장 정확함
+        // 2. 그게 없으면 서버가 준 roomCode를 사용 (공개방인 경우 등)
+        const finalInviteCode = passedInviteCode || serverCode;
+        
+        // 비공개 여부 판단
+        const isPrivateRoom = data.roomState.status === 'PRIVATE' || initialData.isPrivate || false;
+
+        setRoomInfo(prev => ({
+          ...prev,
+          title: data.roomState.title || initialData.title || "즐거운 마피아 게임",
+          capacity: data.roomState.capacity || initialData.capacity || 8,
           hostUserId: data.roomState.hostUserId,
-          status: initialPrivate ? 'PRIVATE' : 'WAITING',
-          inviteCode: rawCode,
-          isPrivate: initialPrivate
-        });
+          status: isPrivateRoom ? 'PRIVATE' : 'WAITING',
+          isPrivate: isPrivateRoom,
+          inviteCode: finalInviteCode // 여기에 초대 코드가 들어가야 설정 모달에서 보임
+        }));
         setMyInfo(data.my);
         
         websocketClient.sync();
@@ -80,23 +107,25 @@ const WaitingRoomPage = () => {
         setPlayers(data.roomState.players);
         setMyInfo(data.my);
 
-        let ssCode = data.roomState.roomCode || roomId;
-        if (typeof ssCode === 'string' && ssCode.includes('RoomId[value=')) {
-          ssCode = ssCode.replace('RoomId[value=', '').replace(']', '');
-        }
+        // Fallback 로직
+        const snapshotInitial = locationRef.current.state?.createdData || {};
+        const snapshotPassedCode = locationRef.current.state?.inviteCode;
+        
+        // 기존 roomInfo가 있으면 그걸 우선 유지 (inviteCode 유실 방지)
+        const currentInfo = roomInfo || {}; 
+        
+        const snapshotIsPrivate = data.roomState.status === 'PRIVATE' || data.roomState.isPrivate || snapshotInitial.isPrivate || currentInfo.isPrivate;
 
-        const snapshotCreatedData = locationRef.current.state?.createdData;
-        const snapshotTitle = data.roomState.title || snapshotCreatedData?.title || roomInfo?.title || "즐거운 마피아 게임";
-        const snapshotCapacity = data.roomState.capacity || snapshotCreatedData?.capacity || 8;
-
-        setRoomInfo({
-          title: snapshotTitle,
-          capacity: snapshotCapacity,
+        setRoomInfo(prev => ({
+          ...prev,
+          title: data.roomState.title || snapshotInitial.title || prev?.title || "즐거운 마피아 게임",
+          capacity: data.roomState.capacity || snapshotInitial.capacity || prev?.capacity || 8,
           hostUserId: data.roomState.hostUserId,
           status: data.roomState.status,
-          inviteCode: ssCode,
-          isPrivate: data.roomState.status === 'PRIVATE' || data.roomState.isPrivate
-        });
+          isPrivate: snapshotIsPrivate,
+          // 초대 코드는 서버에서 안 오면 기존 것 유지
+          inviteCode: snapshotPassedCode || prev?.inviteCode || roomId 
+        }));
 
         if (data.roomState.status === 'PLAYING') {
           navigate(`/game/${roomId}`, {
@@ -105,6 +134,7 @@ const WaitingRoomPage = () => {
         }
         break;
 
+      // ... (나머지 케이스들 동일: ROOM_PLAYER_JOINED, LEFT, READY, KICKED 등)
       case 'ROOM_PLAYER_JOINED':
         setPlayers((prev) => {
           const newPlayer = data.player;
@@ -125,7 +155,6 @@ const WaitingRoomPage = () => {
 
       case 'PLAYER_STATUS_CHANGED':
       case 'ROOM_READY_UPDATED':
-        console.log("🔥 [Ready Update Recv]", data); 
         setPlayers((prev) => prev.map(p => 
           String(p.userId) === String(data.userId) ? { ...p, ready: data.ready } : p
         ));
@@ -165,72 +194,42 @@ const WaitingRoomPage = () => {
       default:
         break;
     }
-  }, [navigate, roomId, roomInfo]); 
+  }, [navigate, roomId]); // roomInfo 의존성 제거 (함수형 업데이트 사용)
 
-  // --- ✅ 소켓 연결 및 자동 퇴장 처리 (핵심 수정) ---
+  // --- 소켓 연결 및 자동 퇴장 ---
   useEffect(() => {
     const onMessage = (msg) => handleSocketMessage(msg);
     websocketClient.connect(roomId, onMessage);
 
-    // 1. 브라우저 탭 닫기/새로고침 시 실행
     const handleBeforeUnload = () => {
-      try {
-        // 동기적으로 실행되지 않을 수 있지만, 최선을 다해 전송 시도
-        websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` });
-      } catch (e) {
-        console.warn("Leave message failed on unload", e);
-      }
+      try { websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` }); } catch (e) {}
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // 2. 컴포넌트 언마운트(뒤로가기) 시 실행되는 Cleanup 함수
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      
-      // ✅ 뒤로가기를 누르면 이 부분이 실행됩니다.
-      // 먼저 '나간다'는 메시지를 보내고 소켓을 끊습니다.
-      try {
-        websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` });
-      } catch (e) {
-        console.warn("Leave message failed on unmount", e);
-      }
+      try { websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` }); } catch (e) {}
       websocketClient.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]); 
-
 
   // --- 핸들러 ---
   const handleToggleReady = () => {
     const currentInfo = myInfoRef.current;
     if (!currentInfo) return;
-    
     const nextState = !currentInfo.ready;
-    console.log("📤 [Send Ready]", nextState);
-
-    websocketClient.publish('ready', { 
-      ready: nextState,
-      requestId: `req-${Date.now()}` 
-    });
+    websocketClient.publish('ready', { ready: nextState, requestId: `req-${Date.now()}` });
   };
 
   const handleKickConfirm = () => {
     if (!targetKickPlayer) return;
-    
-    console.log(`📤 [Kick User] Target: ${targetKickPlayer.userId}`);
-    websocketClient.publish('kick', { 
-      targetUserId: targetKickPlayer.userId,
-      requestId: `req-${Date.now()}`
-    });
-    
+    websocketClient.publish('kick', { targetUserId: targetKickPlayer.userId, requestId: `req-${Date.now()}` });
     setTargetKickPlayer(null);
   };
 
   const handleUpdateRoom = async (newData) => {
     try {
-      if (updateRoomInfo) {
-         await updateRoomInfo(roomId, newData);
-      }
+      if (updateRoomInfo) await updateRoomInfo(roomId, newData);
       setRoomInfo(prev => ({ ...prev, ...newData }));
       setIsSettingsOpen(false);
     } catch (err) {
@@ -240,12 +239,8 @@ const WaitingRoomPage = () => {
     }
   };
 
-  // 나가기 버튼 (명시적 나가기)
   const handleExit = () => {
     if (window.confirm("정말 방을 나가시겠습니까?")) {
-      // 굳이 여기서 publish를 안 해도, navigate가 발생하면
-      // 위의 useEffect Cleanup 함수가 실행되어 leave를 보냅니다.
-      // 하지만 안전을 위해 이중으로 보내도 상관없습니다.
       navigate('/rooms');
     }
   };
@@ -254,11 +249,8 @@ const WaitingRoomPage = () => {
   const handleToggleVideo = () => setIsVideoOn(!isVideoOn);
   const handleCountdownComplete = () => console.log("Countdown finished!");
 
-
   // --- 렌더링 ---
-  if (!roomInfo || !myInfo) {
-    return <LoadingPage message="대기방에 입장 중입니다..." />;
-  }
+  if (!roomInfo || !myInfo) return <LoadingPage message="대기방에 입장 중입니다..." />;
 
   const amIHost = myInfo.userId === roomInfo.hostUserId;
   const amIReady = myInfo.ready === true;
@@ -279,14 +271,9 @@ const WaitingRoomPage = () => {
 
   return (
     <div className="fixed inset-0 z-[100] w-full h-screen overflow-hidden bg-black text-white selection:bg-orange-500/30">
-
       {/* 배경 */}
       <div className="absolute inset-0 z-0 bg-[#0a0a0f]">
-        <img
-          src="/assets/images/waitingroom/bg_main.png"
-          alt="Background"
-          className="w-full h-full object-cover"
-        />
+        <img src="/assets/images/waitingroom/bg_main.png" alt="Background" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
       </div>
 
@@ -295,7 +282,6 @@ const WaitingRoomPage = () => {
         <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600 drop-shadow-[0_0_10px_rgba(255,100,0,0.5)] tracking-tighter truncate max-w-2xl min-w-[200px] text-center pr-4">
           {roomInfo.title}
         </h1>
-
         {amIHost && (
           <button
             onClick={() => setIsSettingsOpen(true)}
@@ -326,7 +312,6 @@ const WaitingRoomPage = () => {
           {isVideoOn ? <Video size={20} /> : <VideoOff size={20} />}
         </button>
         <div className="w-[1px] h-8 bg-white/10 mx-1" />
-        
         <button
           onClick={handleToggleReady}
           className={`group relative px-8 py-2.5 rounded-full font-black text-lg italic tracking-wider transition-all duration-300 overflow-hidden shadow-lg min-w-[140px] flex items-center justify-center border-2
@@ -338,7 +323,6 @@ const WaitingRoomPage = () => {
           <span className="relative z-10">{amIReady ? "CANCEL" : "READY"}</span>
           {amIReady && <div className="absolute inset-0 bg-white/20 animate-pulse" />}
         </button>
-
         <div className="w-[1px] h-8 bg-white/10 mx-1" />
         <button onClick={handleExit} className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-500 transition-all text-white/70">
           <LogOut size={20} />
@@ -353,7 +337,8 @@ const WaitingRoomPage = () => {
           initialData={roomInfo}
           isEdit={true}
           isHost={amIHost}
-          inviteCode={roomInfo.inviteCode}
+          // ✅ [핵심] roomInfo에 저장된 inviteCode를 모달에 전달
+          inviteCode={roomInfo.inviteCode} 
           onSave={handleUpdateRoom}
         />
       )}
