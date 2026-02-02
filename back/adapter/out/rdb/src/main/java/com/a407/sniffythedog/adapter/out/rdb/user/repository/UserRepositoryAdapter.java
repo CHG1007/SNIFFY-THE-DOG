@@ -46,6 +46,13 @@ public class UserRepositoryAdapter implements UserPort {
     }
 
     @Override
+    public java.util.List<User> findAll() {
+        return userJpaRepository.findAll().stream()
+            .map(UserMapper::toDomain)
+            .collect(Collectors.toList());
+    }
+
+    @Override
     public User save(User user) {
         UserEntity entity = UserMapper.toEntity(user);
         UserEntity savedEntity = userJpaRepository.save(entity);
