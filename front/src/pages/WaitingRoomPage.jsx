@@ -4,7 +4,7 @@ import { Settings, Mic, MicOff, Video, VideoOff, LogOut } from 'lucide-react';
 
 // API & Utils
 import websocketClient from '../api/websocketClient';
-import { updateRoomInfo } from '../api/roomApi'; 
+import { updateRoomInfo } from '../api/roomApi';
 
 // Components
 import LoadingPage from './LoadingPage';
@@ -17,7 +17,7 @@ import LastBeggingModal from '../components/modals/LastBeggingModal';
 import GameAlertModal from '../components/modals/GameAlertModal';
 
 const WaitingRoomPage = () => {
-  const { roomId } = useParams(); 
+  const { roomId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -55,7 +55,7 @@ const WaitingRoomPage = () => {
     switch (type) {
       case 'JOIN_ACK':
         setPlayers(data.roomState.players);
-        
+
         // Ref 사용
         const createdData = locationRef.current.state?.createdData;
         const initialCapacity = createdData?.capacity || data.roomState.capacity || 8;
@@ -64,7 +64,7 @@ const WaitingRoomPage = () => {
 
         let rawCode = data.roomState.roomCode || roomId;
         if (rawCode.includes('RoomId[value=')) {
-           rawCode = rawCode.replace('RoomId[value=', '').replace(']', '');
+          rawCode = rawCode.replace('RoomId[value=', '').replace(']', '');
         }
 
         setRoomInfo({
@@ -76,6 +76,36 @@ const WaitingRoomPage = () => {
           isPrivate: initialPrivate
         });
         setMyInfo(data.my);
+
+        // [WS 가이드 반영] 입장이 성공(ACK)하면 동기화(sync)를 시도하여 최종 상태 확정
+        websocketClient.sync();
+        break;
+
+      case 'ROOM_SNAPSHOT':
+        // 1. 방 정보 및 플레이어 정보 동기화
+        setPlayers(data.roomState.players);
+        setMyInfo(data.my);
+
+        let ssCode = data.roomState.roomCode || roomId;
+        if (ssCode.includes('RoomId[value=')) {
+          ssCode = ssCode.replace('RoomId[value=', '').replace(']', '');
+        }
+
+        setRoomInfo({
+          title: data.roomState.title,
+          capacity: data.roomState.capacity,
+          hostUserId: data.roomState.hostUserId,
+          status: data.roomState.status,
+          inviteCode: ssCode,
+          isPrivate: data.roomState.status === 'PRIVATE' || data.roomState.isPrivate // 서버 필드가 무엇인지에 따라 유동적
+        });
+
+        // 2. [WS 가이드 반영] 현재 phase가 WAITING인지 PLAYING인지 확정하여 처리
+        if (data.roomState.status === 'PLAYING') {
+          navigate(`/game/${roomId}`, {
+            state: { myInfo: data.my, players: data.roomState.players }
+          });
+        }
         break;
 
       case 'ROOM_PLAYER_JOINED':
@@ -97,7 +127,7 @@ const WaitingRoomPage = () => {
 
       case 'PLAYER_STATUS_CHANGED':
       case 'ROOM_READY_UPDATED':
-        setPlayers((prev) => prev.map(p => 
+        setPlayers((prev) => prev.map(p =>
           p.userId === data.userId ? { ...p, ready: data.ready } : p
         ));
         // Ref 사용: 현재 내 아이디와 비교
@@ -118,7 +148,7 @@ const WaitingRoomPage = () => {
         // 이동 시에는 현재 상태(players)를 가져가야 하므로 setPlayers의 최신값 활용 필요
         // 하지만 navigate는 비동기가 아니므로 여기서 바로 players를 쓰면 옛날 값일 수 있음.
         // 여기서는 간단히 처리하고, GamePage에서 다시 fetching하는 게 안전함.
-        navigate(`/game/${roomId}`, { 
+        navigate(`/game/${roomId}`, {
           state: { myInfo: myInfoRef.current, players } // players는 클로저 영향 받을 수 있음 주의
         });
         break;
@@ -128,7 +158,7 @@ const WaitingRoomPage = () => {
         websocketClient.disconnect();
         navigate('/rooms');
         break;
-      
+
       case 'JOIN_REJECTED':
       case 'ERROR':
         setErrorMsg(data.message || "오류가 발생했습니다.");
@@ -155,7 +185,7 @@ const WaitingRoomPage = () => {
       websocketClient.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]); 
+  }, [roomId]);
 
 
   // --- 핸들러 ---
@@ -173,7 +203,7 @@ const WaitingRoomPage = () => {
   const handleUpdateRoom = async (newData) => {
     try {
       if (updateRoomInfo) {
-         await updateRoomInfo(roomId, newData);
+        await updateRoomInfo(roomId, newData);
       }
       setRoomInfo(prev => ({ ...prev, ...newData }));
       setIsSettingsOpen(false);
@@ -189,7 +219,7 @@ const WaitingRoomPage = () => {
   const handleExit = () => {
     if (window.confirm("정말 방을 나가시겠습니까?")) {
       try {
-        websocketClient.publish('leave', {}); 
+        websocketClient.publish('leave', {});
       } catch (e) {
         console.warn(e);
       }
@@ -199,7 +229,7 @@ const WaitingRoomPage = () => {
   };
 
   const handleCountdownComplete = () => {
-     console.log("Countdown finished!");
+    console.log("Countdown finished!");
   };
 
   // --- 렌더링 ---
@@ -215,13 +245,13 @@ const WaitingRoomPage = () => {
     name: p.nickname || p.displayName,
     isHost: p.userId === roomInfo.hostUserId,
     isReady: p.ready,
-    isMicOn: p.userId === myInfo.userId ? isMicOn : false, 
+    isMicOn: p.userId === myInfo.userId ? isMicOn : false,
     isVideoOn: p.userId === myInfo.userId ? isVideoOn : true,
-    photo: p.profileImage, 
+    photo: p.profileImage,
   }));
 
   if (countdown !== null) {
-      return <GameStartCountdown count={countdown} onComplete={handleCountdownComplete} />;
+    return <GameStartCountdown count={countdown} onComplete={handleCountdownComplete} />;
   }
 
   return (
@@ -230,9 +260,9 @@ const WaitingRoomPage = () => {
       {/* 배경 */}
       <div className="absolute inset-0 z-0 bg-[#0a0a0f]">
         <img
-            src="/assets/images/waitingroom/bg_main.png"
-            alt="Background"
-            className="w-full h-full object-cover"
+          src="/assets/images/waitingroom/bg_main.png"
+          alt="Background"
+          className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
       </div>
@@ -244,7 +274,7 @@ const WaitingRoomPage = () => {
         </h1>
 
         {amIHost && (
-          <button 
+          <button
             onClick={() => setIsSettingsOpen(true)}
             className="absolute right-8 top-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-all border border-white/5 hover:border-orange-500/50"
           >
@@ -255,13 +285,13 @@ const WaitingRoomPage = () => {
 
       {/* 메인 */}
       <main className="relative z-10 w-full h-full flex flex-col items-center justify-start pt-0">
-         <WaitingGrid 
-            players={formattedPlayers} 
-            myId={myInfo.userId} 
-            isHost={amIHost} 
-            onKick={setTargetKickPlayer} 
-            capacity={roomInfo.capacity} 
-         />
+        <WaitingGrid
+          players={formattedPlayers}
+          myId={myInfo.userId}
+          isHost={amIHost}
+          onKick={setTargetKickPlayer}
+          capacity={roomInfo.capacity}
+        />
       </main>
 
       {/* 컨트롤 바 */}
@@ -288,13 +318,13 @@ const WaitingRoomPage = () => {
 
       {/* 모달 */}
       {isSettingsOpen && (
-        <CreateGameModal 
-          isOpen={isSettingsOpen} 
+        <CreateGameModal
+          isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          initialData={{ 
-            title: roomInfo.title, 
-            capacity: roomInfo.capacity, 
-            isPrivate: roomInfo.isPrivate 
+          initialData={{
+            title: roomInfo.title,
+            capacity: roomInfo.capacity,
+            isPrivate: roomInfo.isPrivate
           }}
           isEdit={true}
           isHost={amIHost}
@@ -311,10 +341,10 @@ const WaitingRoomPage = () => {
         />
       )}
       {errorMsg && (
-        <GameAlertModal 
-          isOpen={!!errorMsg} 
-          onClose={() => setErrorMsg(null)} 
-          message={errorMsg} 
+        <GameAlertModal
+          isOpen={!!errorMsg}
+          onClose={() => setErrorMsg(null)}
+          message={errorMsg}
         />
       )}
     </div>
