@@ -40,8 +40,9 @@ const VideoComponent = ({ track, participantIdentity, local = false }) => {
 const VideoTestPage = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState('대기 중');
-  const [roomId, setRoomId] = useState('test-room-' + Date.now().toString().slice(-4));
-  const [isConnected, setIsConnected] = useState(false);
+const [roomId, setRoomId] = useState(() => {
+  return 'test-room-' + String(Date.now()).slice(-4);
+});  const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
 
   const [participants, setParticipants] = useState([]);

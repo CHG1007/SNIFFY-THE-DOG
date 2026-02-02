@@ -3,7 +3,7 @@ export default function TopMenu({ label, onClick }) {
     <button
       onClick={onClick}
       type="button"
-      className="group relative w-28 h-28 select-none flex-shrink-0"
+      className="group relative w-28 h-28 select-none flex-shrink-0 cursor-pointer"
       style={{
         backgroundImage: "url(/assets/images/roompage/goldbox.svg)",
         backgroundRepeat: "no-repeat",
