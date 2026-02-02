@@ -4,6 +4,8 @@ rtc:
   port_range_end: 16433
   tcp_port: 7881
   use_external_ip: true
+  stun_servers:
+    - stun.l.google.com:19302
 
 keys:
   ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
