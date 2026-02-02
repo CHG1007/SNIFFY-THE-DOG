@@ -1,4 +1,5 @@
 module.exports = {
+  content: ["./src/**/*.{js,jsx,ts,tsx}", "./public/index.html"],
   theme: {
     extend: {
       colors: {
@@ -7,7 +8,8 @@ module.exports = {
         white: '#FFFFFF',
       },
       fontFamily: {
-        main: ['Pretendard', 'sans-serif'],
+        press: ["PressStart2P", "sans-serif"],
+        pretendard: ['Pretendard', 'sans-serif'],
       },
     },
   },
