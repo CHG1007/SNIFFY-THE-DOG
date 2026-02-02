@@ -1,4 +1,5 @@
 package com.a407.sniffythedog.adapter.in.http.config;
+
 import com.a407.sniffythedog.adapter.in.http.common.response.ApiResponse;
 import com.a407.sniffythedog.adapter.in.http.global.filter.JwtAuthenticationFilter;
 import com.a407.sniffythedog.adapter.in.http.global.jwt.JwtProvider;
@@ -60,16 +61,14 @@ public class SecurityConfig {
                 .status(ExceptionType.INTERNAL_SERVER_ERROR.getHttpStatusCode())
                 .body(ApiResponse.fail(
                         ExceptionType.INTERNAL_SERVER_ERROR.getErrorCode(),
-                        ExceptionType.INTERNAL_SERVER_ERROR.getMessage()
-                ));
+                        ExceptionType.INTERNAL_SERVER_ERROR.getMessage()));
     }
 
     @Bean
     @Order(0)
     public SecurityFilterChain securityFilterChain(
-        HttpSecurity http,
-        JwtAuthenticationFilter jwtAuthenticationFilter
-    ) throws Exception {
+            HttpSecurity http,
+            JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
                 // 1. [핵심] CSRF, FormLogin, HttpBasic 모두 끄기
                 .csrf(AbstractHttpConfigurer::disable)
@@ -79,16 +78,14 @@ public class SecurityConfig {
                 // 2. [핵심] 세션 끄기 (API 서버는 세션을 안 씁니다)
                 // 이걸 끄면 jsessionid=... 가 더 이상 안 생깁니다.
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // 3. CORS 적용
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 // 4. [핵심] 리다이렉트 절대 금지 (에러나면 그냥 401 뱉어라!)
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
-                )
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
 
                 // 5. JWT 인증 필터 적용
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -96,12 +93,12 @@ public class SecurityConfig {
                 // 5. 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
+                                "/api/v3/api-docs/**",
+                                "/api/swagger-ui/**",
+                                "/api/swagger-ui.html",
                                 "/actuator/health/**",
-                                "/actuator/info"
-                        ).permitAll()
+                                "/actuator/info")
+                        .permitAll()
                         // 1. [구체적인 규칙] 로그아웃은 인증해야 함
                         .requestMatchers("/api/v1/auth/logout").authenticated()
                         // 프론트엔드 URL (/api/v1/auth/kakao) 허용
@@ -110,8 +107,7 @@ public class SecurityConfig {
                         // AI 분석 API 임시 허용 (개발 단계)
                         .requestMatchers("/api/analysis/**").permitAll()
                         // 그 외 모든 요청은 인증 필요
-                        .anyRequest().authenticated()
-                );
+                        .anyRequest().authenticated());
 
         return http.build();
     }
@@ -126,9 +122,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // 프론트엔드 주소 (Vite)
         configuration.setAllowedOrigins(List.of(
-            "http://localhost:5173",
-            "https://i14a407.p.ssafy.io"
-        ));
+                "http://localhost:5173",
+                "https://i14a407.p.ssafy.io"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
