@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'; // useRef 추가
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Settings, Mic, MicOff, Video, VideoOff, LogOut } from 'lucide-react';
 
@@ -34,20 +34,17 @@ const WaitingRoomPage = () => {
   const [isMicOn, setIsMicOn] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
 
-  // ✅ [추가] 최신 상태를 참조하기 위한 Ref
-  // 소켓 핸들러가 만들어질 당시의 옛날 state가 아니라, 현재의 state를 읽기 위함
+  // ✅ 최신 상태 참조를 위한 Ref
   const myInfoRef = useRef(myInfo);
   const locationRef = useRef(location);
 
-  // state가 변할 때마다 ref도 업데이트
   useEffect(() => {
     myInfoRef.current = myInfo;
     locationRef.current = location;
   }, [myInfo, location]);
 
   // --- 소켓 메시지 핸들러 ---
-  // useCallback을 제거하거나 의존성을 비워도 되지만, 내부에서 Ref를 쓰면 안전합니다.
-  const handleSocketMessage = (msg) => {
+  const handleSocketMessage = useCallback((msg) => {
     const { type, data } = msg;
 
     if (import.meta.env.DEV) console.log("[WS Recv]", type, data);
@@ -55,16 +52,15 @@ const WaitingRoomPage = () => {
     switch (type) {
       case 'JOIN_ACK':
         setPlayers(data.roomState.players);
-
-        // Ref 사용
+        
         const createdData = locationRef.current.state?.createdData;
         const initialCapacity = createdData?.capacity || data.roomState.capacity || 8;
         const initialTitle = createdData?.title || data.roomState.title || "즐거운 마피아 게임";
         const initialPrivate = createdData?.isPrivate || (data.roomState.status === 'PRIVATE') || false;
 
         let rawCode = data.roomState.roomCode || roomId;
-        if (rawCode.includes('RoomId[value=')) {
-          rawCode = rawCode.replace('RoomId[value=', '').replace(']', '');
+        if (typeof rawCode === 'string' && rawCode.includes('RoomId[value=')) {
+           rawCode = rawCode.replace('RoomId[value=', '').replace(']', '');
         }
 
         setRoomInfo({
@@ -76,31 +72,32 @@ const WaitingRoomPage = () => {
           isPrivate: initialPrivate
         });
         setMyInfo(data.my);
-
-        // [WS 가이드 반영] 입장이 성공(ACK)하면 동기화(sync)를 시도하여 최종 상태 확정
+        
         websocketClient.sync();
         break;
 
       case 'ROOM_SNAPSHOT':
-        // 1. 방 정보 및 플레이어 정보 동기화
         setPlayers(data.roomState.players);
         setMyInfo(data.my);
 
         let ssCode = data.roomState.roomCode || roomId;
-        if (ssCode.includes('RoomId[value=')) {
+        if (typeof ssCode === 'string' && ssCode.includes('RoomId[value=')) {
           ssCode = ssCode.replace('RoomId[value=', '').replace(']', '');
         }
 
+        const snapshotCreatedData = locationRef.current.state?.createdData;
+        const snapshotTitle = data.roomState.title || snapshotCreatedData?.title || roomInfo?.title || "즐거운 마피아 게임";
+        const snapshotCapacity = data.roomState.capacity || snapshotCreatedData?.capacity || 8;
+
         setRoomInfo({
-          title: data.roomState.title,
-          capacity: data.roomState.capacity,
+          title: snapshotTitle,
+          capacity: snapshotCapacity,
           hostUserId: data.roomState.hostUserId,
           status: data.roomState.status,
           inviteCode: ssCode,
-          isPrivate: data.roomState.status === 'PRIVATE' || data.roomState.isPrivate // 서버 필드가 무엇인지에 따라 유동적
+          isPrivate: data.roomState.status === 'PRIVATE' || data.roomState.isPrivate
         });
 
-        // 2. [WS 가이드 반영] 현재 phase가 WAITING인지 PLAYING인지 확정하여 처리
         if (data.roomState.status === 'PLAYING') {
           navigate(`/game/${roomId}`, {
             state: { myInfo: data.my, players: data.roomState.players }
@@ -110,8 +107,9 @@ const WaitingRoomPage = () => {
 
       case 'ROOM_PLAYER_JOINED':
         setPlayers((prev) => {
-          if (prev.find(p => p.userId === data.player.userId)) return prev;
-          return [...prev, data.player];
+          const newPlayer = data.player;
+          if (prev.find(p => String(p.userId) === String(newPlayer.userId))) return prev;
+          return [...prev, newPlayer];
         });
         if (data.roomState) {
           setRoomInfo(prev => ({ ...prev, hostUserId: data.roomState.hostUserId }));
@@ -119,7 +117,7 @@ const WaitingRoomPage = () => {
         break;
 
       case 'ROOM_PLAYER_LEFT':
-        setPlayers((prev) => prev.filter(p => p.userId !== data.userId));
+        setPlayers((prev) => prev.filter(p => String(p.userId) !== String(data.userId)));
         if (data.roomState) {
           setRoomInfo(prev => ({ ...prev, hostUserId: data.roomState.hostUserId }));
         }
@@ -127,11 +125,11 @@ const WaitingRoomPage = () => {
 
       case 'PLAYER_STATUS_CHANGED':
       case 'ROOM_READY_UPDATED':
-        setPlayers((prev) => prev.map(p =>
-          p.userId === data.userId ? { ...p, ready: data.ready } : p
+        console.log("🔥 [Ready Update Recv]", data); 
+        setPlayers((prev) => prev.map(p => 
+          String(p.userId) === String(data.userId) ? { ...p, ready: data.ready } : p
         ));
-        // Ref 사용: 현재 내 아이디와 비교
-        if (myInfoRef.current && data.userId === myInfoRef.current.userId) {
+        if (myInfoRef.current && String(data.userId) === String(myInfoRef.current.userId)) {
           setMyInfo(prev => ({ ...prev, ready: data.ready }));
         }
         break;
@@ -145,20 +143,17 @@ const WaitingRoomPage = () => {
         break;
 
       case 'PHASE_CHANGED':
-        // 이동 시에는 현재 상태(players)를 가져가야 하므로 setPlayers의 최신값 활용 필요
-        // 하지만 navigate는 비동기가 아니므로 여기서 바로 players를 쓰면 옛날 값일 수 있음.
-        // 여기서는 간단히 처리하고, GamePage에서 다시 fetching하는 게 안전함.
-        navigate(`/game/${roomId}`, {
-          state: { myInfo: myInfoRef.current, players } // players는 클로저 영향 받을 수 있음 주의
+        navigate(`/game/${roomId}`, { 
+          state: { myInfo: myInfoRef.current, players } 
         });
         break;
 
       case 'KICKED':
         alert(data.reason || "방장에 의해 강퇴되었습니다.");
-        websocketClient.disconnect();
+        try { websocketClient.disconnect(); } catch(e) {}
         navigate('/rooms');
         break;
-
+      
       case 'JOIN_REJECTED':
       case 'ERROR':
         setErrorMsg(data.message || "오류가 발생했습니다.");
@@ -170,67 +165,95 @@ const WaitingRoomPage = () => {
       default:
         break;
     }
-  };
+  }, [navigate, roomId, roomInfo]); 
 
-  // ✅ [핵심 수정] 라이프사이클: 방 번호(roomId)가 바뀔 때만 연결!
-  // handleSocketMessage가 바뀌어도 재연결하지 않음.
+  // --- ✅ 소켓 연결 및 자동 퇴장 처리 (핵심 수정) ---
   useEffect(() => {
-    // 소켓 클라이언트 내부에서 콜백을 호출할 때
-    // 항상 최신 handleSocketMessage 로직이 실행되도록 래핑
     const onMessage = (msg) => handleSocketMessage(msg);
-
     websocketClient.connect(roomId, onMessage);
 
+    // 1. 브라우저 탭 닫기/새로고침 시 실행
+    const handleBeforeUnload = () => {
+      try {
+        // 동기적으로 실행되지 않을 수 있지만, 최선을 다해 전송 시도
+        websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` });
+      } catch (e) {
+        console.warn("Leave message failed on unload", e);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // 2. 컴포넌트 언마운트(뒤로가기) 시 실행되는 Cleanup 함수
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      
+      // ✅ 뒤로가기를 누르면 이 부분이 실행됩니다.
+      // 먼저 '나간다'는 메시지를 보내고 소켓을 끊습니다.
+      try {
+        websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` });
+      } catch (e) {
+        console.warn("Leave message failed on unmount", e);
+      }
       websocketClient.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
+  }, [roomId]); 
 
 
   // --- 핸들러 ---
   const handleToggleReady = () => {
-    if (!myInfo) return;
-    websocketClient.publish('ready', { ready: !myInfo.ready });
+    const currentInfo = myInfoRef.current;
+    if (!currentInfo) return;
+    
+    const nextState = !currentInfo.ready;
+    console.log("📤 [Send Ready]", nextState);
+
+    websocketClient.publish('ready', { 
+      ready: nextState,
+      requestId: `req-${Date.now()}` 
+    });
   };
 
   const handleKickConfirm = () => {
     if (!targetKickPlayer) return;
-    websocketClient.publish('kick', { targetUserId: targetKickPlayer.userId });
+    
+    console.log(`📤 [Kick User] Target: ${targetKickPlayer.userId}`);
+    websocketClient.publish('kick', { 
+      targetUserId: targetKickPlayer.userId,
+      requestId: `req-${Date.now()}`
+    });
+    
     setTargetKickPlayer(null);
   };
 
   const handleUpdateRoom = async (newData) => {
     try {
       if (updateRoomInfo) {
-        await updateRoomInfo(roomId, newData);
+         await updateRoomInfo(roomId, newData);
       }
       setRoomInfo(prev => ({ ...prev, ...newData }));
       setIsSettingsOpen(false);
     } catch (err) {
       console.error("방 정보 수정 실패:", err);
-      setErrorMsg("방 정보 수정에 실패했습니다.");
+      setRoomInfo(prev => ({ ...prev, ...newData }));
+      setIsSettingsOpen(false);
+    }
+  };
+
+  // 나가기 버튼 (명시적 나가기)
+  const handleExit = () => {
+    if (window.confirm("정말 방을 나가시겠습니까?")) {
+      // 굳이 여기서 publish를 안 해도, navigate가 발생하면
+      // 위의 useEffect Cleanup 함수가 실행되어 leave를 보냅니다.
+      // 하지만 안전을 위해 이중으로 보내도 상관없습니다.
+      navigate('/rooms');
     }
   };
 
   const handleToggleMic = () => setIsMicOn(!isMicOn);
   const handleToggleVideo = () => setIsVideoOn(!isVideoOn);
+  const handleCountdownComplete = () => console.log("Countdown finished!");
 
-  const handleExit = () => {
-    if (window.confirm("정말 방을 나가시겠습니까?")) {
-      try {
-        websocketClient.publish('leave', {});
-      } catch (e) {
-        console.warn(e);
-      }
-      websocketClient.disconnect();
-      navigate('/rooms');
-    }
-  };
-
-  const handleCountdownComplete = () => {
-    console.log("Countdown finished!");
-  };
 
   // --- 렌더링 ---
   if (!roomInfo || !myInfo) {
@@ -238,7 +261,7 @@ const WaitingRoomPage = () => {
   }
 
   const amIHost = myInfo.userId === roomInfo.hostUserId;
-  const amIReady = myInfo.ready;
+  const amIReady = myInfo.ready === true;
 
   const formattedPlayers = players.map(p => ({
     userId: p.userId,
@@ -268,7 +291,7 @@ const WaitingRoomPage = () => {
       </div>
 
       {/* 헤더 */}
-      <header className="relative z-10 w-full flex items-center justify-center pt-4 pb-1 px-12">
+      <header className="relative z-50 w-full flex items-center justify-center pt-4 pb-1 px-12">
         <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600 drop-shadow-[0_0_10px_rgba(255,100,0,0.5)] tracking-tighter truncate max-w-2xl min-w-[200px] text-center pr-4">
           {roomInfo.title}
         </h1>
@@ -276,7 +299,7 @@ const WaitingRoomPage = () => {
         {amIHost && (
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="absolute right-8 top-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-all border border-white/5 hover:border-orange-500/50"
+            className="absolute right-8 top-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-all border border-white/5 hover:border-orange-500/50 cursor-pointer"
           >
             <Settings size={20} />
           </button>
@@ -289,7 +312,7 @@ const WaitingRoomPage = () => {
           players={formattedPlayers}
           myId={myInfo.userId}
           isHost={amIHost}
-          onKick={setTargetKickPlayer}
+          onKick={setTargetKickPlayer} 
           capacity={roomInfo.capacity}
         />
       </main>
@@ -303,13 +326,19 @@ const WaitingRoomPage = () => {
           {isVideoOn ? <Video size={20} /> : <VideoOff size={20} />}
         </button>
         <div className="w-[1px] h-8 bg-white/10 mx-1" />
+        
         <button
           onClick={handleToggleReady}
-          className={`group relative px-8 py-2.5 rounded-full font-black text-lg italic tracking-wider transition-all duration-300 overflow-hidden shadow-[0_0_15px_rgba(0,0,0,0.5)] min-w-[140px] flex items-center justify-center ${amIReady ? 'bg-transparent text-gray-400 border border-white/10 hover:bg-white/5' : 'bg-white text-black hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]'}`}
+          className={`group relative px-8 py-2.5 rounded-full font-black text-lg italic tracking-wider transition-all duration-300 overflow-hidden shadow-lg min-w-[140px] flex items-center justify-center border-2
+            ${amIReady 
+              ? 'bg-[#ff8a00] border-[#ff8a00] text-white shadow-[0_0_20px_rgba(255,138,0,0.5)] hover:bg-[#e67e00]' 
+              : 'bg-white border-white text-black hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]'
+            }`}
         >
           <span className="relative z-10">{amIReady ? "CANCEL" : "READY"}</span>
-          {!amIReady && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />}
+          {amIReady && <div className="absolute inset-0 bg-white/20 animate-pulse" />}
         </button>
+
         <div className="w-[1px] h-8 bg-white/10 mx-1" />
         <button onClick={handleExit} className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-500 transition-all text-white/70">
           <LogOut size={20} />
@@ -321,11 +350,7 @@ const WaitingRoomPage = () => {
         <CreateGameModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          initialData={{
-            title: roomInfo.title,
-            capacity: roomInfo.capacity,
-            isPrivate: roomInfo.isPrivate
-          }}
+          initialData={roomInfo}
           isEdit={true}
           isHost={amIHost}
           inviteCode={roomInfo.inviteCode}
