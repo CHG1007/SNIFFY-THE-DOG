@@ -18,7 +18,8 @@ public class MediaTokenController {
     @GetMapping("/token")
     public ApiResponse<GetMediaTokenResponse> getToken(@RequestParam String roomId) {
         // TODO: 인증 구현 후 @Authentication에서 userId 추출
-        long userId = 1L;
+        // 테스트용: 랜덤 userId 생성 (실제로는 인증된 사용자 ID 사용)
+        long userId = System.currentTimeMillis() % 1000000;
 
         GetMediaTokenQuery query = new GetMediaTokenQuery(roomId, userId);
         GetMediaTokenResult result = getMediaTokenUseCase.getToken(query);
