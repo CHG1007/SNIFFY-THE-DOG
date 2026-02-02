@@ -7,8 +7,8 @@ export const createRoom = async (roomData) => {
 };
 
 // 2. 공개 방 목록 조회 (페이지네이션 지원)
-export const getRoomList = async (page = 0, size = 10) => {
-  // 백엔드: GET /api/v1/rooms?page=0&size=10
+export const getRoomList = async (page = 0, size = 6) => {
+  // 백엔드: GET /api/v1/rooms?page=0&size=6
   const response = await apiClient.get('/api/v1/rooms', {
     params: { page, size }
   });
@@ -21,6 +21,13 @@ export const getRoomByInviteCode = async (inviteCode) => {
   const response = await apiClient.get('/api/v1/rooms', {
     params: { inviteCode }
   });
+  return response.data;
+};
+
+// 3. 방 ID로 상세 조회
+export const getRoomDetail = async (roomId) => {
+  // GET /api/v1/rooms/{roomId}
+  const response = await apiClient.get(`/api/v1/rooms/${roomId}`);
   return response.data;
 };
 
