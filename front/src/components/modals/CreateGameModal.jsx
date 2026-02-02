@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Copy, Check } from 'lucide-react';
 import { createRoom } from '../../api/roomApi';
 import useAuthStore from '../../stores/useAuthStore';
@@ -17,7 +16,6 @@ const CreateGameModal = ({
   isHost = true, 
   inviteCode 
 }) => {
-  const navigate = useNavigate();
   const { enterRoom } = useRoomEntry();
   const userNickname = useAuthStore((state) => state.nickname || state.user?.nickname || "익명 유저");
 
@@ -49,35 +47,41 @@ const CreateGameModal = ({
 
       if (isEdit) {
         if (onSave) {
+          // 수정 시에는 제목, 인원, 비공개 여부만 전달
           await onSave({ title, capacity, isPrivate });
         }
         onClose();
       } else {
+        // ✅ [수정] 백엔드 RoomController 스펙에 맞춰 password 제거
         const payload = {
           title: title,
           capacity: capacity,
           timeLimit: 60,
-          isPrivate: isPrivate,
-          password: null, 
+          isPrivate: isPrivate, // boolean 값 전송
           developerMode: false, 
           clientType: "WEB",
           hostDisplayName: userNickname
         };
 
         const response = await createRoom(payload);
-        const roomId = response.data?.roomId || response.data?.roomCode || response.data?.id;
+        
+        // ✅ [수정] 응답에서 roomId와 inviteCode 추출
+        const roomId = response.data?.roomId || response.data?.id;
+        const receivedInviteCode = response.data?.inviteCode; // 백엔드가 보내준 초대 코드
 
         if (roomId) {
           onClose();
+          // ✅ [핵심] 대기방으로 inviteCode와 비공개 여부를 명확히 전달
           enterRoom(roomId, true, {
             createdData: {
               title,
               capacity,
               isPrivate
-            }
+            },
+            inviteCode: receivedInviteCode // 여기서 넘겨줘야 대기방 설정에서 바로 보임
           });
         } else {
-          setError("방 생성 코드를 받지 못했습니다.");
+          setError("방 생성에 실패했습니다 (ID 누락).");
         }
       }
     } catch (err) {
@@ -118,7 +122,7 @@ const CreateGameModal = ({
            </h2>
         </div>
 
-        {/* 초대 코드 표시 */}
+        {/* 초대 코드 표시 (수정 모드 + 비공개 방일 때) */}
         {isEdit && isPrivate && inviteCode && (
           <div className="w-full flex items-center gap-4 mb-6">
              <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-[#ff8a00]">CODE</span>
@@ -177,10 +181,9 @@ const CreateGameModal = ({
           </span>
         </div>
 
-        {/* 4. 버튼 영역 (✅ 수정됨: 방장만 저장 가능) */}
+        {/* 4. 버튼 영역 */}
         <div className="flex w-full gap-4 mt-auto mb-4">
           {isHost ? (
-            /* 방장: SAVE / CANCEL 버튼 */
             <>
               <ConfirmBtn 
                 text={isLoading ? "처리 중..." : (isEdit ? "SAVE" : "CREATE")} 
@@ -197,7 +200,6 @@ const CreateGameModal = ({
               />
             </>
           ) : (
-            /* 일반 유저: CLOSE 버튼만 */
             <ConfirmBtn 
               text="CLOSE" 
               variant="secondary" 
