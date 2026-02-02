@@ -18,5 +18,11 @@ export const refreshToken = (refreshToken) =>
     refreshToken,
   });
 
+export const adminLogin = (id, password) =>
+  authClient.post('/api/v1/auth/admin', {
+    id,
+    password,
+  });
+
 export const logout = () =>
   apiClient.post('/api/v1/auth/logout');
