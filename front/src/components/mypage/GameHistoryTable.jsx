@@ -1,33 +1,39 @@
 import GameHistoryRow from './GameHistoryRow';
 
-const GameHistoryTable = () => {
-  // 실제로는 나중에 백엔드 API에서 받아올 데이터입니다.
-  const historyData = [
-    { id: 1, date: "2026.01.15", role: "마피아", result: "승리" },
-    { id: 2, date: "2026.01.14", role: "경찰", result: "패배" },
-    { id: 3, date: "2026.01.12", role: "시민", result: "승리" },
-    { id: 4, date: "2026.01.12", role: "시민", result: "승리" },
-    { id: 5, date: "2026.01.12", role: "시민", result: "승리" },
-    { id: 6, date: "2026.01.12", role: "시민", result: "승리" },
-  ];
-
+const GameHistoryTable = ({ games, onReport }) => {
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 w-full">
-      
-      {/* 컬럼 제목 영역 */}
-      <div className="grid grid-cols-4 text-white text-xl font-bold mb-4 px-5 border-b border-white/20 pb-4">
-        <span className="text-center">날짜</span>
-        <span className="text-center">역할</span>
-        <span className="text-center">결과</span>
-        <span className="text-center">AI 분석 결과</span>
+    <div className="w-full h-full bg-[#FFC19A]/30 backdrop-blur-xl rounded-[10px] p-8 shadow-2xl border border-white/5 flex flex-col overflow-hidden">      {/* 테이블 헤더: 아래 Row와 Grid 비율을 똑같이 맞춤 */}
+      <div className="grid grid-cols-[1.2fr_1.8fr_1fr_1fr_1.5fr] px-10 mb-6 text-center shrink-0">
+        <span className="text-white text-xl font-black">날짜</span>
+        <span className="text-white text-xl font-black">역할</span>
+        <span className="text-white text-xl font-black">결과</span>
+        <span className="text-white text-xl font-black">팀운</span>
+        <span className="text-white text-xl font-black">AI 분석 결과</span>
       </div>
 
-      {/* 데이터 행들 (간격을 좁게 설정) */}
-      <div className="flex flex-col h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-        {historyData.map((game) => (
-          <GameHistoryRow key={game.id} game={game} />
+      {/* 데이터 행들만 스크롤되게 설정 (이게 시안처럼 나오는 핵심!) */}
+      <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-4">
+        {games.map((game, index) => (
+          <GameHistoryRow key={index} {...game} />
         ))}
       </div>
+
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+      `}</style>
     </div>
   );
 };
