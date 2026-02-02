@@ -1,12 +1,14 @@
 package com.a407.sniffythedog.adapter.in.http.room;
 
 import com.a407.sniffythedog.adapter.in.http.common.response.ApiResponse;
+import com.a407.sniffythedog.adapter.in.http.global.security.AuthenticatedUser;
 import com.a407.sniffythedog.adapter.in.http.room.request.CreateRoomRequest;
 import com.a407.sniffythedog.adapter.in.http.room.response.CreateRoomResponse;
 import com.a407.sniffythedog.adapter.in.http.room.response.RoomSummaryResponse;
 import com.a407.sniffythedog.application.room.in.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,14 +25,16 @@ public class RoomController {
     private final GetRoomByRoomIdUseCase getRoomByRoomIdUseCase;
 
     @PostMapping
-    public ApiResponse<CreateRoomResponse> createRoom(@RequestBody @Valid CreateRoomRequest request
-                                                      //todo:@Authentication 추가
+    public ApiResponse<CreateRoomResponse> createRoom(
+            @RequestBody @Valid CreateRoomRequest request,
+            @AuthenticationPrincipal AuthenticatedUser user
     ) {
+
         CreateRoomCommand command = new CreateRoomCommand(
                 request.getTitle(),
                 request.getCapacity(),
                 request.isPrivate(),
-                request.getHostUserId(),
+                user.userId(),
                 request.getHostDisplayName()
         );
 

@@ -3,25 +3,21 @@ import WaitingLayout from '../components/waiting/WaitingLayout';
 import WaitingGrid from '../components/waiting/WaitingGrid';
 import WaitingSidebar from '../components/waiting/WaitingSidebar';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
-import GameStartCountdown from '../components/waiting/GameStartCountdown';
 
-const CreatorWaitingPage = ({ roomData, updateRoomData, onGameStart } ) => {
+// props에 myId, onKick 추가됨
+const CreatorWaitingPage = ({ roomData, updateRoomData, onGameStart, onKick, myId }) => {
   const [targetPlayer, setTargetPlayer] = useState(null);
 
   // 강퇴 확인 버튼 클릭 시 진행
   const handleKickConfirm = () => {
     if (!targetPlayer) return;
 
-    // 💡 부모에게 명단 업데이트 요청 (해당 ID만 제외)
-    const updatedPlayers = roomData.players.filter(p => p.userId !== targetPlayer.id);
-    updateRoomData({ players: updatedPlayers });
+    // ✅ 로컬 배열 조작 대신 서버로 강퇴 요청 전송
+    onKick(targetPlayer.id);
 
     setTargetPlayer(null); // 모달 닫기
-    console.log(`${targetPlayer.name}님을 퇴장시켰습니다.`);
+    console.log(`${targetPlayer.name}님 강퇴 요청`);
   };
-
-  // 전원 레디 체크 (최소 인원 6명 이상 + 본인 포함 전원 ready)
-  const allReady = roomData.players.length >= 6 && roomData.players.every(p => p.ready);
 
   return (
     <WaitingLayout title={roomData.title}>
@@ -33,13 +29,13 @@ const CreatorWaitingPage = ({ roomData, updateRoomData, onGameStart } ) => {
           isReady: p.ready,
           isHost: p.isHost
         }))} 
-        myId={1}
-        isHost={true}
+        myId={myId}   // ✅ 내 ID 전달
+        isHost={true} // 방장 모드
         capacity={roomData.capacity}
-        onKick={(player) => setTargetPlayer(player)} //슬롯에서 버튼 누르면 실행 
+        onKick={(player) => setTargetPlayer(player)} // 슬롯에서 킥 버튼 누르면 타겟 설정
       />
       
-      {/* 오른쪽: 사이드바 (isHost=true 전달) */}
+      {/* 오른쪽: 사이드바 */}
       <WaitingSidebar 
         roomInfo={{
           title: roomData.title,
@@ -50,19 +46,23 @@ const CreatorWaitingPage = ({ roomData, updateRoomData, onGameStart } ) => {
         onUpdate={updateRoomData} 
       />
 
-      {/* 전원 레디 시 카운트다운 표시 */}
-      {allReady && <GameStartCountdown onComplete={onGameStart} />}  
+      {/* ✅ 방장 전용: 게임 시작 버튼 */}
+      <div className="absolute bottom-10 right-10 z-50">
+        <button 
+          onClick={onGameStart}
+          className="bg-[#ff8a00] text-white font-black text-2xl px-8 py-4 rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all border-2 border-white/20 cursor-pointer"
+        >
+          GAME START
+        </button>
+      </div>
 
-      {/* 공통 모달 사용 */}
-      {targetPlayer && (
-        <LastBeggingModal
-          isOpen={!!targetPlayer}
-          onClose={() => setTargetPlayer(null)}
-          onConfirm={handleKickConfirm}
-          message={`${targetPlayer.name}님을\n퇴장시키겠습니까?`}
-        />
-      )}
-
+      {/* 강퇴 확인 모달 */}
+      <LastBeggingModal 
+        isOpen={!!targetPlayer}
+        onClose={() => setTargetPlayer(null)}
+        onKick={handleKickConfirm}
+        playerName={targetPlayer?.name}
+      />
     </WaitingLayout>
   );
 };

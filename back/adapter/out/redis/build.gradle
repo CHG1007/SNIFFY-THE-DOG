@@ -3,6 +3,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     // Jackson Databind
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    //Java 8 날짜/시간(JSR310) 처리를 위한 Jackson 모듈
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     compileOnly project(":domain")
     compileOnly project(":application")
