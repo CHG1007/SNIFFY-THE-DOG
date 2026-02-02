@@ -1,8 +1,10 @@
+@import "./style/font.css";
 @import "tailwindcss";
 
 @theme {
   --animate-fog-flow: fog-flow 20s linear infinite alternate;
   --animate-pulse-slow: pulse-slow 8s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
 
   @keyframes fog-flow {
     0% { transform: translateX(-5%) scale(1.05); }
@@ -13,14 +15,36 @@
     0%, 100% { opacity: 0.4; }
     50% { opacity: 0.7; }
   }
+
+  @keyframes float {
+    0%   { transform: translateY(0px); }
+    50%  { transform: translateY(-12px); }
+    100% { transform: translateY(0px); }
+  }
 }
 
-/* 스크롤바가 없어도 항상 공간을 유지하도록 설정 */
+:root{
+  --color-primary: #EA6600;
+  --color-white: #FFFFFF;
+  --color-black: #000000;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: 'Pretendard', sans-serif;
+  background: var(--color-white);
+  color: var(--color-black);
+  overflow: hidden;
+}
+
+body{
+  margin:0;
+}
+
 .custom-scrollbar {
   scrollbar-gutter: stable;
 }
 
-/* 크롬/사파리에서 스크롤바가 생겨도 레이아웃을 밀어내지 않게 함 */
 @supports (overflow: overlay) {
   .custom-scrollbar {
     overflow-y: overlay;
