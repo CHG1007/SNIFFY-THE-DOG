@@ -59,7 +59,7 @@ const GamePage = () => {
     gameResult, setGameResult,
     aiChance, requestAiChance, setAiChanceResult,
     modals, openModal, closeModal,
-    initRoom, setVersion, reset,
+    setVersion, reset,
   } = useGameStore();
 
   // 로컬 UI 상태
@@ -86,6 +86,8 @@ const GamePage = () => {
   // 초기 데이터 설정 (WaitingRoomPage에서 넘어온 경우)
   useEffect(() => {
     const state = location.state || {};
+
+    // location.state에서 넘어온 데이터가 있으면 먼저 설정
     if (state.myInfo) {
       setMyInfo(state.myInfo);
     }
@@ -95,8 +97,10 @@ const GamePage = () => {
     if (state.capacity) {
       setCapacity(state.capacity);
     }
-    initRoom(roomId);
-  }, [location.state, roomId, setMyInfo, setPlayers, initRoom]);
+
+    // roomCode만 설정 (initRoom은 전체 리셋하므로 사용하지 않음)
+    useGameStore.setState({ roomCode: roomId });
+  }, [location.state, roomId, setMyInfo, setPlayers]);
 
   // WebSocket 메시지 핸들러
   const handleSocketMessage = useCallback((msg) => {
@@ -146,6 +150,22 @@ const GamePage = () => {
       case 'GAME_STARTED':
         setPhase(data.phase, data.phaseEndsAt);
         if (data.version) setVersion(data.version);
+        // 게임 시작 시 역할 정보가 포함되어 있으면 역할 모달 표시
+        if (data.role) {
+          setMyRole(data.role, data.aiChanceRemaining || 0);
+          setShowRoleModal(true);
+          if (data.role === 'MAFIA') {
+            websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
+          }
+        }
+        // my 객체에 역할 정보가 있는 경우
+        if (data.my?.role) {
+          setMyRole(data.my.role, data.my.aiChanceRemaining || 0);
+          setShowRoleModal(true);
+          if (data.my.role === 'MAFIA') {
+            websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
+          }
+        }
         break;
 
       // === 페이즈 변경 ===
@@ -155,6 +175,21 @@ const GamePage = () => {
         // 페이즈별 모달 리셋
         setShowVote1ResultModal(false);
         setShowVote2ResultModal(false);
+        // 첫 DAY 페이즈에서 역할 정보가 함께 올 경우
+        if (data.role && !myInfoRef.current?.role) {
+          setMyRole(data.role, data.aiChanceRemaining || 0);
+          setShowRoleModal(true);
+          if (data.role === 'MAFIA') {
+            websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
+          }
+        }
+        if (data.my?.role && !myInfoRef.current?.role) {
+          setMyRole(data.my.role, data.my.aiChanceRemaining || 0);
+          setShowRoleModal(true);
+          if (data.my.role === 'MAFIA') {
+            websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
+          }
+        }
         break;
 
       // === 1차 투표 ===
@@ -217,6 +252,15 @@ const GamePage = () => {
         if (data.version) setVersion(data.version);
         break;
 
+      // === 게임 재시작 (대기실로 복귀) ===
+      case 'GAME_RESTARTED':
+        if (data.version) setVersion(data.version);
+        // 대기실로 이동
+        navigate(`/rooms/${roomId}`, {
+          state: { fromGame: true }
+        });
+        break;
+
       // === 에러 처리 ===
       case 'ERROR':
         console.error('[Game Error]', data.message);
@@ -254,7 +298,8 @@ const GamePage = () => {
 
   // WebSocket 연결
   useEffect(() => {
-    websocketClient.connect(roomId, handleSocketMessage);
+    // autoSync: true - 연결 후 자동으로 sync 호출하여 현재 게임 상태 받아옴
+    websocketClient.connect(roomId, handleSocketMessage, { autoSync: true });
 
     return () => {
       websocketClient.unsubscribeFromMafiaChannel();
@@ -282,6 +327,24 @@ const GamePage = () => {
 
     return () => clearInterval(timer);
   }, [phaseEndsAt]);
+
+  // 역할 백업 알림 (모달이 안 보일 경우 alert로 알림)
+  const roleAlertShownRef = useRef(false);
+  useEffect(() => {
+    // 역할이 있고, 게임이 시작되었고(DAY 이후), 아직 alert를 안 보였으면
+    if (myInfo.role && gamePhase !== 'WAITING' && !roleAlertShownRef.current) {
+      roleAlertShownRef.current = true;
+      // 모달이 안 보이고 있으면 alert로 백업
+      if (!showRoleModal) {
+        const roleInfo = ROLE_INFO[myInfo.role];
+        alert(`당신의 역할: ${roleInfo?.name || myInfo.role}\n${roleInfo?.description || ''}`);
+      }
+    }
+    // 게임이 끝나면 다음 게임을 위해 리셋
+    if (gamePhase === 'WAITING') {
+      roleAlertShownRef.current = false;
+    }
+  }, [myInfo.role, gamePhase, showRoleModal]);
 
   // 플레이어 데이터 표준화
   const standardizedPlayers = useMemo(() => players.map(p => ({
@@ -369,9 +432,10 @@ const GamePage = () => {
     requestAiChance(targetPlayer.userId);
   };
 
-  // === 게임 종료 후 결과 페이지로 이동 ===
-  const handleGoToResult = () => {
-    navigate('/result', { state: { gameResult, players: standardizedPlayers } });
+  // === 게임 종료 후 대기실로 복귀 ===
+  const handleBackToWaitingRoom = () => {
+    // 서버에 restart 요청 → GAME_RESTARTED 메시지 → 모든 플레이어가 대기실로 이동
+    websocketClient.sendRestart();
   };
 
   // 피고인 정보 (2차 투표용)
@@ -648,10 +712,10 @@ const GamePage = () => {
               </p>
             )}
             <button
-              onClick={handleGoToResult}
+              onClick={handleBackToWaitingRoom}
               className="px-8 py-4 bg-[#ff8a00] text-white text-xl font-bold rounded-full hover:bg-orange-500 transition-all"
             >
-              결과 확인하기
+              대기실로 돌아가기
             </button>
           </div>
         </div>

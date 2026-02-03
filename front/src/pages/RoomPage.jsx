@@ -40,30 +40,32 @@ export default function RoomPage() {
   const [rooms, setRooms] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const pageSize = 6;
 
   // 모달 상태 관리
   const [isFindGameOpen, setIsFindGameOpen] = useState(false);
   const [isCreateGameOpen, setIsCreateGameOpen] = useState(false);
 
-  // TODO: 실제 백엔드에서 totalPages 내려주면 그 값으로 교체
-  const totalPages = 10;
-
   // 빠른 입장
-  const handleQuickJoin = async () => {
-    try {
-      console.log("빠른 입장 시도 중...");
-      const response = await quickJoin();
-      const roomId = response.data?.roomId || response.data?.roomCode;
+  const handleQuickJoin = () => {
+    // 1. 입장 가능한 공개방 필터링
+    const candidates = rooms.filter(
+      (room) => !room.isPrivate && room.currentCount < room.capacity
+    );
 
-      if (roomId) {
-        navigate(`/rooms/${roomId}`);
-      } else {
-        alert("입장 가능한 방 정보를 받지 못했습니다.");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("빠른 입장에 실패했습니다. 입장 가능한 방이 없습니다.");
+    if (candidates.length > 0) {
+      // 2. 인원수(currentCount) 내림차순 정렬 (많은 사람이 있는 방 우선)
+      candidates.sort((a, b) => b.currentCount - a.currentCount);
+
+      // 3. 가장 사람 많은 방 선택 (0번 인덱스)
+      const targetRoom = candidates[0];
+      
+      console.log(`[QuickJoin] 입장 시도: ${targetRoom.title} (${targetRoom.currentCount}/${targetRoom.capacity}명)`);
+      
+      handleJoinRoom(targetRoom);
+    } else {
+      alert("현재 페이지에 입장 가능한 공개방이 없습니다.\n새로고침을 하거나 다른 페이지를 확인해주세요.");
     }
   };
 
@@ -72,7 +74,13 @@ export default function RoomPage() {
       setIsLoading(true);
       const response = await getRoomList(page - 1, pageSize); // 0-based
       if (response.success) {
-        setRooms(response.data || []);
+        const roomsData = response.data?.rooms ?? response.data ?? [];
+        const pageInfo = response.data?.pageInfo;
+
+        setRooms(roomsData);
+        if (typeof pageInfo?.totalPages === "number") {
+          setTotalPages(pageInfo.totalPages);
+        }
       }
     } catch (error) {
       console.error("방 목록 로딩 실패:", error);
@@ -123,14 +131,14 @@ export default function RoomPage() {
           <div className="w-full max-w-[1050px] h-[60vh] min-h-[465px] max-h-[550px] self-start flex flex-col rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-5 overflow-hidden shadow-2xl">
             <div className="w-full max-w-[1000px] mx-auto flex flex-col min-h-0 overflow-hidden">
               {/* 방 목록 그리드 */}
-              <div className="relative grid grid-cols-3 gap-4 pt-4 px-4 overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 content-start">
+              <div className="relative grid grid-cols-3 gap-4 pt-4 px-4 overflow-hidden flex-1 content-start">
                 {rooms.length > 0 ? (
                   rooms.map((room) => (
                     <RoomCard
                       key={room.roomId}
                       roomCode={room.roomId.substring(0, 8)}
                       title={room.title}
-                      hostName={room.isPrivate ? "PRIVATE" : "PUBLIC"}
+                      hostName={(room.isPrivate ?? room.private) ? "PRIVATE" : "PUBLIC"}
                       current={room.currentCount}
                       capacity={room.capacity}
                       onJoin={() => handleJoinRoom(room)}

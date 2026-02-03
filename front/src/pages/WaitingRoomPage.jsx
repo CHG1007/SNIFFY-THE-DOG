@@ -277,8 +277,8 @@ const WaitingRoomPage = () => {
       </div>
 
       {/* 헤더 (모든 유저가 동일하게 서버에서 받은 roomInfo.title을 봄) */}
-      <header className="relative z-50 w-full flex items-center justify-center pt-4 pb-1 px-12">
-        <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600 drop-shadow-[0_0_10px_rgba(255,100,0,0.5)] tracking-tighter truncate max-w-2xl min-w-[200px] text-center pr-4">
+      <header className="relative z-50 w-full flex items-center justify-center pt-2 px-12">
+        <h1 className="text-[44px] mt-2 text-white font-extrabold text-pretendard">
           {roomInfo.title}
         </h1>
         {amIHost && (
@@ -292,7 +292,7 @@ const WaitingRoomPage = () => {
       </header>
 
       {/* 메인: WaitingGrid에 서버에서 받은 roomInfo.capacity 전달 */}
-      <main className="relative z-10 w-full h-full flex flex-col items-center justify-start pt-0">
+      <main className="relative z-10 w-full h-full flex flex-col items-center justify-start -mt-3">
         <WaitingGrid
           players={formattedPlayers}
           myId={myInfo.userId}
@@ -315,7 +315,7 @@ const WaitingRoomPage = () => {
           onClick={handleToggleReady}
           className={`group relative px-8 py-2.5 rounded-full font-black text-lg italic tracking-wider transition-all duration-300 overflow-hidden shadow-lg min-w-[140px] flex items-center justify-center border-2
             ${amIReady 
-              ? 'bg-[#ff8a00] border-[#ff8a00] text-white shadow-[0_0_20px_rgba(255,138,0,0.5)] hover:bg-[#e67e00]' 
+              ? 'bg-primary border-primary text-white shadow-[0_0_20px_rgba(234,102,0,0.5)] hover:bg-primary hover:shadow-[0_0_24px_rgba(234,102,0,0.7)]' 
               : 'bg-white border-white text-black hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]'
             }`}
         >
@@ -323,7 +323,7 @@ const WaitingRoomPage = () => {
           {amIReady && <div className="absolute inset-0 bg-white/20 animate-pulse" />}
         </button>
         <div className="w-[1px] h-8 bg-white/10 mx-1" />
-        <button onClick={handleExit} className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-500 transition-all text-white/70">
+        <button onClick={handleExit} className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-primary hover:border-primary hover:text-red-500 transition-all text-white/70">
           <LogOut size={20} />
         </button>
       </div>
