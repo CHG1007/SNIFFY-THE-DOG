@@ -1,243 +1,362 @@
-import { useEffect, useState } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Settings, Mic, MicOff, Video, VideoOff, LogOut } from 'lucide-react';
+
+// API & Utils
+import websocketClient from '../api/websocketClient';
+import { updateRoomInfo } from '../api/roomApi';
+
+// Components
 import LoadingPage from './LoadingPage';
-import GamePage from './GamePage';
 import WaitingGrid from '../components/waiting/WaitingGrid';
+import GameStartCountdown from '../components/waiting/GameStartCountdown';
+
+// Modals
 import CreateGameModal from '../components/modals/CreateGameModal';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
-import GameStartCountdown from '../components/waiting/GameStartCountdown';
+import GameAlertModal from '../components/modals/GameAlertModal';
 
 const WaitingRoomPage = () => {
   const { roomId } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
-  const [status, setStatus] = useState('WAITING');
-  const [roomData, setRoomData] = useState(null);
-  
-  // Local UI States
+  const location = useLocation();
+
+  // --- 상태 관리 ---
+  const [players, setPlayers] = useState([]);
+  const [roomInfo, setRoomInfo] = useState(null);
+  const [myInfo, setMyInfo] = useState(null);
+  const [countdown, setCountdown] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+
+  // --- 로컬 UI 상태 ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [targetKickPlayer, setTargetKickPlayer] = useState(null);
   const [isMicOn, setIsMicOn] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
 
-  // Check Host
-  const amIHost = location.state?.isHost || false;
-  const myId = amIHost ? 1 : 2; // Simulation ID
+  // ✅ 최신 상태 참조를 위한 Ref
+  const myInfoRef = useRef(myInfo);
+  const locationRef = useRef(location);
 
-  // --- Mock Data Initialization ---
+  // ✅ [초기화] 방 입장 시 넘어온 state(초대코드 등)를 활용해 roomInfo 미리 세팅
   useEffect(() => {
-    // Simulate API Fetch
-    setTimeout(() => {
-      setRoomData({
-        roomId,
-        title: location.state?.createdData?.title || "죽음의 마피아 게임",
-        hostUserId: 1,
-        capacity: location.state?.createdData?.capacity || 8,
-        inviteCode: location.state?.createdData?.inviteCode || "X9Z2A1",
-        isPrivate: location.state?.createdData?.isPrivate || false,
-        players: [
-          // Mock data updated with isMicOn, isVideoOn
-          { userId: 1, name: "유저001", isHost: true, isReady: false, isMicOn: true, isVideoOn: true, stream: null },
-          { userId: 2, name: "시민1", isHost: false, isReady: false, isMicOn: false, isVideoOn: true, stream: null },
-          { userId: 3, name: "경찰", isHost: false, isReady: true, isMicOn: true, isVideoOn: false, stream: null },
-          { userId: 4, name: "의사", isHost: false, isReady: false, isMicOn: false, isVideoOn: false, stream: null },
-          { userId: 5, name: "유저101", isHost: false, isReady: true, isMicOn: true, isVideoOn: true, stream: null },
-          { userId: 6, name: "유저100", isHost: false, isReady: true, isMicOn: true, isVideoOn: true, stream: null },
-        ]
+    const state = location.state || {};
+    const created = state.createdData;
+    
+    // 방 생성 직후라면 inviteCode가 state에 포함되어 있음
+    if (created) {
+      setRoomInfo({
+        title: created.title || "즐거운 마피아 게임",
+        capacity: created.capacity || 8,
+        isPrivate: created.isPrivate || false,
+        inviteCode: state.inviteCode || null, // CreateModal에서 넘겨준 코드
+        status: created.isPrivate ? 'PRIVATE' : 'WAITING',
+        hostUserId: null // 아직 모름 (소켓 연결 후 갱신)
       });
-    }, 800);
-  }, [roomId, location.state]);
-
-  // --- Auto-Start Logic ---
-  useEffect(() => {
-    if (roomData && roomData.players.length >= 2) {
-      const allReady = roomData.players.every(p => p.isReady);
-      if (allReady && status === 'WAITING') {
-        setStatus('STARTING');
-      }
     }
-  }, [roomData, status]);
+  }, [location.state]);
 
-  // --- Handlers ---
+  useEffect(() => {
+    myInfoRef.current = myInfo;
+    locationRef.current = location;
+  }, [myInfo, location]);
 
-  const handleUpdateRoom = (newData) => {
-    setRoomData(prev => ({ ...prev, ...newData }));
-    setIsSettingsOpen(false);
+  // --- 소켓 메시지 핸들러 ---
+  const handleSocketMessage = useCallback((msg) => {
+    const { type, data } = msg;
+
+    if (import.meta.env.DEV) console.log("[WS Recv]", type, data);
+
+    switch (type) {
+      case 'JOIN_ACK':
+        setPlayers(data.roomState.players);
+        
+        // 기존에 알고 있던 정보 (방 생성 시점의 데이터)
+        const initialData = locationRef.current.state?.createdData || {};
+        const passedInviteCode = locationRef.current.state?.inviteCode;
+
+        // 서버 데이터 파싱
+        let serverCode = data.roomState.roomCode || roomId;
+        if (typeof serverCode === 'string' && serverCode.includes('RoomId[value=')) {
+           serverCode = serverCode.replace('RoomId[value=', '').replace(']', '');
+        }
+
+        // ✅ [우선순위 로직] 
+        // 1. 방금 생성해서 들고 온 inviteCode가 가장 정확함
+        // 2. 그게 없으면 서버가 준 roomCode를 사용 (공개방인 경우 등)
+        const finalInviteCode = passedInviteCode || serverCode;
+        
+        // 비공개 여부 판단
+        const isPrivateRoom = data.roomState.status === 'PRIVATE' || initialData.isPrivate || false;
+
+        setRoomInfo(prev => ({
+          ...prev,
+          title: data.roomState.title || initialData.title || "즐거운 마피아 게임",
+          capacity: data.roomState.capacity || initialData.capacity || 8,
+          hostUserId: data.roomState.hostUserId,
+          status: isPrivateRoom ? 'PRIVATE' : 'WAITING',
+          isPrivate: isPrivateRoom,
+          inviteCode: finalInviteCode // 여기에 초대 코드가 들어가야 설정 모달에서 보임
+        }));
+        setMyInfo(data.my);
+        
+        websocketClient.sync();
+        break;
+
+      case 'ROOM_SNAPSHOT':
+        setPlayers(data.roomState.players);
+        setMyInfo(data.my);
+
+        // Fallback 로직
+        const snapshotInitial = locationRef.current.state?.createdData || {};
+        const snapshotPassedCode = locationRef.current.state?.inviteCode;
+        
+        // 기존 roomInfo가 있으면 그걸 우선 유지 (inviteCode 유실 방지)
+        const currentInfo = roomInfo || {}; 
+        
+        const snapshotIsPrivate = data.roomState.status === 'PRIVATE' || data.roomState.isPrivate || snapshotInitial.isPrivate || currentInfo.isPrivate;
+
+        setRoomInfo(prev => ({
+          ...prev,
+          title: data.roomState.title || snapshotInitial.title || prev?.title || "즐거운 마피아 게임",
+          capacity: data.roomState.capacity || snapshotInitial.capacity || prev?.capacity || 8,
+          hostUserId: data.roomState.hostUserId,
+          status: data.roomState.status,
+          isPrivate: snapshotIsPrivate,
+          // 초대 코드는 서버에서 안 오면 기존 것 유지
+          inviteCode: snapshotPassedCode || prev?.inviteCode || roomId 
+        }));
+
+        if (data.roomState.status === 'PLAYING') {
+          navigate(`/game/${roomId}`, {
+            state: { myInfo: data.my, players: data.roomState.players }
+          });
+        }
+        break;
+
+      // ... (나머지 케이스들 동일: ROOM_PLAYER_JOINED, LEFT, READY, KICKED 등)
+      case 'ROOM_PLAYER_JOINED':
+        setPlayers((prev) => {
+          const newPlayer = data.player;
+          if (prev.find(p => String(p.userId) === String(newPlayer.userId))) return prev;
+          return [...prev, newPlayer];
+        });
+        if (data.roomState) {
+          setRoomInfo(prev => ({ ...prev, hostUserId: data.roomState.hostUserId }));
+        }
+        break;
+
+      case 'ROOM_PLAYER_LEFT':
+        setPlayers((prev) => prev.filter(p => String(p.userId) !== String(data.userId)));
+        if (data.roomState) {
+          setRoomInfo(prev => ({ ...prev, hostUserId: data.roomState.hostUserId }));
+        }
+        break;
+
+      case 'PLAYER_STATUS_CHANGED':
+      case 'ROOM_READY_UPDATED':
+        setPlayers((prev) => prev.map(p => 
+          String(p.userId) === String(data.userId) ? { ...p, ready: data.ready } : p
+        ));
+        if (myInfoRef.current && String(data.userId) === String(myInfoRef.current.userId)) {
+          setMyInfo(prev => ({ ...prev, ready: data.ready }));
+        }
+        break;
+
+      case 'GAME_COUNTDOWN':
+        setCountdown(data.seconds);
+        break;
+
+      case 'GAME_COUNTDOWN_CANCELLED':
+        setCountdown(null);
+        break;
+
+      case 'PHASE_CHANGED':
+        navigate(`/game/${roomId}`, { 
+          state: { myInfo: myInfoRef.current, players } 
+        });
+        break;
+
+      case 'KICKED':
+        alert(data.reason || "방장에 의해 강퇴되었습니다.");
+        try { websocketClient.disconnect(); } catch(e) {}
+        navigate('/rooms');
+        break;
+      
+      case 'JOIN_REJECTED':
+      case 'ERROR':
+        setErrorMsg(data.message || "오류가 발생했습니다.");
+        if (type === 'JOIN_REJECTED' && !data.retryable) {
+          navigate('/rooms');
+        }
+        break;
+
+      default:
+        break;
+    }
+  }, [navigate, roomId]); // roomInfo 의존성 제거 (함수형 업데이트 사용)
+
+  // --- 소켓 연결 및 자동 퇴장 ---
+  useEffect(() => {
+    const onMessage = (msg) => handleSocketMessage(msg);
+    websocketClient.connect(roomId, onMessage);
+
+    const handleBeforeUnload = () => {
+      try { websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` }); } catch (e) {}
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      try { websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` }); } catch (e) {}
+      websocketClient.disconnect();
+    };
+  }, [roomId]); 
+
+  // --- 핸들러 ---
+  const handleToggleReady = () => {
+    const currentInfo = myInfoRef.current;
+    if (!currentInfo) return;
+    const nextState = !currentInfo.ready;
+    websocketClient.publish('ready', { ready: nextState, requestId: `req-${Date.now()}` });
   };
 
-  const handleKick = () => {
+  const handleKickConfirm = () => {
     if (!targetKickPlayer) return;
-    setRoomData(prev => ({
-      ...prev,
-      players: prev.players.filter(p => p.userId !== targetKickPlayer.userId)
-    }));
+    websocketClient.publish('kick', { targetUserId: targetKickPlayer.userId, requestId: `req-${Date.now()}` });
     setTargetKickPlayer(null);
   };
 
-  const handleReady = () => {
-    setRoomData(prev => ({
-      ...prev,
-      players: prev.players.map(p => 
-        p.userId === myId ? { ...p, isReady: !p.isReady } : p
-      )
-    }));
-  };
-
-  const handleToggleMic = () => {
-    const newMicState = !isMicOn;
-    setIsMicOn(newMicState);
-    setRoomData(prev => ({
-      ...prev,
-      players: prev.players.map(p => 
-        p.userId === myId ? { ...p, isMicOn: newMicState } : p
-      )
-    }));
-  };
-
-  const handleToggleVideo = () => {
-    const newVideoState = !isVideoOn;
-    setIsVideoOn(newVideoState);
-    setRoomData(prev => ({
-      ...prev,
-      players: prev.players.map(p => 
-        p.userId === myId ? { ...p, isVideoOn: newVideoState } : p
-      )
-    }));
-  };
-
-  const handleCountdownComplete = () => {
-     setStatus('PLAYING');
+  const handleUpdateRoom = async (newData) => {
+    try {
+      if (updateRoomInfo) await updateRoomInfo(roomId, newData);
+      setRoomInfo(prev => ({ ...prev, ...newData }));
+      setIsSettingsOpen(false);
+    } catch (err) {
+      console.error("방 정보 수정 실패:", err);
+      setRoomInfo(prev => ({ ...prev, ...newData }));
+      setIsSettingsOpen(false);
+    }
   };
 
   const handleExit = () => {
-    navigate('/rooms');
+    if (window.confirm("정말 방을 나가시겠습니까?")) {
+      navigate('/rooms');
+    }
   };
 
-  // --- Render Conditions ---
+  const handleToggleMic = () => setIsMicOn(!isMicOn);
+  const handleToggleVideo = () => setIsVideoOn(!isVideoOn);
+  const handleCountdownComplete = () => console.log("Countdown finished!");
 
-  if (!roomData) return <LoadingPage />; 
-  if (status === 'STARTING') return <GameStartCountdown onComplete={handleCountdownComplete} />; 
-  if (status === 'PLAYING') return <GamePage players={roomData.players.map(p => ({ id: p.userId, name: p.name, ready: p.isReady }))} myId={myId} />; 
+  // --- 렌더링 ---
+  if (!roomInfo || !myInfo) return <LoadingPage message="대기방에 입장 중입니다..." />;
 
-  const myPlayer = roomData.players.find(p => p.userId === myId);
-  const amIReady = myPlayer?.isReady || false;
+  const amIHost = myInfo.userId === roomInfo.hostUserId;
+  const amIReady = myInfo.ready === true;
+
+  const formattedPlayers = players.map(p => ({
+    userId: p.userId,
+    name: p.nickname || p.displayName,
+    isHost: p.userId === roomInfo.hostUserId,
+    isReady: p.ready,
+    isMicOn: p.userId === myInfo.userId ? isMicOn : false,
+    isVideoOn: p.userId === myInfo.userId ? isVideoOn : true,
+    photo: p.profileImage,
+  }));
+
+  if (countdown !== null) {
+    return <GameStartCountdown count={countdown} onComplete={handleCountdownComplete} />;
+  }
 
   return (
-    // [FEATURE A: Global Header Removal Hack] 
-    // fixed inset-0 z-[100] keeps the header hidden
     <div className="fixed inset-0 z-[100] w-full h-screen overflow-hidden bg-black text-white selection:bg-orange-500/30">
-
-      {/* 1. Background Image */}
+      {/* 배경 */}
       <div className="absolute inset-0 z-0 bg-[#0a0a0f]">
-        <img
-            src="/assets/images/waitingroom/bg_main.png"
-            alt="Background"
-            className="w-full h-full object-cover"
-        />
-
-        {/* Overlay Adjusted (lighter) */}
+        <img src="/assets/images/waitingroom/bg_main.png" alt="Background" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
       </div>
 
-      {/* 2. Header */}
-      <header className="relative z-10 w-full flex items-center justify-center pt-4 pb-1 px-12">
-        {/* Title - Fixed Clipping with pr-4 */}
+      {/* 헤더 */}
+      <header className="relative z-50 w-full flex items-center justify-center pt-4 pb-1 px-12">
         <h1 className="text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600 drop-shadow-[0_0_10px_rgba(255,100,0,0.5)] tracking-tighter truncate max-w-2xl min-w-[200px] text-center pr-4">
-          {roomData.title}
+          {roomInfo.title}
         </h1>
-
-        {/* Settings Button (Host & Guest Visible) */}
-        <button 
-          onClick={() => setIsSettingsOpen(true)}
-          className="absolute right-8 top-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-all border border-white/5 hover:border-orange-500/50"
-        >
-          <Settings size={20} />
-        </button>
+        {amIHost && (
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="absolute right-8 top-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-all border border-white/5 hover:border-orange-500/50 cursor-pointer"
+          >
+            <Settings size={20} />
+          </button>
+        )}
       </header>
 
-      {/* 3. Main Content: Video Grid */}
+      {/* 메인 */}
       <main className="relative z-10 w-full h-full flex flex-col items-center justify-start pt-0">
-         <WaitingGrid 
-            players={roomData.players} 
-            myId={myId} 
-            isHost={amIHost} 
-            onKick={setTargetKickPlayer}
-            capacity={roomData.capacity} 
-         />
+        <WaitingGrid
+          players={formattedPlayers}
+          myId={myInfo.userId}
+          isHost={amIHost}
+          onKick={setTargetKickPlayer} 
+          capacity={roomInfo.capacity}
+        />
       </main>
 
-      {/* 4. Bottom Control Bar */}
+      {/* 컨트롤 바 */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#0a0a0f]/95 backdrop-blur-md px-6 py-2.5 rounded-full border border-white/10 shadow-2xl">
-        
-        {/* Mic Toggle */}
-        <button 
-          onClick={handleToggleMic}
-          className={`p-2.5 rounded-full transition-all border ${isMicOn ? 'bg-white/10 border-white/20 text-white' : 'bg-red-500/10 border-red-500/50 text-red-500'}`}
-        >
+        <button onClick={handleToggleMic} className={`p-2.5 rounded-full transition-all border ${isMicOn ? 'bg-white/10 border-white/20 text-white' : 'bg-red-500/10 border-red-500/50 text-red-500'}`}>
           {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
         </button>
-
-        {/* Video Toggle */}
-        <button 
-          onClick={handleToggleVideo}
-          className={`p-2.5 rounded-full transition-all border ${isVideoOn ? 'bg-white/10 border-white/20 text-white' : 'bg-red-500/10 border-red-500/50 text-red-500'}`}
-        >
+        <button onClick={handleToggleVideo} className={`p-2.5 rounded-full transition-all border ${isVideoOn ? 'bg-white/10 border-white/20 text-white' : 'bg-red-500/10 border-red-500/50 text-red-500'}`}>
           {isVideoOn ? <Video size={20} /> : <VideoOff size={20} />}
         </button>
-
         <div className="w-[1px] h-8 bg-white/10 mx-1" />
-
-        {/* READY Button */}
         <button
-          onClick={handleReady}
-          className={`
-            group relative px-8 py-2.5 rounded-full font-black text-lg italic tracking-wider transition-all duration-300 overflow-hidden shadow-[0_0_15px_rgba(0,0,0,0.5)] min-w-[140px] flex items-center justify-center
+          onClick={handleToggleReady}
+          className={`group relative px-8 py-2.5 rounded-full font-black text-lg italic tracking-wider transition-all duration-300 overflow-hidden shadow-lg min-w-[140px] flex items-center justify-center border-2
             ${amIReady 
-              ? 'bg-transparent text-gray-400 border border-white/10 hover:bg-white/5' 
-              : 'bg-white text-black hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]'
-            }
-          `}
+              ? 'bg-[#ff8a00] border-[#ff8a00] text-white shadow-[0_0_20px_rgba(255,138,0,0.5)] hover:bg-[#e67e00]' 
+              : 'bg-white border-white text-black hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]'
+            }`}
         >
-          <span className="relative z-10">
-             {amIReady ? "CANCEL" : "READY"}
-          </span>
-          {!amIReady && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-400/50 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />}
+          <span className="relative z-10">{amIReady ? "CANCEL" : "READY"}</span>
+          {amIReady && <div className="absolute inset-0 bg-white/20 animate-pulse" />}
         </button>
-
         <div className="w-[1px] h-8 bg-white/10 mx-1" />
-
-        {/* Exit Button */}
-        <button 
-          onClick={handleExit}
-          className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-500 transition-all text-white/70"
-        >
+        <button onClick={handleExit} className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-500 transition-all text-white/70">
           <LogOut size={20} />
         </button>
       </div>
 
-      {/* Modals */}
+      {/* 모달 */}
       {isSettingsOpen && (
-        <CreateGameModal 
-          isOpen={isSettingsOpen} 
+        <CreateGameModal
+          isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          initialData={{ title: roomData.title, capacity: roomData.capacity, isPrivate: roomData.isPrivate }}
+          initialData={roomInfo}
           isEdit={true}
           isHost={amIHost}
-          inviteCode={roomData.inviteCode}
+          // ✅ [핵심] roomInfo에 저장된 inviteCode를 모달에 전달
+          inviteCode={roomInfo.inviteCode} 
           onSave={handleUpdateRoom}
         />
       )}
-
       {targetKickPlayer && (
         <LastBeggingModal
           isOpen={!!targetKickPlayer}
           onClose={() => setTargetKickPlayer(null)}
-          onConfirm={handleKick}
+          onConfirm={handleKickConfirm}
           message={`${targetKickPlayer.name}님을\n강제 퇴장하시겠습니까?`}
         />
       )}
-
+      {errorMsg && (
+        <GameAlertModal
+          isOpen={!!errorMsg}
+          onClose={() => setErrorMsg(null)}
+          message={errorMsg}
+        />
+      )}
     </div>
   );
 };

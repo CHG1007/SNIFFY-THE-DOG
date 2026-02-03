@@ -3,6 +3,9 @@ package com.a407.sniffythedog.application.user;
 import com.a407.sniffythedog.application.common.PageInfo;
 import com.a407.sniffythedog.application.common.exception.ApplicationException;
 import com.a407.sniffythedog.application.common.exception.ExceptionType;
+import com.a407.sniffythedog.application.user.in.AdminUserListResult;
+import com.a407.sniffythedog.application.user.in.AdminUserResult;
+import com.a407.sniffythedog.application.user.in.AdminUserUseCase;
 import com.a407.sniffythedog.application.user.in.ChangeNicknameCommand;
 import com.a407.sniffythedog.application.user.in.ChangeNicknameUseCase;
 import com.a407.sniffythedog.application.user.in.GetMyInfoResult;
@@ -30,11 +33,28 @@ import java.util.List;
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
-public class UserService implements GetMyInfoUseCase, ChangeNicknameUseCase, GetUserGameHistoryUseCase, GetUserBadgesUseCase {
+public class UserService implements GetMyInfoUseCase, ChangeNicknameUseCase, GetUserGameHistoryUseCase, GetUserBadgesUseCase, AdminUserUseCase {
 
     private final UserPort userPort;
     private final GameHistoryPort gameHistoryPort;
     private final UserBadgePort userBadgePort;
+
+    @Override
+    public AdminUserListResult getAllUsers() {
+        List<User> users = userPort.findAll();
+        List<AdminUserResult> userResults = users.stream()
+            .map(user -> new AdminUserResult(
+                user.getId().value(),
+                user.getNickname().value(),
+                user.getSocialProvider().name(),
+                user.getRole().name(),
+                user.getStatus().name(),
+                user.getCreatedAt(),
+                user.getUpdatedAt()
+            ))
+            .toList();
+        return new AdminUserListResult(userResults);
+    }
 
     @Override
     public GetMyInfoResult execute(Long userId) {

@@ -1,69 +1,48 @@
-import { useState } from 'react';
-import WaitingLayout from '../components/waiting/WaitingLayout';
+import React, { useState } from 'react';
 import WaitingGrid from '../components/waiting/WaitingGrid';
-import WaitingSidebar from '../components/waiting/WaitingSidebar';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
-import GameStartCountdown from '../components/waiting/GameStartCountdown';
 
-const CreatorWaitingPage = ({ roomData, updateRoomData, onGameStart } ) => {
+const CreatorWaitingPage = ({ 
+  roomInfo, 
+  players, 
+  myId, 
+  onKick,    // 부모(WaitingRoomPage)에서 전달받은 강퇴 함수
+  onUpdate   
+}) => {
   const [targetPlayer, setTargetPlayer] = useState(null);
 
-  // 강퇴 확인 버튼 클릭 시 진행
   const handleKickConfirm = () => {
-    if (!targetPlayer) return;
-
-    // 💡 부모에게 명단 업데이트 요청 (해당 ID만 제외)
-    const updatedPlayers = roomData.players.filter(p => p.userId !== targetPlayer.id);
-    updateRoomData({ players: updatedPlayers });
-
-    setTargetPlayer(null); // 모달 닫기
-    console.log(`${targetPlayer.name}님을 퇴장시켰습니다.`);
+    if (targetPlayer) {
+      console.log(`[Creator] Confirm Kick: ${targetPlayer.userId}`);
+      onKick(targetPlayer.userId); // 강퇴 요청 전송
+      setTargetPlayer(null);
+    }
   };
 
-  // 전원 레디 체크 (최소 인원 6명 이상 + 본인 포함 전원 ready)
-  const allReady = roomData.players.length >= 6 && roomData.players.every(p => p.ready);
-
   return (
-    <WaitingLayout title={roomData.title}>
-      {/* 왼쪽: 플레이어 그리드 */}
-      <WaitingGrid 
-       players={roomData.players.map(p => ({
-          id: p.userId,
-          name: p.displayName,
-          isReady: p.ready,
-          isHost: p.isHost
-        }))} 
-        myId={1}
-        isHost={true}
-        capacity={roomData.capacity}
-        onKick={(player) => setTargetPlayer(player)} //슬롯에서 버튼 누르면 실행 
-      />
+    <div className="w-full h-full flex flex-col items-center justify-start pt-4 px-12 relative">
       
-      {/* 오른쪽: 사이드바 (isHost=true 전달) */}
-      <WaitingSidebar 
-        roomInfo={{
-          title: roomData.title,
-          capacity: roomData.capacity,
-          inviteCode: roomData.inviteCode
-        }} 
-        isHost={true}
-        onUpdate={updateRoomData} 
-      />
+      {/* 1. 플레이어 그리드 */}
+      <div className="w-full max-w-[1200px] h-full">
+        <WaitingGrid 
+          players={players} 
+          myId={myId} 
+          isHost={true} 
+          capacity={roomInfo.capacity} 
+          onKick={setTargetPlayer} // 그리드의 강퇴 버튼 클릭 시 모달 Open
+        />
+      </div>
 
-      {/* 전원 레디 시 카운트다운 표시 */}
-      {allReady && <GameStartCountdown onComplete={onGameStart} />}  
-
-      {/* 공통 모달 사용 */}
+      {/* 2. 강퇴 확인 모달 */}
       {targetPlayer && (
         <LastBeggingModal
           isOpen={!!targetPlayer}
           onClose={() => setTargetPlayer(null)}
           onConfirm={handleKickConfirm}
-          message={`${targetPlayer.name}님을\n퇴장시키겠습니까?`}
+          message={`${targetPlayer.name}님을\n강제 퇴장하시겠습니까?`}
         />
       )}
-
-    </WaitingLayout>
+    </div>
   );
 };
 
