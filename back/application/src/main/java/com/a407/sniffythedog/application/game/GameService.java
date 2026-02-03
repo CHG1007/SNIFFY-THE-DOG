@@ -390,6 +390,9 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     return room;
                 }
 
+                // 반드시 true로 설정해야 함
+                room.getPlayers().values().forEach(PlayerState::revive);
+
                 room.startGame(GAME_TIMING);
                 log.info("[startGameByKey] Game started - newPhase={}, phaseEndsAt={}",
                         room.getGameState().phase(), room.getGameState().phaseEndsAt());
