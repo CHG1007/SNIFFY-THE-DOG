@@ -9,7 +9,8 @@ import java.util.Map;
 @Getter
 @Setter
 public class AnalyzeAnalysisRequest {
-    private List<Map<String, Object>> frames;
+    private String targetUserId; // 사용자 구분용
+    private List<Map<String, Object>> frames; // 5초간의 상세 데이터 리스트
 
     public AnalyzeAnalysisRequest() {}
     public List<Map<String, Object>> getPayload() { return frames; }

@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Room, RoomEvent, VideoPresets, Track, createLocalTracks } from 'livekit-client';
 import apiClient from '../api/apiClient';
 
+import { useAnalysis } from '../analysis/UseAnalysis';
+import AiAnalysisResultModal from '../components/modals/AiAnalysisResultModal';
+
 // 동적 URL 설정: 환경 변수가 없으면 현재 호스트의 /livekit/ 경로(Nginx Proxy)를 사용
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL ||
   (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
@@ -11,7 +14,7 @@ const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL ||
   '/livekit';
 
 // 비디오 렌더링을 위한 별도 컴포넌트
-const VideoComponent = ({ track, participantIdentity, local = false }) => {
+const VideoComponent = ({ track, participantIdentity, local = false, isSelectMode, onSelect }) => {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -25,7 +28,12 @@ const VideoComponent = ({ track, participantIdentity, local = false }) => {
   }, [track]);
 
   return (
-    <div className="aspect-video bg-black/50 rounded-lg overflow-hidden relative border border-white/10">
+    // <div className="aspect-video bg-black/50 rounded-lg overflow-hidden relative border border-white/10">
+    <div 
+      className={`aspect-video bg-black/50 rounded-lg overflow-hidden relative border transition-all 
+        ${isSelectMode ? 'border-yellow-400 cursor-crosshair scale-[1.02] z-10' : 'border-white/10'}`}
+      onClick={() => isSelectMode && onSelect(track, participantIdentity)} // 선택 모드일 때만 클릭 작동
+    >
       <video
         ref={videoRef}
         className={`w-full h-full object-cover ${local ? 'scale-x-[-1]' : ''}`}
@@ -33,6 +41,12 @@ const VideoComponent = ({ track, participantIdentity, local = false }) => {
       <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 rounded text-xs select-none pointer-events-none text-white">
         {local ? '나 (Preview)' : participantIdentity}
       </div>
+      {/* 선택 모드일 때 나타나는 가이드 */}
+      {isSelectMode && (
+        <div className="absolute inset-0 bg-yellow-400/10 flex items-center justify-center">
+          <span className="bg-yellow-400 text-black text-[10px] font-bold px-2 py-1 rounded">분석할 얼굴 클릭</span>
+        </div>
+      )}
     </div>
   );
 };
@@ -40,6 +54,41 @@ const VideoComponent = ({ track, participantIdentity, local = false }) => {
 const VideoTestPage = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState('대기 중');
+  /* [AI] 분석 중인지 확인용 */
+  const { startAnalysis, isAnalyzing } = useAnalysis();
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
+
+  /* [AI] 분석 실행 함수 */
+  const handleAnalysis = async (videoTrack, identity) => {
+  if (!videoTrack) return;
+
+  // 1. 선택 모드 해제 (화면 노란색 테두리 없애기)
+  setIsSelectMode(false);
+
+  // 2. 💡 [핵심] 클릭한 사람(identity)의 '오디오 줄기'를 룸에서 찾아옵니다.
+  const participant = roomRef.current?.getParticipantByIdentity(identity);
+  
+  // 상대방이 마이크를 켜놨다면 그 마이크 트랙(오디오)을 가져옵니다.
+  const audioTrackPub = participant?.getTrackPublication(Track.Source.Microphone);
+  const audioTrack = audioTrackPub?.track;
+  console.log(`[분석 타겟: ${identity}] 오디오 트랙 잡혔나?`, audioTrack ? "✅ 네!" : "❌ 아니요(내 마이크 사용됨)");
+
+  // 3. 💡 [중요] 비디오와 오디오를 하나의 묶음(객체)으로 만듭니다.
+  const trackBundle = {
+    video: videoTrack,
+    audio: audioTrack // 만약 없으면 null이 들어갑니다.
+  };
+
+  // 4. 분석기(startAnalysis)에게 이 묶음을 통째로 던져줍니다.
+  const result = await startAnalysis(trackBundle, identity);
+
+  // 5. 결과 모달 띄우기
+  if (result) {
+    setAnalysisResult({ identity: identity, narrative: result.narrative });
+  }
+  };
+
 const [roomId, setRoomId] = useState(() => {
   return 'test-room-' + String(Date.now()).slice(-4);
 });  const [isConnected, setIsConnected] = useState(false);
@@ -91,6 +140,7 @@ const [roomId, setRoomId] = useState(() => {
 
   // 2. LiveKit 연결
   const connectToLiveKit = async () => {
+    console.log("현재 접속 시도 URL:", LIVEKIT_URL);
     if (!localTrack) {
       // 미리보기가 안 되어 있으면 먼저 실행
       await startLocalPreview();
@@ -251,6 +301,17 @@ const [roomId, setRoomId] = useState(() => {
         >
           2. LiveKit 연결
         </button>
+        {/* AI 분석 버튼 */}
+        <button
+          onClick={() => {console.log("선택 모드 변경:", !isSelectMode); 
+            setIsSelectMode(!isSelectMode)}}
+          disabled={!isConnected || isAnalyzing}
+          className={`px-6 py-3 rounded-lg font-medium transition-all ${
+            isAnalyzing ? 'bg-gray-600' : isSelectMode ? 'bg-yellow-500 text-black' : 'bg-purple-600 hover:bg-purple-700'
+          }`}
+        >
+          {isAnalyzing ? "AI 분석 중..." : isSelectMode ? "대상 선택 취소" : "4. AI 분석 시작"}
+        </button>
         <button
           onClick={disconnect}
           disabled={!isConnected && !localTrack}
@@ -264,7 +325,7 @@ const [roomId, setRoomId] = useState(() => {
         {/* 로컬 비디오 (미리보기 or 송출화면) */}
         <div className="aspect-video bg-black/50 rounded-lg overflow-hidden relative border border-white/10 flex items-center justify-center">
           {localTrack ? (
-            <VideoComponent track={localTrack} participantIdentity="Me" local={true} />
+            <VideoComponent track={localTrack} participantIdentity="Me" local={true} isSelectMode={isSelectMode} onSelect={handleAnalysis} />
           ) : (
             <div className="text-white/30 text-sm">카메라 버튼을 눌러주세요</div>
           )}
@@ -276,9 +337,17 @@ const [roomId, setRoomId] = useState(() => {
             key={identity}
             track={tracks[identity]}
             participantIdentity={identity}
+            isSelectMode={isSelectMode}
+            onSelect={handleAnalysis}
           />
         ))}
       </div>
+
+      {/* [추가] 결과 모달창 */}
+      <AiAnalysisResultModal 
+        result={analysisResult} 
+        onClose={() => setAnalysisResult(null)} 
+      />
 
       <div className="mt-8 p-4 bg-white/5 rounded-lg text-xs text-white/50">
         <div>Debug Info:</div>
