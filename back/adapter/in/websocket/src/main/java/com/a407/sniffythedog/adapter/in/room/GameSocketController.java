@@ -23,6 +23,7 @@ public class GameSocketController {
     private final SyncRoomUseCase syncRoomUseCase;
     private final SetReadyUseCase setReadyUseCase;
     private final KickUserUseCase kickUserUseCase;
+    private final RestartGameUseCase restartGameUseCase;
 
     @MessageMapping("/rooms/{roomCode}/join")
     public void joinRoom(@DestinationVariable String roomCode,
@@ -99,4 +100,25 @@ public class GameSocketController {
         kickUserUseCase.execute(command);
     }
 
+    /**
+     * 게임 종료 후 대기실로 복귀
+     */
+    @MessageMapping("/rooms/{roomCode}/restart")
+    public void restartGame(
+            @DestinationVariable String roomCode,
+            @Payload RestartRequest request,
+            Principal principal
+    ) {
+        Long userId = Long.valueOf(principal.getName());
+
+        RestartGameCommand command = new RestartGameCommand(
+                roomCode,
+                userId,
+                request.requestId()
+        );
+
+        restartGameUseCase.execute(command);
+    }
+
+    public record RestartRequest(String requestId) {}
 }

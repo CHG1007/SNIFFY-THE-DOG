@@ -59,12 +59,14 @@ class WebSocketClient {
   }
 
   // 소켓 연결
-  connect(roomCode, onMessageReceived) {
+  // options: { autoSync: boolean } - 연결 후 자동으로 sync 호출 여부
+  connect(roomCode, onMessageReceived, options = {}) {
     this.roomCode = roomCode;
     this.messageCallbacks.public = onMessageReceived;
     this.messageCallbacks.private = onMessageReceived;
 
     const accessToken = useAuthStore.getState().accessToken;
+    const { autoSync = false } = options;
 
     wsLog.system('Connecting to:', getSocketUrl());
 
@@ -81,6 +83,10 @@ class WebSocketClient {
         wsLog.system('Connected ✓');
         this._subscribeToRoom();
         this._sendJoinRequest();
+        // 옵션에 따라 sync 자동 호출 (게임 페이지에서 사용)
+        if (autoSync) {
+          setTimeout(() => this.sync(), 100);
+        }
       },
       onStompError: (frame) => {
         wsLog.error('Broker error:', frame.headers['message']);
@@ -281,6 +287,13 @@ class WebSocketClient {
   sendLeave() {
     this.publish('leave', {
       requestId: `leave-${Date.now()}`,
+    });
+  }
+
+  // 게임 종료 후 대기실로 복귀
+  sendRestart() {
+    this.publish('restart', {
+      requestId: `restart-${Date.now()}`,
     });
   }
 }

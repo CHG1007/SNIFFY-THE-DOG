@@ -59,7 +59,7 @@ const GamePage = () => {
     gameResult, setGameResult,
     aiChance, requestAiChance, setAiChanceResult,
     modals, openModal, closeModal,
-    initRoom, setVersion, reset,
+    setVersion, reset,
   } = useGameStore();
 
   // 로컬 UI 상태
@@ -86,6 +86,8 @@ const GamePage = () => {
   // 초기 데이터 설정 (WaitingRoomPage에서 넘어온 경우)
   useEffect(() => {
     const state = location.state || {};
+
+    // location.state에서 넘어온 데이터가 있으면 먼저 설정
     if (state.myInfo) {
       setMyInfo(state.myInfo);
     }
@@ -95,8 +97,10 @@ const GamePage = () => {
     if (state.capacity) {
       setCapacity(state.capacity);
     }
-    initRoom(roomId);
-  }, [location.state, roomId, setMyInfo, setPlayers, initRoom]);
+
+    // roomCode만 설정 (initRoom은 전체 리셋하므로 사용하지 않음)
+    useGameStore.setState({ roomCode: roomId });
+  }, [location.state, roomId, setMyInfo, setPlayers]);
 
   // WebSocket 메시지 핸들러
   const handleSocketMessage = useCallback((msg) => {
@@ -248,6 +252,15 @@ const GamePage = () => {
         if (data.version) setVersion(data.version);
         break;
 
+      // === 게임 재시작 (대기실로 복귀) ===
+      case 'GAME_RESTARTED':
+        if (data.version) setVersion(data.version);
+        // 대기실로 이동
+        navigate(`/rooms/${roomId}`, {
+          state: { fromGame: true }
+        });
+        break;
+
       // === 에러 처리 ===
       case 'ERROR':
         console.error('[Game Error]', data.message);
@@ -285,7 +298,8 @@ const GamePage = () => {
 
   // WebSocket 연결
   useEffect(() => {
-    websocketClient.connect(roomId, handleSocketMessage);
+    // autoSync: true - 연결 후 자동으로 sync 호출하여 현재 게임 상태 받아옴
+    websocketClient.connect(roomId, handleSocketMessage, { autoSync: true });
 
     return () => {
       websocketClient.unsubscribeFromMafiaChannel();
@@ -418,9 +432,10 @@ const GamePage = () => {
     requestAiChance(targetPlayer.userId);
   };
 
-  // === 게임 종료 후 결과 페이지로 이동 ===
-  const handleGoToResult = () => {
-    navigate('/result', { state: { gameResult, players: standardizedPlayers } });
+  // === 게임 종료 후 대기실로 복귀 ===
+  const handleBackToWaitingRoom = () => {
+    // 서버에 restart 요청 → GAME_RESTARTED 메시지 → 모든 플레이어가 대기실로 이동
+    websocketClient.sendRestart();
   };
 
   // 피고인 정보 (2차 투표용)
@@ -697,10 +712,10 @@ const GamePage = () => {
               </p>
             )}
             <button
-              onClick={handleGoToResult}
+              onClick={handleBackToWaitingRoom}
               className="px-8 py-4 bg-[#ff8a00] text-white text-xl font-bold rounded-full hover:bg-orange-500 transition-all"
             >
-              결과 확인하기
+              대기실로 돌아가기
             </button>
           </div>
         </div>
