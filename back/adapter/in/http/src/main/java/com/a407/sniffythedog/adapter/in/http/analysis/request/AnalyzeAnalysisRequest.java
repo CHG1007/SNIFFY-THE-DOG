@@ -9,7 +9,10 @@ import java.util.Map;
 @Getter
 @Setter
 public class AnalyzeAnalysisRequest {
-    private String targetUserId; // 사용자 구분용
+    private String roomId; // 방
+    private Long actorUserId; // 분석 버튼 누른 사람
+    private Long targetUserId; // 분석 대상
+    private int round; // 라운드
     private List<Map<String, Object>> frames; // 5초간의 상세 데이터 리스트
 
     public AnalyzeAnalysisRequest() {}

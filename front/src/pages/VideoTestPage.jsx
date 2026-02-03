@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Room, RoomEvent, VideoPresets, Track, createLocalTracks } from 'livekit-client';
 import apiClient from '../api/apiClient';
 
@@ -54,40 +54,11 @@ const VideoComponent = ({ track, participantIdentity, local = false, isSelectMod
 const VideoTestPage = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState('대기 중');
+
   /* [AI] 분석 중인지 확인용 */
   const { startAnalysis, isAnalyzing } = useAnalysis();
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
-
-  /* [AI] 분석 실행 함수 */
-  const handleAnalysis = async (videoTrack, identity) => {
-  if (!videoTrack) return;
-
-  // 1. 선택 모드 해제 (화면 노란색 테두리 없애기)
-  setIsSelectMode(false);
-
-  // 2. 💡 [핵심] 클릭한 사람(identity)의 '오디오 줄기'를 룸에서 찾아옵니다.
-  const participant = roomRef.current?.getParticipantByIdentity(identity);
-  
-  // 상대방이 마이크를 켜놨다면 그 마이크 트랙(오디오)을 가져옵니다.
-  const audioTrackPub = participant?.getTrackPublication(Track.Source.Microphone);
-  const audioTrack = audioTrackPub?.track;
-  console.log(`[분석 타겟: ${identity}] 오디오 트랙 잡혔나?`, audioTrack ? "✅ 네!" : "❌ 아니요(내 마이크 사용됨)");
-
-  // 3. 💡 [중요] 비디오와 오디오를 하나의 묶음(객체)으로 만듭니다.
-  const trackBundle = {
-    video: videoTrack,
-    audio: audioTrack // 만약 없으면 null이 들어갑니다.
-  };
-
-  // 4. 분석기(startAnalysis)에게 이 묶음을 통째로 던져줍니다.
-  const result = await startAnalysis(trackBundle, identity);
-
-  // 5. 결과 모달 띄우기
-  if (result) {
-    setAnalysisResult({ identity: identity, narrative: result.narrative });
-  }
-  };
 
 const [roomId, setRoomId] = useState(() => {
   return 'test-room-' + String(Date.now()).slice(-4);
@@ -108,6 +79,41 @@ const [roomId, setRoomId] = useState(() => {
     });
     return response.data.data;
   };
+
+
+  
+  /* [AI] 분석 실행 함수 */
+  const handleAnalysis = async (videoTrack, identity) => {
+  if (!videoTrack) return;
+  setIsSelectMode(false);
+
+  // 2. 💡 [핵심] 클릭한 사람(identity)의 '오디오 줄기'를 룸에서 찾아옵니다.
+  const participant = (identity === 'Me' || identity === roomRef.current?.localParticipant.identity)
+    ? roomRef.current?.localParticipant 
+    : roomRef.current?.getParticipantByIdentity(identity);
+  
+  // 상대방이 마이크를 켜놨다면 그 마이크 트랙(오디오)을 가져옵니다.
+  const audioTrackPub = participant?.getTrackPublication(Track.Source.Microphone);
+  const audioTrack = audioTrackPub?.track;
+  console.log(`[분석 타겟: ${identity}] 오디오 트랙 잡혔나?`, audioTrack ? "✅ 네!" : "❌ 아니요(내 마이크 사용됨)");
+
+  // 3. 비디오와 오디오를 하나의 묶음(객체)으로 만듭니다.
+  const trackBundle = {
+    video: videoTrack,
+    audio: audioTrack, // 만약 없으면 null이 들어갑니다.
+    roomId: roomId,
+    round: 1 // ⭐⭐⭐⭐⭐ 테스트용
+  };
+
+  // 4. 분석기(startAnalysis)에게 이 묶음을 통째로 던져줍니다.
+  const result = await startAnalysis(trackBundle, identity);
+
+  // 5. 결과 모달 띄우기
+  if (result) {
+    setAnalysisResult({ identity: identity, narrative: result.narrative });
+  }
+  };
+
 
   // 1. 로컬 비디오 미리보기 (연결 전 실행 가능)
   const startLocalPreview = async () => {

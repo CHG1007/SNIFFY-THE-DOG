@@ -1,17 +1,22 @@
 import { useState } from "react";
 import { useAudioAnalyzer } from "./audio/UseAudioAnalyzer";
 import { useFaceAnalyzer } from "./face/UseFaceAnalyzer";
+import useAuthStore from "../stores/useAuthStore";
 
 export function useAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { initAudio, analyzeOnce: analyzeAudio } = useAudioAnalyzer();
   const { analyzeOnce: analyzeFace, loadModels } = useFaceAnalyzer();
+  const {user} = useAuthStore();
 
   // 💡 인자를 track 하나가 아니라 tracks(묶음)로 받습니다.
   const startAnalysis = async (tracks, targetId) => {
     // tracks.video가 진짜 있는지 확인합니다.
     if (isAnalyzing || !tracks || !tracks.video) return;
     setIsAnalyzing(true);
+
+    // tracks -> roomId, round
+    const { roomId, round } = tracks;
 
     try {
       // 1. 모델 준비 (표정 분석용)
@@ -69,7 +74,8 @@ export function useAnalysis() {
             tempVideo.srcObject = null;
             tempVideo.load();
             
-            const result = await sendToBackend(buffer, targetId);
+            // 백엔드에 값 주기
+            const result = await sendToBackend(buffer, targetId, roomId, round);
             setIsAnalyzing(false);
             resolve(result);
           }
@@ -83,13 +89,24 @@ export function useAnalysis() {
     }
   };
 
-  const sendToBackend = async (frames, targetId) => {
+  const sendToBackend = async (frames, targetId, roomId, round) => {
+
+    // ⭐⭐⭐⭐⭐ 나중에 수정하자 ~
+    const finalTargetId = (targetId === "Me") ? user?.userId : targetId;
+
     try {
       const res = await fetch("/api/analysis/frames", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetUserId: targetId, frames }),
+        body: JSON.stringify({ 
+          roomId: roomId,
+          actorUserId: user?.userId,
+          targetUserId: finalTargetId, // targetId
+          round: round || 1,
+          frames }),
       });
+      console.log("보내기 직전 체크:", { roomId, targetId, round });
+      console.log("보내기 직전 체크:", user?.userId);
       return await res.json();
     } catch (e) {
       return { narrative: "서버 통신 실패" };

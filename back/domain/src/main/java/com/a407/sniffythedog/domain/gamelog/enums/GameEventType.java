@@ -12,5 +12,6 @@ public enum GameEventType {
     VOTE1_CAST, // 1차 투표에서 누가 누구를 찍었는지
     VOTE1_RESULT, // 1차 투표 결과
     VOTE2_CAST, // 2차 투표에서 누가 누구를 뽑았는지
-    VOTE2_RESULT // 2차 투표 결과
+    VOTE2_RESULT, // 2차 투표 결과
+    AI_ANALYSIS // AI 분석 여부
 }
