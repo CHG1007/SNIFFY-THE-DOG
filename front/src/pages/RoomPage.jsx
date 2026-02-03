@@ -50,20 +50,24 @@ export default function RoomPage() {
   const totalPages = 10;
 
   // 빠른 입장
-  const handleQuickJoin = async () => {
-    try {
-      console.log("빠른 입장 시도 중...");
-      const response = await quickJoin();
-      const roomId = response.data?.roomId || response.data?.roomCode;
+  const handleQuickJoin = () => {
+    // 1. 입장 가능한 공개방 필터링
+    const candidates = rooms.filter(
+      (room) => !room.isPrivate && room.currentCount < room.capacity
+    );
 
-      if (roomId) {
-        navigate(`/rooms/${roomId}`);
-      } else {
-        alert("입장 가능한 방 정보를 받지 못했습니다.");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("빠른 입장에 실패했습니다. 입장 가능한 방이 없습니다.");
+    if (candidates.length > 0) {
+      // 2. 인원수(currentCount) 내림차순 정렬 (많은 사람이 있는 방 우선)
+      candidates.sort((a, b) => b.currentCount - a.currentCount);
+
+      // 3. 가장 사람 많은 방 선택 (0번 인덱스)
+      const targetRoom = candidates[0];
+      
+      console.log(`[QuickJoin] 입장 시도: ${targetRoom.title} (${targetRoom.currentCount}/${targetRoom.capacity}명)`);
+      
+      handleJoinRoom(targetRoom);
+    } else {
+      alert("현재 페이지에 입장 가능한 공개방이 없습니다.\n새로고침을 하거나 다른 페이지를 확인해주세요.");
     }
   };
 
