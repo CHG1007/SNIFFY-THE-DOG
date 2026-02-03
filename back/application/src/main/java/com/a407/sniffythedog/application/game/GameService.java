@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase, SetReadyUseCase, KickUserUseCase {
+public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase, SetReadyUseCase, KickUserUseCase, RestartGameUseCase {
 
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
@@ -557,4 +557,59 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
     }
 
     //todo: 게임종료 메서드 추가 게임 종료시 redis에 있는 로그 mongoDB로 로그 전송
+
+    /**
+     * 게임 종료 후 대기실로 복귀
+     */
+    @Override
+    public void execute(RestartGameCommand command) {
+        String roomCode = command.roomCode();
+        Long userId = command.userId();
+        String requestId = command.requestId();
+
+        RoomId roomId = new RoomId(roomCode);
+        GameUserId gameUserId = new GameUserId(userId);
+
+        try {
+            RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room -> {
+                // 게임이 끝난 상태에서만 리셋 가능
+                if (room.getStatus() != RoomStatus.ENDED) {
+                    throw ApplicationException.of(ExceptionType.INVALID_GAME_STATE, "게임이 종료된 상태에서만 대기실로 복귀할 수 있습니다.");
+                }
+
+                // 방에 있는 플레이어만 요청 가능
+                if (room.getPlayer(gameUserId) == null) {
+                    throw ApplicationException.of(ExceptionType.FORBIDDEN, "방에 참가 중이 아닙니다.");
+                }
+
+                room.resetForNewGame();
+                return room;
+            });
+
+            // 전체 브로드캐스트: 대기실로 복귀 알림
+            RoomState roomState = RoomState.from(updatedRoom);
+            Map<String, Object> restartData = Map.of(
+                    "version", updatedRoom.getVersion(),
+                    "roomState", roomState
+            );
+            gameMessagePort.sendToRoom(roomCode, "GAME_RESTARTED", restartData);
+
+        } catch (ApplicationException e) {
+            gameMessagePort.sendToUser(
+                    String.valueOf(userId),
+                    roomCode,
+                    requestId,
+                    "ERROR",
+                    Map.of("message", e.getMessage())
+            );
+        } catch (Exception e) {
+            gameMessagePort.sendToUser(
+                    String.valueOf(userId),
+                    roomCode,
+                    requestId,
+                    "ERROR",
+                    Map.of("message", "대기실 복귀 중 오류가 발생했습니다.")
+            );
+        }
+    }
 }

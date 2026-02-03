@@ -275,6 +275,24 @@ public class RoomSession {
         touch();
     }
 
+    /**
+     * 게임 종료 후 대기실로 리셋
+     * - 상태를 WAITING으로 변경
+     * - 모든 플레이어의 역할, 생존 상태, 레디 상태 초기화
+     * - 게임 상태 초기화
+     */
+    public void resetForNewGame() {
+        this.status = RoomStatus.WAITING;
+        this.startedAt = null;
+        this.endedAt = null;
+        this.gameState = GameState.initial();
+
+        // 모든 플레이어 상태 초기화
+        players.values().forEach(PlayerState::resetForNewGame);
+
+        touch();
+    }
+
     // Vote
     public void castDayVote(GameUserId voter, GameUserId target) {
         VoteState newVote = gameState.dayVote().vote(voter, target);
@@ -326,8 +344,17 @@ public class RoomSession {
         }
     }
 
+    // 역할이 모두 배정되었는지 확인
+    private boolean areRolesAssigned() {
+        return players.values().stream()
+                .allMatch(p -> p.getGameRole() != null);
+    }
+
     // Win Condition Check
     public boolean isMafiaWin() {
+        // 역할이 배정되지 않았으면 승리 조건 체크 불가
+        if (!areRolesAssigned()) return false;
+
         long aliveMafia = players.values().stream()
                 .filter(PlayerState::isAlive)
                 .filter(PlayerState::isMafia)
@@ -340,6 +367,9 @@ public class RoomSession {
     }
 
     public boolean isCitizenWin() {
+        // 역할이 배정되지 않았으면 승리 조건 체크 불가
+        if (!areRolesAssigned()) return false;
+
         return players.values().stream()
                 .filter(PlayerState::isAlive)
                 .noneMatch(PlayerState::isMafia);
@@ -347,6 +377,8 @@ public class RoomSession {
 
     // 게임 판정
     public boolean isGameOver() {
+        // 게임이 PLAYING 상태가 아니면 종료 체크하지 않음
+        if (this.status != RoomStatus.PLAYING) return false;
         return isMafiaWin() || isCitizenWin();
     }
 
@@ -354,6 +386,7 @@ public class RoomSession {
     // Optional<Winner>로 반환값을 둬서 게임이 끝나지 않았을떄는 empty , 끝나면 winner 반환
     public Optional<Winner> checkAndEndIfGameOver() {
         if (this.status == RoomStatus.ENDED) return Optional.empty();
+        if (this.status != RoomStatus.PLAYING) return Optional.empty();
         if (!isGameOver()) return Optional.empty();
 
         Winner winner = isCitizenWin() ? Winner.CITIZEN : Winner.MAFIA;
