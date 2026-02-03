@@ -2,8 +2,10 @@ package com.a407.sniffythedog.application.room;
 
 import com.a407.sniffythedog.application.common.exception.ApplicationException;
 import com.a407.sniffythedog.application.common.exception.ExceptionType;
+import com.a407.sniffythedog.application.common.PageInfo;
 import com.a407.sniffythedog.application.room.in.*;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
+import com.a407.sniffythedog.application.room.out.RoomPage;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
@@ -45,11 +47,10 @@ public class RoomService implements CreateRoomUseCase, GetPublicRoomUseCase, Get
     }
     @Override
     @Transactional(readOnly = true)
-    public List<GetPublicRoomResult> getPublicRooms(int page, int size) {
+    public GetPublicRoomsPageResult getPublicRooms(int page, int size) {
+        RoomPage roomPage = redisRoomPort.loadPublicRooms(page, size);
 
-        List<RoomSession> sessions = redisRoomPort.loadPublicRooms(page, size);
-
-        return sessions.stream()
+        List<GetPublicRoomResult> rooms = roomPage.content().stream()
                 .filter(room -> !room.isPrivate())
                 .map(room -> new GetPublicRoomResult(
                         room.getId().value(),
@@ -59,6 +60,15 @@ public class RoomService implements CreateRoomUseCase, GetPublicRoomUseCase, Get
                         room.isPrivate()
                 ))
                 .collect(Collectors.toList());
+
+        PageInfo pageInfo = PageInfo.of(
+                roomPage.page(),
+                roomPage.size(),
+                roomPage.totalElements(),
+                roomPage.totalPages()
+        );
+
+        return new GetPublicRoomsPageResult(rooms, pageInfo);
     }
     @Transactional(readOnly = true)
     public GetRoomDetailResult getRoomByRoomId(GetRoomByRoomIdQuery query) {

@@ -4,6 +4,7 @@ package com.a407.sniffythedog.room.repository;
 import com.a407.sniffythedog.application.common.exception.ApplicationException;
 import com.a407.sniffythedog.application.common.exception.ExceptionType;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
+import com.a407.sniffythedog.application.room.out.RoomPage;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
 import com.a407.sniffythedog.room.mapper.RoomMapper;
@@ -55,8 +56,14 @@ public class RoomRedisRepositoryAdapter implements RedisRoomPort {
     }
 
     @Override
-    public List<RoomSession> loadPublicRooms(int page, int size) {
+    public RoomPage loadPublicRooms(int page, int size) {
         ZSetOperations<String, String> zSet = redisTemplate.opsForZSet();
+
+        Long totalElements = zSet.zCard(PUBLIC_ROOMS_KEY);
+        if (totalElements == null) {
+            totalElements = 0L;
+        }
+        int totalPages = (int) Math.ceil((double) totalElements / size);
 
         int start = page * size;
         int end = start + size - 1;
@@ -64,7 +71,7 @@ public class RoomRedisRepositoryAdapter implements RedisRoomPort {
         Set<String> roomIds = zSet.reverseRange(PUBLIC_ROOMS_KEY, start, end);
 
         if (roomIds == null || roomIds.isEmpty()) {
-            return Collections.emptyList();
+            return new RoomPage(Collections.emptyList(), page, size, totalElements, totalPages);
         }
 
         List<String> keys = roomIds.stream()
@@ -74,13 +81,15 @@ public class RoomRedisRepositoryAdapter implements RedisRoomPort {
         List<String> jsonList = redisTemplate.opsForValue().multiGet(keys);
 
         if (jsonList == null) {
-            return Collections.emptyList();
+            return new RoomPage(Collections.emptyList(), page, size, totalElements, totalPages);
         }
 
-        return jsonList.stream()
+        List<RoomSession> content = jsonList.stream()
                 .filter(Objects::nonNull)
                 .map(roomMapper::toDomain)
                 .collect(Collectors.toList());
+
+        return new RoomPage(content, page, size, totalElements, totalPages);
     }
 
     @Override
