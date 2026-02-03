@@ -44,13 +44,14 @@ const AnimatedRoutes = () => {
           <PageWrapper>
             <WithHeaderLayout backgroundUrl="/assets/images/roompage/background.png">
               <RoomPage />
-            </WithHeaderLayout>
+            </WithHeaderLayout> 
           </PageWrapper>
         } />
 
         {/* 3. 게임 대기방 (팀원이 추가한 두 가지 경로 모두 애니메이션 적용) */}
         <Route path="/waiting-room/:roomId" element={<PageWrapper><Header /><WaitingRoomPage /></PageWrapper>} />
-        <Route path="/rooms/:roomId" element={<PageWrapper><Header /><WaitingRoomPage /></PageWrapper>} />
+        {/* <Route path="/rooms/:roomId" element={<PageWrapper><Header /><WaitingRoomPage /></PageWrapper>} /> 
+        {/* rooms/roomId 는 삭제 필요 } */}
 
         {/* 4. 마이페이지 및 관리자 */}
         <Route path="/users" element={<PageWrapper><Header /><MyPage /></PageWrapper>} />
