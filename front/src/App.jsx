@@ -9,6 +9,7 @@ import VideoTestPage from './pages/VideoTestPage';
 import MyPage from './pages/MyPage';
 import AdminPage from './pages/AdminPage';
 import WaitingRoomPage from './pages/WaitingRoomPage';
+import ResultPage from './pages/ResultPage';
 
 // Components
 import Header from './components/common/Header';
@@ -57,6 +58,7 @@ const AnimatedRoutes = () => {
 
         {/* 5. 테스트 페이지 */}
         <Route path="/video-test" element={<PageWrapper><VideoTestPage /></PageWrapper>} />
+        <Route path="/result" element= {<PageWrapper><ResultPage /></PageWrapper>} />
       </Routes>
     </AnimatePresence>
   );

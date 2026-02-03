@@ -2,6 +2,10 @@
 @import "tailwindcss";
 
 @theme {
+  --color-primary: #EA6600;
+  --color-white: #FFFFFF;
+  --color-black: #000000;
+
   --animate-fog-flow: fog-flow 20s linear infinite alternate;
   --animate-pulse-slow: pulse-slow 8s ease-in-out infinite;
   --animate-float: float 6s ease-in-out infinite;
@@ -11,15 +15,13 @@
     0% { transform: translateX(-5%) scale(1.05); }
     100% { transform: translateX(5%) scale(1.1); }
   }
-
   @keyframes pulse-slow {
     0%, 100% { opacity: 0.4; }
     50% { opacity: 0.7; }
   }
-
   @keyframes float {
-    0%   { transform: translateY(0px); }
-    50%  { transform: translateY(-12px); }
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
     100% { transform: translateY(0px); }
   }
   /* --- [추가] 무한 루프 키프레임 --- */
@@ -29,30 +31,10 @@
   }
 }
 
-:root{
-  --color-primary: #EA6600;
-  --color-white: #FFFFFF;
-  --color-black: #000000;
-}
-
 html, body, #root {
   height: 100%;
   font-family: 'Pretendard', sans-serif;
   background: var(--color-white);
   color: var(--color-black);
   overflow: hidden;
-}
-
-body{
-  margin:0;
-}
-
-.custom-scrollbar {
-  scrollbar-gutter: stable;
-}
-
-@supports (overflow: overlay) {
-  .custom-scrollbar {
-    overflow-y: overlay;
-  }
 }
