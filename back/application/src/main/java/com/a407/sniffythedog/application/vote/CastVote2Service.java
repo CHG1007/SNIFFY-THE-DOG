@@ -10,6 +10,7 @@ import com.a407.sniffythedog.application.vote.out.RoomEventPort;
 import com.a407.sniffythedog.domain.game.entity.PlayerState;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.enums.FinalVoteResult;
+import com.a407.sniffythedog.domain.game.enums.Phase;
 import com.a407.sniffythedog.domain.game.enums.RoomStatus;
 import com.a407.sniffythedog.domain.game.enums.YesNo;
 import com.a407.sniffythedog.domain.game.vo.FinalVoteState;
@@ -43,6 +44,11 @@ public class CastVote2Service implements CastVote2UseCase {
             // 방상태가 PLAYING 중인지
             if (room.getStatus() != RoomStatus.PLAYING) {
                 throw ApplicationException.of(ExceptionType.ROOM_NOT_JOINABLE);
+            }
+
+            // VOTE_2 phase인지 확인
+            if (room.getGameState().phase() != Phase.VOTE_2) {
+                throw ApplicationException.of(ExceptionType.INVALID_PHASE);
             }
 
             // 재판단계인지
