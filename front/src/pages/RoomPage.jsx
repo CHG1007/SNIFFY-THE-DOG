@@ -123,14 +123,14 @@ return (
     }
     leftPanel={<LeftPanel />}
     mainPanel={
-      <div className="h-auto self-start flex flex-col rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-5 overflow-hidden shadow-2xl">
+      <div className="w-full max-w-[1050px] h-[60vh] min-h-[465px] max-h-[550px] self-start flex flex-col rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-5 overflow-hidden shadow-2xl">
         {/* 내부 콘텐츠 컨테이너 */}
         <div className="w-full max-w-[1000px] mx-auto flex flex-col min-h-0 overflow-hidden">
 
           {/* 방 목록 그리드 */}
-          <div className="grid grid-cols-3 gap-4 pt-4 px-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          <div className="relative grid grid-cols-3 gap-4 pt-4 px-4 overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 content-start">
             {isLoading ? (
-              <div className="col-span-3 flex justify-center items-center h-40">
+              <div className="absolute inset-0 z-20 flex justify-center items-center bg-black/10 backdrop-blur-[1px] rounded-xl">
                 <span className="text-white text-xl animate-pulse">방 목록을 불러오고 있습니다...</span>
               </div>
             ) : rooms.length > 0 ? (
@@ -146,8 +146,8 @@ return (
                 />
               ))
             ) : (
-              <div className="col-span-3 flex justify-center items-center h-40">
-                <span className="text-white/50 text-xl italic uppercase tracking-widest">
+              <div className="col-span-3 flex justify-center items-center h-[350px]">
+                <span className={`text-xl transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100 text-white/50 italic uppercase tracking-widest'}`}>
                   입장 가능한 방이 없습니다
                 </span>
               </div>
