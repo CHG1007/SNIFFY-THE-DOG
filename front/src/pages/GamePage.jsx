@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+// ***** [AI] 관련 기능 및 모달 추가 *****
+import { useAnalysis } from '../analysis/UseAnalysis';
 
 // API & Stores
 import websocketClient from '../api/websocketClient';
@@ -15,6 +17,8 @@ import VoteConfirmModal from '../components/modals/VoteConfirmModal';
 import RealVote from '../components/modals/RealVoteModal';
 import GameAlertModal from '../components/modals/GameAlertModal';
 import NothingHappenModal from '../components/modals/NothingHappenModal';
+import UserSelectModal from '../components/modals/UserSelectModal';
+import AiAnalysisResultModal from '../components/modals/AiAnalysisResultModal';
 
 // 시간 포맷 유틸리티
 const formatTime = (seconds) => {
@@ -82,6 +86,12 @@ const GamePage = () => {
   // Refs
   const myInfoRef = useRef(myInfo);
   const playersRef = useRef(players);
+
+  // ***** AI *****
+  const { startAnalysis, isAnalyzing } = useAnalysis();        // 분석 시작
+  const [isSelectMode, setIsSelectMode] = useState(false);     // 분석 클릭 상태
+  const [analysisResult, setAnalysisResult] = useState(null);  // 분석 결과
+  const [isGuidanceOpen, setIsGuidanceOpen] = useState(false); // 분석 알림 모달 상태
 
   useEffect(() => {
     myInfoRef.current = myInfo;
@@ -445,12 +455,47 @@ const GamePage = () => {
     setNightTargetPlayer(targetPlayer);
   };
 
-  // === AI 찬스 핸들러 (시민만) ===
-  const handleAiChance = (targetPlayer) => {
-    if (myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0) return;
+  // ***** AI 찬스 관리 *****
+  const handleAiChance = async (targetPlayer) => {
+    // 1. 시민이 아니고 남은 찬스 없으면 못 함
+    if (myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0 || isAnalyzing) return;
 
-    websocketClient.sendAiChanceRequest(targetPlayer.userId);
-    requestAiChance(targetPlayer.userId);
+    // 2. 비디오 트랙 찾기
+    const targetId = String(targetPlayer.userId);
+    const targetPlayerObj = players.find(p => String(p.userId) === targetId);
+    // 3. LiveKit 스트림에서 비디오와 오디오 추출
+    const videoTrack = targetPlayerObj?.stream?.getVideoTracks()[0];
+    const audioTrack = targetPlayerObj?.stream?.getAudioTracks()[0];
+
+    if (!videoTrack) {
+      alert("상대방의 카메라가 꺼져 있습니다.");
+      return;
+    }
+
+    setIsSelectMode(false); // 선택 완료했으니 모드 해제
+
+    const trackBundle = {
+      video: videoTrack,
+      audio: audioTrack || null,
+      roomId: roomId,
+      round: 1 // 필요 시 현재 라운드 변수 연결
+    };
+
+    try {
+      // 💡 5초 분석 시작!
+      const result = await startAnalysis(trackBundle, targetId);
+
+      if (result) {
+        setAnalysisResult({ identity: targetId, narrative: result.narrative });
+        openModal('aiChance');
+
+        // 분석 성공 시에만 서버에 찬스 차감 알림
+        websocketClient.sendAiChanceRequest(targetId);
+        requestAiChance(targetId);
+      }
+    } catch (e) {
+      console.error("분석 실패", e);
+    }
   };
 
   // === 게임 종료 후 대기실로 복귀 ===
@@ -523,6 +568,7 @@ const GamePage = () => {
                 >
                   {player ? (
                     <div className="w-full aspect-video relative">
+                      {/* 원래 있던 화면 */}
                       <GameVideoSlot
                         player={player}
                         isMe={String(player.userId) === String(myInfo.userId)}
@@ -531,6 +577,17 @@ const GamePage = () => {
                         onVoteRequest={() => handleVoteClick(player)}
                         size="normal"
                       />
+                      {/* AI 선택 모드일 때만 나타나는 투명 클릭 판 */}
+                      {isSelectMode && String(player.userId) !== String(myInfo.userId) && player.isAlive && (
+                      <div 
+                        onClick={() => handleAiChance(player)} 
+                        className="absolute inset-0 z-[60] bg-yellow-400/10 cursor-crosshair flex items-center justify-center transition-all border-4 border-yellow-400 rounded-xl"
+                      >
+                        <div className="bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded shadow-lg animate-pulse">
+                          클릭하여 분석
+                        </div>
+                      </div>
+                      )}
 
                       {/* 밤 행동 버튼 (마피아/의사/경찰) */}
                       {gamePhase === 'NIGHT' && amIAlive && player.isAlive &&
@@ -554,11 +611,16 @@ const GamePage = () => {
                        myInfo.role === 'CITIZEN' && myInfo.aiChanceRemaining > 0 &&
                        String(player.userId) !== String(myInfo.userId) && player.isAlive && (
                         <button
-                          onClick={() => handleAiChance(player)}
+                          onClick={(e) => {
+                            e.stopPropagation(); // 다른 클릭 이벤트와 겹치지 않게 방지
+                            setIsSelectMode(true); // 대상 선택 모드
+                            setIsGuidanceOpen(true); // 알림 모달
+                          }}
+                          disabled={isAnalyzing}
                           className="absolute bottom-3 left-3 z-50 px-3 py-1 rounded-full text-xs font-bold
                                      bg-yellow-600 hover:bg-yellow-500 text-white transition-all"
                         >
-                          AI 분석
+                          {isAnalyzing ? "분석 중 ..." : "AI 분석"}
                         </button>
                       )}
                     </div>
@@ -682,42 +744,18 @@ const GamePage = () => {
         </div>
       )}
 
-      {/* AI 찬스 결과 모달 */}
-      {modals.aiChance && aiChance.result && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-md">
-          <div className="text-center max-w-md">
-            <h1 className="text-4xl font-black text-yellow-400 mb-8">AI 분석 결과</h1>
-            <p className="text-xl text-white mb-4">
-              {standardizedPlayers.find(p => String(p.userId) === String(aiChance.result.targetUserId))?.nickname}님
-            </p>
-            <div className="bg-black/50 rounded-xl p-6 mb-8 border border-yellow-500/30">
-              <p className="text-lg text-gray-200">{aiChance.result.summary}</p>
-              {aiChance.result.metrics && (
-                <div className="mt-4 flex justify-center gap-8">
-                  <div>
-                    <span className="text-gray-400 text-sm">긴장도</span>
-                    <div className="text-2xl font-bold text-yellow-400">
-                      {Math.round(aiChance.result.metrics.tension * 100)}%
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 text-sm">신뢰도</span>
-                    <div className="text-2xl font-bold text-green-400">
-                      {Math.round(aiChance.result.metrics.confidence * 100)}%
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <button
-              onClick={() => closeModal('aiChance')}
-              className="px-8 py-3 bg-yellow-600 text-white font-bold rounded-full hover:bg-yellow-500 transition-all"
-            >
-              확인
-            </button>
-          </div>
-        </div>
-      )}
+      {/* AI 분석 결과 모달 (여기에 두세요!) */}
+      <AiAnalysisResultModal 
+        isOpen={modals.aiChance}           // Zustand 상자에서 '열림' 상태 가져오기
+        result={aiChance.result}           // AI가 분석한 (identity, narrative) 데이터
+        onClose={() => closeModal('aiChance')} // 닫기 버튼 누르면 상자 닫기
+      />
+
+      {/* 안내 모달 (얼굴 클릭하라는 창) */}
+      <UserSelectModal 
+        isOpen={isGuidanceOpen} 
+        onClose={() => setIsGuidanceOpen(false)} 
+      />
 
       {/* 게임 종료 모달 */}
       {showGameEndModal && gameResult && (
