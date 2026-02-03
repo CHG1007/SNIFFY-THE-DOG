@@ -1,4 +1,9 @@
-HELP.md
+### Markdown ###
+*.md
+**/**.md
+!README.md
+!**/README.md
+
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
@@ -35,8 +40,6 @@ bin/
 ### VS Code ###
 .vscode/
 node_modules/
-
-**/claude.md
 
 ### Docker ###
 docker-compose.local.yml
