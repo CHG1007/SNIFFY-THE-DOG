@@ -258,8 +258,9 @@ const WaitingRoomPage = () => {
   const formattedPlayers = players.map(p => ({
     userId: p.userId,
     name: p.nickname || p.displayName,
+    displayName: p.nickname || p.displayName,
     isHost: p.userId === roomInfo.hostUserId,
-    isReady: p.ready,
+    ready: p.ready,
     isMicOn: p.userId === myInfo.userId ? isMicOn : false,
     isVideoOn: p.userId === myInfo.userId ? isVideoOn : true,
     photo: p.profileImage,
