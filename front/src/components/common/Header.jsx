@@ -76,8 +76,8 @@ const Header = () => {
             </li>
             {user?.isAdmin && (
             <li 
-              onClick={() => navigate('/admin')}
-              className="px-4 py-3 text-sm hover:bg-[#ff8a00] hover:text-white transition-colors cursor-pointer border-b border-gray-800"
+              onClick={() => { navigate('/admin'); setIsMenuOpen(false); }}
+              className="py-4 text-center text-lg hover:text-primary transition-colors cursor-pointer border-b border-gray-800"
             >
               관리자 페이지
             </li>

@@ -1,6 +1,6 @@
-package com.a407.sniffythedog.adapter.in.http.night;
+package com.a407.sniffythedog.adapter.in.night;
 
-import com.a407.sniffythedog.adapter.in.http.night.request.TargetRequest;
+import com.a407.sniffythedog.adapter.in.night.request.TargetRequest;
 import com.a407.sniffythedog.application.night.in.*;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;

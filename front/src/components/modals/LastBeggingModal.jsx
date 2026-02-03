@@ -2,6 +2,8 @@ import ModalWrapper from './ModalWrapper';
 import ConfirmBtn from '../common/ConfirmBtn';
 
 const LastBeggingModal = ({ isOpen, onClose, onConfirm, message }) => {
+  const isConfirmType = Boolean(onConfirm);
+
   return (
     <ModalWrapper isOpen={isOpen} onClose={onClose} className="min-h-[280px]">
       <div className="flex flex-col items-center justify-center w-full h-full py-6">
@@ -11,11 +13,14 @@ const LastBeggingModal = ({ isOpen, onClose, onConfirm, message }) => {
         </p>
 
         <div className="flex w-full gap-4 px-4">
-          <ConfirmBtn 
-            text="Yes" 
-            className="flex-1 py-3 text-xl" 
-            onClick={onConfirm} 
-          />
+          {/* 1. Yes/No가 필요한 '선택형'일 때만 Yes 버튼을 보여줌 */}
+          {isConfirmType && (
+            <ConfirmBtn 
+              text="Yes" 
+              className="flex-1 py-3 text-xl" 
+              onClick={onConfirm} 
+            />
+          )}
           <ConfirmBtn 
             text="No" 
             variant="secondary" 

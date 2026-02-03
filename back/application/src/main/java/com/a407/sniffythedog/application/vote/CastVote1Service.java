@@ -45,7 +45,7 @@ public class CastVote1Service implements CastVote1UseCase {
             if (room.getStatus() != RoomStatus.PLAYING) {
                 throw ApplicationException.of(ExceptionType.ROOM_NOT_JOINABLE);
             }
-            if (room.getGameState().phase() != Phase.DAY) {
+            if (room.getGameState().phase() != Phase.VOTE_1) {
                 throw ApplicationException.of(ExceptionType.INVALID_PHASE);
             }
 

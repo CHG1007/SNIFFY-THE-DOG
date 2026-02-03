@@ -1,11 +1,13 @@
 package com.a407.sniffythedog.application.game.in;
 
 import com.a407.sniffythedog.domain.game.entity.PlayerState;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record PlayerSummary(
         Long userId,
         String nickname,
         int seatNo,
+        @JsonProperty("ready")
         boolean isReady,
         boolean isAlive
 ) {

@@ -10,13 +10,14 @@ import MyPage from './pages/MyPage';
 import AdminPage from './pages/AdminPage';
 import WaitingRoomPage from './pages/WaitingRoomPage';
 import ResultPage from './pages/ResultPage';
+import GamePage from './pages/GamePage';
 
 // Components
 import Header from './components/common/Header';
 import WithHeaderLayout from './components/common/WithHeaderLayout';
 import AiTestLauncher from './components/aitest/AiTestLauncher';
 
-// 1. 애니메이션 래퍼 (본인의 UI 기능)
+// 1. 애니메이션 래퍼 
 const PageWrapper = ({ children }) => (
   <motion.div
     initial={{ opacity: 0 }}
@@ -44,19 +45,23 @@ const AnimatedRoutes = () => {
           <PageWrapper>
             <WithHeaderLayout backgroundUrl="/assets/images/roompage/background.png">
               <RoomPage />
-            </WithHeaderLayout>
+            </WithHeaderLayout> 
           </PageWrapper>
         } />
 
-        {/* 3. 게임 대기방 (팀원이 추가한 두 가지 경로 모두 애니메이션 적용) */}
+        {/* 3. 게임 대기방  */}
         <Route path="/waiting-room/:roomId" element={<PageWrapper><Header /><WaitingRoomPage /></PageWrapper>} />
-        <Route path="/rooms/:roomId" element={<PageWrapper><Header /><WaitingRoomPage /></PageWrapper>} />
+        {/* <Route path="/rooms/:roomId" element={<PageWrapper><Header /><WaitingRoomPage /></PageWrapper>} /> 
+        {/* rooms/roomId 는 삭제 필요 } */}
 
         {/* 4. 마이페이지 및 관리자 */}
         <Route path="/users" element={<PageWrapper><Header /><MyPage /></PageWrapper>} />
         <Route path="/admin" element={<PageWrapper><Header /><AdminPage /></PageWrapper>} />
 
-        {/* 5. 테스트 페이지 */}
+        {/* 5. 게임 진행 페이지 */}
+        <Route path="/game/:roomId" element={<PageWrapper><GamePage /></PageWrapper>} />
+
+        {/* 6. 테스트 페이지 */}
         <Route path="/video-test" element={<PageWrapper><VideoTestPage /></PageWrapper>} />
         <Route path="/result" element= {<PageWrapper><ResultPage /></PageWrapper>} />
       </Routes>
@@ -67,7 +72,7 @@ const AnimatedRoutes = () => {
 function App() {
   return (
     <BrowserRouter>
-      {/* 본인의 디자인 의도: 배경을 검은색으로 고정하여 애니메이션 효과 극대화 */}
+      {/* 배경을 검은색으로 고정하여 애니메이션 효과 극대화 */}
       <div className="min-h-screen overflow-x-hidden bg-black">
         <AiTestLauncher />
         <AnimatedRoutes />

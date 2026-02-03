@@ -24,7 +24,7 @@ const WaitingGrid = ({ players, myId, isHost, onKick, capacity = 6 }) => {
         return (
           <div 
             key={player ? player.userId : `empty-${index}`} 
-            className={`flex-grow-0 flex-shrink-0 ${getFlexBasis()} min-w-[200px] transition-all duration-500`}
+            className={`flex-grow-0 flex-shrink-0 ${getFlexBasis()} min-w-[240px] transition-all duration-500`}
           >
             {player ? (
               <WaitingSlot 

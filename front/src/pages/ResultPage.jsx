@@ -1,5 +1,35 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import LastBeggingModal from '../components/modals/LastBeggingModal';
+import FutureReportModal from "../components/modals/FutureReportModal";
+import useGameStore from "../stores/useGameStore"
+
+const reportData = {
+  MAFIA: {
+    win: { jobTitle: "전설의 고독한 미식가", stats: [], message: "밤의 미식회가 승리로 끝났습니다. 이제 당신은 누구의 눈치도 보지 않고 최고급 만찬을 즐길 수 있습니다." },
+    lose: { jobTitle: "은퇴한 뒷골목 대장", stats: [], message: "계획은 완벽했으나 운이 없었군요. 이제 뒷골목을 떠나 조용히 요양하며 지난날을 회상할 시간입니다." }
+  },
+  POLICE: {
+    win: { jobTitle: "전설의 수사반장", stats: [], message: "모든 범죄를 소탕했습니다! 당신은 이제 정의의 상징으로 역사에 기록될 것이며, 평생 연금을 받으며 평화로운 노후를 보낼 것입니다." },
+    lose: { jobTitle: "좌천된 파출소 순경", stats: [], message: "범인을 눈앞에서 놓친 충격으로 명예퇴직을 선택했습니다. 조용한 시골에서 낚시나 하며 여생을 보내게 될 것입니다." }
+  },
+  DOCTOR: {
+    win: { jobTitle: "신의 손을 가진 명의", stats: [], message: "당신이 살려낸 생명들이 마을을 평화롭게 만들었습니다. 이제 메스를 내려놓고 당신의 건강을 돌보며 행복하게 사세요." },
+    lose: { jobTitle: "면허 정지 위기의 돌팔이", stats: [], message: "치료법이 조금 독특했을 뿐인데... 결국 의사 가운을 벗게 되었습니다. 이제 약초나 캐러 산으로 떠날 준비를 하세요." }
+  },
+  CITIZEN: [
+    {
+      jobTitle: "영양사",
+      stats: [
+        { label: "갱생시킨 편식쟁이 학생", value: "2,500명", desc: "(피망까지 다 먹게 만듦)" },
+        { label: "뒤집개로 때려잡은 마피아", value: "48명", desc: "(스테이크 굽듯이 노릇하게 구워줌)" },
+        { label: "급식실 위생 점수", value: "100만 점", desc: "(바이러스가 미끄러져서 못 들어옴)" },
+      ],
+      message: "드디어 뒤집개를 내려놓을 시간입니다. 누구의 입맛도 맞출 필요 없는 오직 당신만을 위한 만찬을 즐기며 평생을 행복하게 살 것입니다."
+    }
+    // ... 시민 직업 50개 추가 지점
+  ]
+};
 
 export default function ResultPage() {
   const location = useLocation();
@@ -8,6 +38,61 @@ export default function ResultPage() {
   const winner = params.get("winner") === "mafia" ? "mafia" : "citizen";
   const config = useMemo(() => getResultConfig(winner), [winner]);
   const players = location.state?.players ?? defaultPlayers;
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showFutureReport, setShowFutureReport] = useState(false);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const { myInfo, gameResult } = useGameStore();
+  
+  useEffect(() => {
+    // 3초(3000ms) 후에 모달 상태를 true로 변경
+    const timer = setTimeout(() => {
+      setIsModalOpen(true);
+    }, 3000);
+
+    return () => clearTimeout(timer); // 컴포넌트 언마운트 시 타이머 정리
+  }, []);
+  
+
+  // 첫 번째 모달에서 '아니오'를 누르거나 닫을 때 실행되는 함수
+  const handleCloseFirstModal = () => {
+    setIsModalOpen(false);
+    navigate("/rooms");
+  };
+
+  const handleConfirm = () => {
+    setIsModalOpen(false);
+
+    // ✅ 내 직업과 승패 판별 로직
+    const myRole = myInfo.role; // MAFIA, CITIZEN, POLICE, DOCTOR
+    const winnerTeam = gameResult?.winnerTeam || (winner === 'mafia' ? 'MAFIA' : 'CITIZEN');
+    
+    // 내가 마피아면 마피아팀 승리 시 win, 아니면 lose
+    // 내가 시민/경찰/의사면 시민팀 승리 시 win, 아니면 lose
+    const isWin = (myRole === 'MAFIA' && winnerTeam === 'MAFIA') || 
+                  (myRole !== 'MAFIA' && winnerTeam === 'CITIZEN');
+
+    let report;
+    if (myRole === 'MAFIA') {
+      report = isWin ? reportData.MAFIA.win : reportData.MAFIA.lose;
+    } else if (myRole === 'POLICE') {
+      report = isWin ? reportData.POLICE.win : reportData.POLICE.lose;
+    } else if (myRole === 'DOCTOR') {
+      report = isWin ? reportData.DOCTOR.win : reportData.DOCTOR.lose;
+    } else {
+      // 시민은 승패 상관없이 랜덤 혹은 승패에 따른 랜덤을 원하시면 로직 추가 가능
+      const citizenJobs = reportData.CITIZEN;
+      report = citizenJobs[Math.floor(Math.random() * citizenJobs.length)];
+    }
+
+    setSelectedReport(report);
+    setShowFutureReport(true);
+  };
+
+  // 두 번째 모달(미래 보고서)에서 '확인'을 눌렀을 때 실행
+  const handleFinalClose = () => {
+    setShowFutureReport(false);
+    navigate("/rooms"); // 즉시 이동
+  };
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-black">
@@ -92,6 +177,17 @@ export default function ResultPage() {
           </div>
         </div>
       </div>
+      <LastBeggingModal 
+        isOpen={isModalOpen} 
+        onClose={handleCloseFirstModal}
+        onConfirm={handleConfirm}
+        message={"당신의 미래를\n알고 싶으신가요?"}
+      />
+      <FutureReportModal 
+        isOpen={showFutureReport} 
+        onClose={handleFinalClose} 
+        data={selectedReport}
+      />
     </div>
   );
 }
@@ -102,7 +198,7 @@ function getResultConfig(winner) {
     return {
       titleText: "MAFIA WIN",
       backgroundSrc: "/assets/images/citizenlose.png",
-      overlay: "bg-black/55",
+      overlay: "",
       panelBorder: "border-primary/60",
       primaryBtn: "bg-primary text-black hover:brightness-105 active:brightness-95",
     };
@@ -111,7 +207,7 @@ function getResultConfig(winner) {
   return {
     titleText: "CITIZEN WIN",
     backgroundSrc: "/assets/images/resultpage/citizenwin.png",
-    overlay: "bg-black/35",
+    overlay: "",
     panelBorder: "border-primary/60",
     primaryBtn: "bg-primary text-black hover:brightness-105 active:brightness-95",
   };

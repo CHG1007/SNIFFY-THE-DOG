@@ -64,6 +64,16 @@ public class PlayerState {
         this.alive = true;
     }
 
+    /**
+     * 새 게임을 위해 플레이어 상태 초기화
+     */
+    public void resetForNewGame() {
+        this.ready = false;
+        this.alive = true;
+        this.gameRole = null;
+        this.remainingChances = 0;
+    }
+
     public boolean useChance() {
         if (remainingChances <= 0) {
             return false;
@@ -89,7 +99,8 @@ public class PlayerState {
     }
 
     public boolean isCitizenTeam() {
-        return gameRole != GameRole.MAFIA;
+        // gameRole이 null이면 아직 역할 미배정 상태 -> 시민팀으로 판정하지 않음
+        return gameRole != null && gameRole != GameRole.MAFIA;
     }
 
     // Getters

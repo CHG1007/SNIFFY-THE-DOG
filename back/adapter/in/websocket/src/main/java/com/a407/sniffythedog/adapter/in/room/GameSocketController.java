@@ -23,6 +23,8 @@ public class GameSocketController {
     private final SyncRoomUseCase syncRoomUseCase;
     private final SetReadyUseCase setReadyUseCase;
     private final KickUserUseCase kickUserUseCase;
+    private final RestartGameUseCase restartGameUseCase;
+    private final PhaseEndUseCase phaseEndUseCase;
 
     @MessageMapping("/rooms/{roomCode}/join")
     public void joinRoom(@DestinationVariable String roomCode,
@@ -99,4 +101,48 @@ public class GameSocketController {
         kickUserUseCase.execute(command);
     }
 
+    /**
+     * 게임 종료 후 대기실로 복귀
+     */
+    @MessageMapping("/rooms/{roomCode}/restart")
+    public void restartGame(
+            @DestinationVariable String roomCode,
+            @Payload RestartRequest request,
+            Principal principal
+    ) {
+        Long userId = Long.valueOf(principal.getName());
+
+        RestartGameCommand command = new RestartGameCommand(
+                roomCode,
+                userId,
+                request.requestId()
+        );
+
+        restartGameUseCase.execute(command);
+    }
+
+    public record RestartRequest(String requestId) {}
+
+    /**
+     * Phase End 방식 - 클라이언트가 Phase 종료를 트리거
+     */
+    @MessageMapping("/rooms/{roomCode}/phase/end")
+    public void endPhase(
+            @DestinationVariable String roomCode,
+            @Payload PhaseEndRequest request,
+            Principal principal
+    ) {
+        Long userId = Long.valueOf(principal.getName());
+
+        PhaseEndCommand command = new PhaseEndCommand(
+                roomCode,
+                userId,
+                request.phase(),
+                request.requestId()
+        );
+
+        phaseEndUseCase.execute(command);
+    }
+
+    public record PhaseEndRequest(String phase, String requestId) {}
 }
