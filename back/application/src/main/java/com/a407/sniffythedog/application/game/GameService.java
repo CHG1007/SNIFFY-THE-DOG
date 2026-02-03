@@ -17,6 +17,7 @@ import com.a407.sniffythedog.domain.game.vo.PhaseTiming;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
 import com.a407.sniffythedog.domain.gamelog.vo.PlayerResult;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase, SetReadyUseCase, KickUserUseCase, RestartGameUseCase {
@@ -360,6 +362,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
      */
     @EventListener
     public void handlePhaseTimeout(PhaseTimeoutEvent event){
+        log.info("[Phase Timeout] roomCode={}, eventVersion={}", event.roomCode(), event.version());
         advancePhase(event.roomCode(), event.version());
     }
 
@@ -376,21 +379,30 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
      */
     private void startGameByKey(String roomCode, long expectedVersion) {
         RoomId roomId = new RoomId(roomCode);
+        log.info("[startGameByKey] Starting game - roomCode={}, expectedVersion={}", roomCode, expectedVersion);
 
         try {
             RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room -> {
+                log.info("[startGameByKey] Inside atomic update - currentVersion={}, expectedVersion={}",
+                        room.getVersion(), expectedVersion);
                 if (room.getVersion() != expectedVersion) {
+                    log.warn("[startGameByKey] Version mismatch, not starting game");
                     return room;
                 }
 
                 room.startGame(GAME_TIMING);
+                log.info("[startGameByKey] Game started - newPhase={}, phaseEndsAt={}",
+                        room.getGameState().phase(), room.getGameState().phaseEndsAt());
                 return room;
             });
 
             if (updatedRoom.getVersion() != expectedVersion + 1) {
+                log.warn("[startGameByKey] Game start was not applied (version mismatch)");
                 cancelAutoStart(roomCode);
                 return;
             }
+
+            log.info("[startGameByKey] Game started successfully - version={}", updatedRoom.getVersion());
 
             List<PlayerResult> initialPlayers = updatedRoom.getPlayers().values().stream()
                     .map(p -> PlayerResult.of(
@@ -444,22 +456,35 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
      */
     private void advancePhase(String roomCode, long expectedVersion) {
         RoomId roomId = new RoomId(roomCode);
+        log.info("[advancePhase] Starting - roomCode={}, expectedVersion={}", roomCode, expectedVersion);
         try {
             RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room -> {
+                log.info("[advancePhase] Inside atomic update - currentVersion={}, expectedVersion={}, currentPhase={}, status={}",
+                        room.getVersion(), expectedVersion, room.getGameState().phase(), room.getStatus());
 
                 if (room.getVersion() != expectedVersion) {
+                    log.warn("[advancePhase] Version mismatch! currentVersion={}, expectedVersion={}", room.getVersion(), expectedVersion);
                     return room;
                 }
 
                 room.proceedToNextPhase(GAME_TIMING);
+                log.info("[advancePhase] After proceedToNextPhase - newPhase={}, newVersion={}",
+                        room.getGameState().phase(), room.getVersion());
                 return room;
             });
 
+            log.info("[advancePhase] After atomic update - updatedVersion={}, expectedVersion+1={}",
+                    updatedRoom.getVersion(), expectedVersion + 1);
 
-            if (updatedRoom.getVersion() != expectedVersion+1) return;
+            if (updatedRoom.getVersion() != expectedVersion+1) {
+                log.warn("[advancePhase] Update was not applied (version didn't change). Skipping phase change messages.");
+                return;
+            }
 
+            log.info("[advancePhase] Sending phase change messages - phase={}", updatedRoom.getGameState().phase());
             handlePhaseChangeMessages(updatedRoom, roomCode);
         } catch (Exception e) {
+            log.error("[advancePhase] Exception occurred", e);
             gameMessagePort.sendToRoom(
                     roomCode,
                     "ERROR",
@@ -470,20 +495,25 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
     }
 
     private void handlePhaseChangeMessages(RoomSession room, String roomCode) {
+        log.info("[handlePhaseChangeMessages] roomCode={}, status={}, phase={}, version={}",
+                roomCode, room.getStatus(), room.getGameState().phase(), room.getVersion());
 
         if (room.getStatus() == RoomStatus.ENDED) {
-            //todo: 게임 종료
+            log.info("[handlePhaseChangeMessages] Game ENDED, skipping phase change");
             return;
         }
 
         Map<String, Object> phasePayload = Map.of(
                 "version", room.getVersion(),
-                "phase", room.getGameState().phase(),
+                "phase", room.getGameState().phase().name(),
                 "phaseEndsAt", room.getGameState().phaseEndsAt()
         );
+        log.info("[handlePhaseChangeMessages] Sending PHASE_CHANGED - phase={}, phaseEndsAt={}",
+                room.getGameState().phase().name(), room.getGameState().phaseEndsAt());
         gameMessagePort.sendToRoom(roomCode, "PHASE_CHANGED", phasePayload);
 
-
+        log.info("[handlePhaseChangeMessages] Scheduling next phase timeout - version={}, at={}",
+                room.getVersion(), room.getGameState().phaseEndsAt());
         phaseScheduler.scheduleEvent(
                 roomCode,
                 room.getGameState().phaseEndsAt(),
