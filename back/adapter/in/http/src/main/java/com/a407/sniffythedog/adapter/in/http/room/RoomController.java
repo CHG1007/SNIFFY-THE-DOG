@@ -4,6 +4,7 @@ import com.a407.sniffythedog.adapter.in.http.common.response.ApiResponse;
 import com.a407.sniffythedog.adapter.in.http.global.security.AuthenticatedUser;
 import com.a407.sniffythedog.adapter.in.http.room.request.CreateRoomRequest;
 import com.a407.sniffythedog.adapter.in.http.room.response.CreateRoomResponse;
+import com.a407.sniffythedog.adapter.in.http.room.response.PublicRoomsPageResponse;
 import com.a407.sniffythedog.adapter.in.http.room.response.RoomSummaryResponse;
 import com.a407.sniffythedog.application.room.in.*;
 import jakarta.validation.Valid;
@@ -49,23 +50,23 @@ public class RoomController {
     }
 
     @GetMapping()
-    public ApiResponse<List<RoomSummaryResponse>> getPublicRooms(
+    public ApiResponse<PublicRoomsPageResponse> getPublicRooms(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "6") int size
     ) {
-        List<GetPublicRoomResult> results = getPublicRoomUseCase.getPublicRooms(page, size);
+        GetPublicRoomsPageResult result = getPublicRoomUseCase.getPublicRooms(page, size);
 
-        List<RoomSummaryResponse> response = results.stream()
-                .map(result -> RoomSummaryResponse.builder()
-                        .roomId(result.roomId())
-                        .title(result.title())
-                        .currentCount(result.currentCount())
-                        .capacity(result.capacity())
-                        .isPrivate(result.isPrivate())
+        List<RoomSummaryResponse> rooms = result.rooms().stream()
+                .map(room -> RoomSummaryResponse.builder()
+                        .roomId(room.roomId())
+                        .title(room.title())
+                        .currentCount(room.currentCount())
+                        .capacity(room.capacity())
+                        .isPrivate(room.isPrivate())
                         .build())
                 .collect(Collectors.toList());
 
-        return ApiResponse.success(response);
+        return ApiResponse.success(new PublicRoomsPageResponse(rooms, result.pageInfo()));
     }
     // inviteCode가 있을 때만 이 메서드가 매칭됨
     @GetMapping(params = "inviteCode")
