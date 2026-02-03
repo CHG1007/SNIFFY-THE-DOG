@@ -46,7 +46,7 @@ const Pagination = ({ currentPage, totalPages, onSelect, onPrev, onNext }) => {
             min-w-[36px] h-9 flex items-center justify-center rounded-lg font-bold transition-all
             ${page === '...' ? 'cursor-default text-gray-500' : 'cursor-pointer'}
             ${currentPage === page 
-              ? 'bg-[#FF8A00] text-white shadow-lg shadow-orange-900/20' 
+              ? 'bg-primary text-white shadow-lg shadow-primary/20' 
               : 'text-gray-400 hover:bg-white/5 hover:text-white'}
           `}
         >

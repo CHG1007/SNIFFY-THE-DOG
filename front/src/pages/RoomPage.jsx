@@ -129,7 +129,7 @@ export default function RoomPage() {
         leftPanel={<LeftPanel />}
         mainPanel={
           <div className="w-full max-w-[1050px] h-[60vh] min-h-[465px] max-h-[550px] self-start flex flex-col rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-5 overflow-hidden shadow-2xl">
-            <div className="w-full max-w-[1000px] mx-auto flex flex-col min-h-0 overflow-hidden">
+            <div className="w-full max-w-[1000px] mx-auto flex flex-col h-full min-h-0 overflow-hidden justify-between">
               {/* 방 목록 그리드 */}
               <div className="relative grid grid-cols-3 gap-4 pt-4 px-4 overflow-hidden flex-1 content-start">
                 {rooms.length > 0 ? (
@@ -145,7 +145,7 @@ export default function RoomPage() {
                     />
                   ))
                 ) : (
-                  <div className="col-span-3 flex flex-col justify-center items-center h-[350px] gap-2">
+                  <div className="col-span-3 flex flex-col justify-center items-center h-[380px] gap-2">
                     <div className="w-[180px] h-[180px]">
                       {emptyAnim ? <Lottie animationData={emptyAnim} loop autoplay /> : null}
                     </div>
@@ -157,7 +157,7 @@ export default function RoomPage() {
               </div>
 
               {/* 페이지네이션 */}
-              <div className="shrink-0 flex justify-center pt-4 pb-2">
+              <div className="shrink-0 mt-auto flex justify-center pt-10 pb-2">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
