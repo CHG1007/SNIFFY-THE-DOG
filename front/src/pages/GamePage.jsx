@@ -72,6 +72,7 @@ const GamePage = () => {
   const [showNightResultModal, setShowNightResultModal] = useState(false);
   const [showGameEndModal, setShowGameEndModal] = useState(false);
   const [nightTargetPlayer, setNightTargetPlayer] = useState(null);
+  const [capacity, setCapacity] = useState(6); // 방 최대 인원
 
   // Refs
   const myInfoRef = useRef(myInfo);
@@ -88,8 +89,11 @@ const GamePage = () => {
     if (state.myInfo) {
       setMyInfo(state.myInfo);
     }
-    if (state.players) {
+    if (state.players && state.players.length > 0) {
       setPlayers(state.players);
+    }
+    if (state.capacity) {
+      setCapacity(state.capacity);
     }
     initRoom(roomId);
   }, [location.state, roomId, setMyInfo, setPlayers, initRoom]);
@@ -121,6 +125,10 @@ const GamePage = () => {
         // 페이즈 정보가 있으면 설정
         if (data.roomState?.phase) {
           setPhase(data.roomState.phase, data.roomState.phaseEndsAt);
+        }
+        // capacity 정보가 있으면 설정
+        if (data.roomState?.capacity) {
+          setCapacity(data.roomState.capacity);
         }
         break;
 
@@ -418,54 +426,68 @@ const GamePage = () => {
             />
           </div>
         ) : (
-          <div className="flex flex-wrap justify-center content-center gap-6 w-full h-full max-h-[85vh] pt-4">
-            {standardizedPlayers.map((player) => (
-              <div
-                key={player.userId}
-                className={`flex-grow-0 flex-shrink-0 ${getFlexBasis(standardizedPlayers.length)} min-w-[320px] transition-all duration-500`}
-              >
-                <div className="w-full h-full aspect-video relative">
-                  <GameVideoSlot
-                    player={player}
-                    isMe={String(player.userId) === String(myInfo.userId)}
-                    canVote={gamePhase === 'DAY_VOTE' && amIAlive}
-                    didIVote={vote1.hasVoted}
-                    onVoteRequest={() => handleVoteClick(player)}
-                    size="normal"
-                  />
+          <div className="flex flex-wrap justify-center content-center gap-4 w-full h-full max-h-[85vh] pt-4 px-8">
+            {/* capacity 만큼 슬롯 생성 (대기방처럼) */}
+            {Array.from({ length: capacity }).map((_, index) => {
+              const player = standardizedPlayers[index];
 
-                  {/* 밤 행동 버튼 (마피아/의사/경찰) */}
-                  {gamePhase === 'NIGHT' && amIAlive && player.isAlive &&
-                   String(player.userId) !== String(myInfo.userId) &&
-                   ['MAFIA', 'DOCTOR', 'POLICE'].includes(myInfo.role) && (
-                    <button
-                      onClick={() => handleNightAction(player)}
-                      disabled={nightAction.hasActed}
-                      className={`absolute bottom-3 right-3 z-50 px-3 py-1 rounded-full text-xs font-bold transition-all
-                        ${nightAction.hasActed
-                          ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                          : 'bg-purple-600 hover:bg-purple-500 text-white'
-                        }`}
-                    >
-                      {myInfo.role === 'MAFIA' ? '습격' : myInfo.role === 'DOCTOR' ? '치료' : '조사'}
-                    </button>
-                  )}
+              return (
+                <div
+                  key={player ? player.userId : `empty-${index}`}
+                  className={`flex-grow-0 flex-shrink-0 ${getFlexBasis(capacity)} min-w-[280px] max-w-[400px] transition-all duration-500`}
+                >
+                  {player ? (
+                    <div className="w-full aspect-video relative">
+                      <GameVideoSlot
+                        player={player}
+                        isMe={String(player.userId) === String(myInfo.userId)}
+                        canVote={gamePhase === 'DAY_VOTE' && amIAlive}
+                        didIVote={vote1.hasVoted}
+                        onVoteRequest={() => handleVoteClick(player)}
+                        size="normal"
+                      />
 
-                  {/* AI 찬스 버튼 (시민, 낮에만) */}
-                  {gamePhase === 'DAY' && amIAlive &&
-                   myInfo.role === 'CITIZEN' && myInfo.aiChanceRemaining > 0 &&
-                   String(player.userId) !== String(myInfo.userId) && player.isAlive && (
-                    <button
-                      onClick={() => handleAiChance(player)}
-                      className="absolute bottom-3 left-3 z-50 px-3 py-1 rounded-full text-xs font-bold
-                                 bg-yellow-600 hover:bg-yellow-500 text-white transition-all"
-                    >
-                      AI 분석
-                    </button>
+                      {/* 밤 행동 버튼 (마피아/의사/경찰) */}
+                      {gamePhase === 'NIGHT' && amIAlive && player.isAlive &&
+                       String(player.userId) !== String(myInfo.userId) &&
+                       ['MAFIA', 'DOCTOR', 'POLICE'].includes(myInfo.role) && (
+                        <button
+                          onClick={() => handleNightAction(player)}
+                          disabled={nightAction.hasActed}
+                          className={`absolute bottom-3 right-3 z-50 px-3 py-1 rounded-full text-xs font-bold transition-all
+                            ${nightAction.hasActed
+                              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                              : 'bg-purple-600 hover:bg-purple-500 text-white'
+                            }`}
+                        >
+                          {myInfo.role === 'MAFIA' ? '습격' : myInfo.role === 'DOCTOR' ? '치료' : '조사'}
+                        </button>
+                      )}
+
+                      {/* AI 찬스 버튼 (시민, 낮에만) */}
+                      {gamePhase === 'DAY' && amIAlive &&
+                       myInfo.role === 'CITIZEN' && myInfo.aiChanceRemaining > 0 &&
+                       String(player.userId) !== String(myInfo.userId) && player.isAlive && (
+                        <button
+                          onClick={() => handleAiChance(player)}
+                          className="absolute bottom-3 left-3 z-50 px-3 py-1 rounded-full text-xs font-bold
+                                     bg-yellow-600 hover:bg-yellow-500 text-white transition-all"
+                        >
+                          AI 분석
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    /* 빈 슬롯 (대기방 스타일) */
+                    <div className="w-full aspect-video bg-[#1a1a1a]/50 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center">
+                      <span className="text-white/20 text-sm font-medium tracking-wider">
+                        EMPTY
+                      </span>
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
