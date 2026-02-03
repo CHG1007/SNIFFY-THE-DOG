@@ -40,14 +40,12 @@ export default function RoomPage() {
   const [rooms, setRooms] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const pageSize = 6;
 
   // 모달 상태 관리
   const [isFindGameOpen, setIsFindGameOpen] = useState(false);
   const [isCreateGameOpen, setIsCreateGameOpen] = useState(false);
-
-  // TODO: 실제 백엔드에서 totalPages 내려주면 그 값으로 교체
-  const totalPages = 10;
 
   // 빠른 입장
   const handleQuickJoin = () => {
@@ -76,7 +74,13 @@ export default function RoomPage() {
       setIsLoading(true);
       const response = await getRoomList(page - 1, pageSize); // 0-based
       if (response.success) {
-        setRooms(response.data || []);
+        const roomsData = response.data?.rooms ?? response.data ?? [];
+        const pageInfo = response.data?.pageInfo;
+
+        setRooms(roomsData);
+        if (typeof pageInfo?.totalPages === "number") {
+          setTotalPages(pageInfo.totalPages);
+        }
       }
     } catch (error) {
       console.error("방 목록 로딩 실패:", error);
@@ -127,14 +131,14 @@ export default function RoomPage() {
           <div className="w-full max-w-[1050px] h-[60vh] min-h-[465px] max-h-[550px] self-start flex flex-col rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-5 overflow-hidden shadow-2xl">
             <div className="w-full max-w-[1000px] mx-auto flex flex-col min-h-0 overflow-hidden">
               {/* 방 목록 그리드 */}
-              <div className="relative grid grid-cols-3 gap-4 pt-4 px-4 overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 content-start">
+              <div className="relative grid grid-cols-3 gap-4 pt-4 px-4 overflow-hidden flex-1 content-start">
                 {rooms.length > 0 ? (
                   rooms.map((room) => (
                     <RoomCard
                       key={room.roomId}
                       roomCode={room.roomId.substring(0, 8)}
                       title={room.title}
-                      hostName={room.isPrivate ? "PRIVATE" : "PUBLIC"}
+                      hostName={(room.isPrivate ?? room.private) ? "PRIVATE" : "PUBLIC"}
                       current={room.currentCount}
                       capacity={room.capacity}
                       onJoin={() => handleJoinRoom(room)}
