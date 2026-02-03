@@ -75,22 +75,28 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
 
     @Override
     public AdminLoginResult adminLogin(AdminLoginCommand command) {
-        boolean isValidAdminId = "admin".equals(command.id()) ||
-            "admin1".equals(command.id()) ||
-            "admin2".equals(command.id()) ||
-            "admin3".equals(command.id()) ||
-            "admin4".equals(command.id()) ||
-            "admin5".equals(command.id());
+        Long adminUserId = resolveAdminUserId(command.id());
 
-        if (!isValidAdminId || !"1234".equals(command.password())) {
+        if (adminUserId == null || !"1234".equals(command.password())) {
             throw ApplicationException.of(ExceptionType.BAD_REQUEST, "Invalid admin credentials");
         }
 
-        // 0L is used for admin user which doesn't exist in DB
-        IssuedToken accessToken = tokenIssuerPort.issueAccessToken(0L, "ROLE_ADMIN");
-        IssuedToken refreshToken = tokenIssuerPort.issueRefreshToken(0L);
+        IssuedToken accessToken = tokenIssuerPort.issueAccessToken(adminUserId, "ROLE_ADMIN");
+        IssuedToken refreshToken = tokenIssuerPort.issueRefreshToken(adminUserId);
 
         return new AdminLoginResult(accessToken.token(), refreshToken.token());
+    }
+
+    private Long resolveAdminUserId(String adminId) {
+        return switch (adminId) {
+            case "admin" -> 1000L;
+            case "admin1" -> 1001L;
+            case "admin2" -> 1002L;
+            case "admin3" -> 1003L;
+            case "admin4" -> 1004L;
+            case "admin5" -> 1005L;
+            default -> null;
+        };
     }
 
     @Override
