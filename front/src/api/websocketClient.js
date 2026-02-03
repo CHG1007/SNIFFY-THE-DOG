@@ -10,6 +10,42 @@ const getSocketUrl = () => {
   return baseUrl.replace(/^http/, 'ws') + '/ws';
 };
 
+// 콘솔 로그 스타일 (색상으로 구분)
+const logStyles = {
+  send: 'background: #4CAF50; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+  receive: 'background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+  private: 'background: #9C27B0; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+  mafia: 'background: #F44336; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+  system: 'background: #FF9800; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+  error: 'background: #D32F2F; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
+};
+
+// 로깅 함수
+const wsLog = {
+  send: (destination, payload) => {
+    console.log('%c⬆ SEND', logStyles.send, destination);
+    console.log('  Payload:', payload);
+  },
+  receive: (channel, type, data) => {
+    console.log(`%c⬇ ${channel}`, logStyles.receive, type);
+    console.log('  Data:', data);
+  },
+  private: (type, data) => {
+    console.log('%c⬇ PRIVATE', logStyles.private, type);
+    console.log('  Data:', data);
+  },
+  mafia: (type, data) => {
+    console.log('%c⬇ MAFIA', logStyles.mafia, type);
+    console.log('  Data:', data);
+  },
+  system: (message, ...args) => {
+    console.log('%c🔌 WS', logStyles.system, message, ...args);
+  },
+  error: (message, ...args) => {
+    console.log('%c❌ WS ERROR', logStyles.error, message, ...args);
+  },
+};
+
 class WebSocketClient {
   constructor() {
     this.client = null;
@@ -30,7 +66,7 @@ class WebSocketClient {
 
     const accessToken = useAuthStore.getState().accessToken;
 
-    console.log(`[WS] Connecting to: ${getSocketUrl()}`);
+    wsLog.system('Connecting to:', getSocketUrl());
 
     this.client = new Client({
       brokerURL: getSocketUrl(),
@@ -38,20 +74,20 @@ class WebSocketClient {
         Authorization: `Bearer ${accessToken}`,
       },
       reconnectDelay: 5000,
-      debug: (str) => {
-        if (import.meta.env.DEV) console.log('[WS Debug]', str);
+      debug: () => {
+        // STOMP 프레임 디버그 비활성화 (필요시 활성화)
       },
       onConnect: () => {
-        console.log('[WS] Connected');
+        wsLog.system('Connected ✓');
         this._subscribeToRoom();
         this._sendJoinRequest();
       },
       onStompError: (frame) => {
-        console.error('[WS] Broker error:', frame.headers['message']);
-        console.error('[WS] Details:', frame.body);
+        wsLog.error('Broker error:', frame.headers['message']);
+        wsLog.error('Details:', frame.body);
       },
       onWebSocketClose: () => {
-        console.log('[WS] Connection closed');
+        wsLog.system('Connection closed');
       },
     });
 
@@ -67,7 +103,7 @@ class WebSocketClient {
       });
       this.subscriptions = {};
       this.client.deactivate();
-      console.log('[WS] Disconnected');
+      wsLog.system('Disconnected');
     }
   }
 
@@ -80,7 +116,7 @@ class WebSocketClient {
       `/topic/rooms/${this.roomCode}`,
       (message) => {
         const msg = JSON.parse(message.body);
-        if (import.meta.env.DEV) console.log('[WS] Public:', msg.type, msg);
+        wsLog.receive('PUBLIC', msg.type, msg.data || msg);
         if (this.messageCallbacks.public) {
           this.messageCallbacks.public(msg);
         }
@@ -92,12 +128,14 @@ class WebSocketClient {
       `/user/queue/rooms/${this.roomCode}`,
       (message) => {
         const msg = JSON.parse(message.body);
-        if (import.meta.env.DEV) console.log('[WS] Private:', msg.type, msg);
+        wsLog.private(msg.type, msg.data || msg);
         if (this.messageCallbacks.private) {
           this.messageCallbacks.private(msg);
         }
       }
     );
+
+    wsLog.system('Subscribed to room:', this.roomCode);
   }
 
   // 마피아 채널 구독 (역할 배정 후 마피아인 경우에만 호출)
@@ -110,13 +148,13 @@ class WebSocketClient {
       `/topic/rooms/${this.roomCode}/mafia`,
       (message) => {
         const msg = JSON.parse(message.body);
-        if (import.meta.env.DEV) console.log('[WS] Mafia:', msg.type, msg);
+        wsLog.mafia(msg.type, msg.data || msg);
         if (this.messageCallbacks.mafia) {
           this.messageCallbacks.mafia(msg);
         }
       }
     );
-    console.log('[WS] Subscribed to mafia channel');
+    wsLog.system('Subscribed to MAFIA channel 🔪');
   }
 
   // 마피아 채널 구독 해제
@@ -125,7 +163,7 @@ class WebSocketClient {
       this.subscriptions.mafia.unsubscribe();
       delete this.subscriptions.mafia;
       this.messageCallbacks.mafia = null;
-      console.log('[WS] Unsubscribed from mafia channel');
+      wsLog.system('Unsubscribed from MAFIA channel');
     }
   }
 
@@ -152,12 +190,12 @@ class WebSocketClient {
   // 메시지 전송 (범용)
   publish(type, payload = {}) {
     if (!this.client || !this.client.active) {
-      console.warn('[WS] Cannot publish, socket not active.');
+      wsLog.error('Cannot publish, socket not active.');
       return;
     }
 
     const destination = `/app/rooms/${this.roomCode}/${type}`;
-    if (import.meta.env.DEV) console.log('[WS] Publish:', destination, payload);
+    wsLog.send(destination, payload);
 
     this.client.publish({
       destination,

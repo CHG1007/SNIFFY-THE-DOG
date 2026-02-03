@@ -402,6 +402,10 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     .collect(Collectors.toList());
 
             gameLogRedisPort.initGameLog(roomCode, initialPlayers, Instant.now());
+
+            // 각 플레이어에게 역할 정보 전송 (개인 채널)
+            sendRoleAssignments(updatedRoom, roomCode);
+
             handlePhaseChangeMessages(updatedRoom, roomCode);
 
         } catch (Exception e) {
@@ -411,6 +415,28 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     Map.of("message", "게임 시작 중 오류가 발생했습니다.")
             );
         }
+    }
+
+    /**
+     * 각 플레이어에게 역할 정보 전송
+     */
+    private void sendRoleAssignments(RoomSession room, String roomCode) {
+        room.getPlayers().forEach((userId, player) -> {
+            int aiChanceRemaining = player.getGameRole().name().equals("CITIZEN") ? 2 : 0;
+
+            Map<String, Object> roleData = Map.of(
+                    "role", player.getGameRole().name(),
+                    "aiChanceRemaining", aiChanceRemaining
+            );
+
+            gameMessagePort.sendToUser(
+                    String.valueOf(userId.value()),
+                    roomCode,
+                    "role-" + System.currentTimeMillis(),
+                    "ROLE_ASSIGNED",
+                    roleData
+            );
+        });
     }
 
     /**
