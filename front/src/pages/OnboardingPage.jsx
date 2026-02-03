@@ -52,9 +52,13 @@ const OnboardingPage = () => {
     navigate('/tutorial');
   };
 
-  return (
-    <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center relative">
-      
+    return (
+    <div 
+      className="min-h-screen flex flex-col items-center justify-center relative bg-cover bg-center bg-no-repeat bg-fixed"
+      style={{
+        backgroundImage: `url('/assets/images/onboarding/background.png')`,
+      }}
+    >
       {/* 관리자 로그인 트리거 (좌측 하단 투명 영역) */}
       <div 
         className="fixed bottom-0 left-0 w-24 h-24 z-[9999]"
@@ -69,8 +73,7 @@ const OnboardingPage = () => {
       {/* 로고 섹션 */}
       <div className="mb-16 text-center">
         <h1 className="text-6xl font-black italic tracking-tighter">
-          <span className="text-[#ff8a00]">SNIFFY</span>
-          <span className="text-white ml-3">the DOG</span>
+            <img src="/assets/images/onboarding/title.png" alt="Mafia Logo" className="w-170 mx-auto mb-4" />
         </h1>
       </div>
 
@@ -92,9 +95,9 @@ const OnboardingPage = () => {
             )}
           />
         )}
-
+        
         <OnboardingBtn type="outline" onClick={handleTutorial}>
-          튜토리얼
+          튜토리얼 시작하기
         </OnboardingBtn>
       </div>
     </div>
