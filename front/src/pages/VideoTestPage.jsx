@@ -5,6 +5,7 @@ import apiClient from '../api/apiClient';
 
 import { useAnalysis } from '../analysis/UseAnalysis';
 import AiAnalysisResultModal from '../components/modals/AiAnalysisResultModal';
+import UserSelectModal from '../components/modals/UserSelectModal';
 
 // 동적 URL 설정: 환경 변수가 없으면 현재 호스트의 /livekit/ 경로(Nginx Proxy)를 사용
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL ||
@@ -59,6 +60,7 @@ const VideoTestPage = () => {
   const { startAnalysis, isAnalyzing } = useAnalysis();
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [isGuidanceOpen, setIsGuidanceOpen] = useState(false);
 
 const [roomId, setRoomId] = useState(() => {
   return 'test-room-' + String(Date.now()).slice(-4);
@@ -310,13 +312,17 @@ const [roomId, setRoomId] = useState(() => {
         {/* AI 분석 버튼 */}
         <button
           onClick={() => {console.log("선택 모드 변경:", !isSelectMode); 
-            setIsSelectMode(!isSelectMode)}}
+            const newSelectMode = !isSelectMode;
+            setIsSelectMode(!isSelectMode);
+            if (newSelectMode) {
+              setIsGuidanceOpen(true);
+            }}}
           disabled={!isConnected || isAnalyzing}
           className={`px-6 py-3 rounded-lg font-medium transition-all ${
             isAnalyzing ? 'bg-gray-600' : isSelectMode ? 'bg-yellow-500 text-black' : 'bg-purple-600 hover:bg-purple-700'
           }`}
         >
-          {isAnalyzing ? "AI 분석 중..." : isSelectMode ? "대상 선택 취소" : "4. AI 분석 시작"}
+          {isAnalyzing ? "AI 분석 중..." : isSelectMode ? "대상 선택 취소" : "3. AI 분석 시작"}
         </button>
         <button
           onClick={disconnect}
@@ -353,6 +359,11 @@ const [roomId, setRoomId] = useState(() => {
       <AiAnalysisResultModal 
         result={analysisResult} 
         onClose={() => setAnalysisResult(null)} 
+      />
+
+      <UserSelectModal 
+        isOpen={isGuidanceOpen} 
+        onClose={() => setIsGuidanceOpen(false)} 
       />
 
       <div className="mt-8 p-4 bg-white/5 rounded-lg text-xs text-white/50">
