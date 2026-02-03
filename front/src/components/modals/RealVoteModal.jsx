@@ -1,14 +1,20 @@
 import { useState } from 'react';
 import TimeLine from '../game/TimeLine';
 
-const RealVote = ({ accusedPlayer, onVoteComplete }) => {
+const RealVote = ({ accusedPlayer, onVoteComplete, onVote }) => {
   const [hasVoted, setHasVoted] = useState(false);
 
   const handleVote = (decision) => {
-    // decision: 백엔드 2-5 설계의 YES 또는 NO
-    console.log(`${accusedPlayer.displayName} 처형 찬반: ${decision}`);
+    if (hasVoted) return;
+
+    const agree = decision === 'YES';
+    console.log(`${accusedPlayer?.nickname} 처형 찬반: ${decision}`);
     setHasVoted(true);
-    // 실제로는 여기서 axios.post 등으로 백엔드에 투표 결과를 보냅니다.
+
+    // 외부에서 전달받은 투표 핸들러 호출 (WebSocket 전송)
+    if (onVote) {
+      onVote(agree);
+    }
   };
 
   return (

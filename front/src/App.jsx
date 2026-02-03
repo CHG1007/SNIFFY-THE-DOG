@@ -10,6 +10,7 @@ import MyPage from './pages/MyPage';
 import AdminPage from './pages/AdminPage';
 import WaitingRoomPage from './pages/WaitingRoomPage';
 import ResultPage from './pages/ResultPage';
+import GamePage from './pages/GamePage';
 
 // Components
 import Header from './components/common/Header';
@@ -56,7 +57,10 @@ const AnimatedRoutes = () => {
         <Route path="/users" element={<PageWrapper><Header /><MyPage /></PageWrapper>} />
         <Route path="/admin" element={<PageWrapper><Header /><AdminPage /></PageWrapper>} />
 
-        {/* 5. 테스트 페이지 */}
+        {/* 5. 게임 진행 페이지 */}
+        <Route path="/game/:roomId" element={<PageWrapper><GamePage /></PageWrapper>} />
+
+        {/* 6. 테스트 페이지 */}
         <Route path="/video-test" element={<PageWrapper><VideoTestPage /></PageWrapper>} />
         <Route path="/result" element= {<PageWrapper><ResultPage /></PageWrapper>} />
       </Routes>
