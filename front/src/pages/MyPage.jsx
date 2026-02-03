@@ -1,68 +1,122 @@
 import { useEffect, useState } from 'react';
 import ProfileCard from '../components/mypage/ProfileCard';
 import UserHistorySection from '../components/mypage/UserHistorySection';
+import { getMyProfile, getUserBadges, getUserGameHistory, updateNickname } from '../api/userApi';
+import useAuthStore from '../stores/useAuthStore';
 
 const MyPage = () => {
-  const API_BASE_URL = 'http://localhost:8080/api/v1';
-
-  const [nickname, setNickname] = useState("");
+  const { user, setUser } = useAuthStore();
+  const [profile, setProfile] = useState(null);
+  const [badges, setBadges] = useState([]);
   const [games, setGames] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [editNickname, setEditNickname] = useState(user?.nickname || "");
 
-  // 1. 페이지가 로드될 때, DB 값 가져오기
   useEffect(() => {
-    fetchUserData();
+    fetchData();
   }, []);
 
-  // 1. MySQL에서 내 정보 가져오기
-  const fetchUserData = async () => {
+  const fetchData = async () => {
     try {
-      const response = await axios.get('${API_BASE_URL}/users/me');
-      const { nickname, realName, games } = response.data;
+      const [profileRes, badgesRes, gamesRes] = await Promise.all([
+        getMyProfile(),
+        getUserBadges(),
+        getUserGameHistory(0, 20) // Load first 20 games
+      ]);
+
+      if (profileRes.success) {
+        setProfile(profileRes.data);
+        setEditNickname(profileRes.data.nickname);
+      }
       
-      setNickname(nickname);
-      setRealName(realName);
-      setGames(games || []);
+      if (badgesRes.success) {
+         // Handle badge response structure: { badges: [...] }
+        setBadges(badgesRes.data.badges || []);
+      }
+
+      if (gamesRes.success) {
+        const mappedGames = (gamesRes.data.content || []).map(item => ({
+          gameId: item.gameId,
+          date: item.startAt ? new Date(item.startAt).toISOString().split('T')[0].replace(/-/g, '.') : '',
+          role: item.job, // Mapping job -> role
+          result: item.result,
+          team: item.winner,
+          playTime: item.playTime
+        }));
+        setGames(mappedGames);
+      }
+
     } catch (error) {
-      console.error("DB 데이터를 불러오는데 실패했습니다:", error);
+      console.error("Failed to fetch my page data:", error);
     }
   };
 
-  const handleEditClick = async () => {
-    if (isEditing) {
-      try {
-        await axios.patch('${API_BASE_URL}/users/me/nickname', {nickname: nickname});
-        console.log("DB 저장 완료: ", nickname);
-      } catch (error) {
-        console.log("닉네임 저장 실패: ", error);
-        return;
+  const handleSaveNickname = async () => {
+    if (!editNickname.trim()) return;
+    
+    try {
+      const res = await updateNickname(editNickname);
+      // 백엔드 응답 포맷이 { success: true, ... } 라고 가정
+      if (res.success) {
+          const newNickname = res.data.nickname;
+          
+          // 1. 로컬 상태 업데이트
+          setProfile(prev => ({ ...prev, nickname: newNickname }));
+          setEditNickname(newNickname); // 입력창 상태도 최신화
+          
+          // 2. 전역 상태 및 스토리지 업데이트 (헤더 즉시 반영용)
+          if (user) {
+            const updatedUser = { ...user, nickname: newNickname };
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser)); // 새로고침 대비
+          }
+          
+          setIsEditing(false); // 수정 모드 종료
+          alert("닉네임이 변경되었습니다.");
+      } else {
+        // success가 false인 경우 (백엔드 에러 메시지 등)
+        console.error("Nickname update failed:", res);
+        alert("닉네임 변경에 실패했습니다.");
       }
+    } catch (error) {
+      console.error("Failed to update nickname:", error);
+      alert("닉네임 변경 중 오류가 발생했습니다.");
     }
-    setIsEditing(!isEditing);
+  };
+
+  const handleCancelEdit = () => {
+    // Reset to original nickname
+    setEditNickname(profile?.nickname || "");
+    setIsEditing(false);
   };
 
   const handleReport = (game) => {
-    console.log("리포트 확인:", game);
+    console.log("Report game:", game);
   };
 
+  // Profile Image Logic: (userId % 4) + 1
+  const profileImgIndex = profile ? (profile.userId % 4) + 1 : 1;
+  const profileImagePath = `/assets/images/mypage/profile/profile${profileImgIndex}.png`;
+
   return (
-    <div 
+    <div
       className="h-screen w-full bg-cover bg-center bg-fixed relative flex flex-col items-center pt-12 px-6 overflow-hidden"
       style={{ backgroundImage: "url('/assets/images/mypage/MyPageBackground.png')" }}
     >
-      {/* <div className="absolute inset-0 bg-black/20 fixed"></div> */}
-      
       <div className="relative z-10 w-full max-w-[1100px] h-full flex flex-col overflow-hidden pb-6">
         <section className="w-full shrink-0 mb-4">
-          <ProfileCard 
-            nickname={nickname}
-            setNickname={setNickname}
+          <ProfileCard
+            nickname={editNickname}
+            setNickname={setEditNickname}
             isEditing={isEditing}
-            onEditClick={handleEditClick}
+            onEditClick={() => setIsEditing(true)}
+            onSave={handleSaveNickname}
+            onCancel={handleCancelEdit}
+            badges={badges}
+            profileImage={profileImagePath}
           />
         </section>
 
-        {/* 2. UserHistorySection에 데이터를 넘겨줍니다. */}
         <section className="w-full flex-1 min-h-0 overflow-hidden">
           <UserHistorySection games={games} onReport={handleReport} />
         </section>
