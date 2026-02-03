@@ -27,11 +27,15 @@ const formatTime = (seconds) => {
 // 페이즈 한글 이름
 const PHASE_NAMES = {
   WAITING: '대기 중',
+  COUNTDOWN: '게임 시작',
+  ASSIGN_ROLE: '역할 확인',
   DAY: '낮 토론',
-  DAY_VOTE: '용의자 지목',
+  VOTE_1: '용의자 지목',
   DEFENSE: '최후 변론',
-  FINAL_VOTE: '찬반 투표',
+  VOTE_2: '찬반 투표',
   NIGHT: '밤',
+  DAY_RESULT: '결과 발표',
+  GAME_END: '게임 종료',
 };
 
 // 역할 한글 이름 및 설명
@@ -52,6 +56,7 @@ const GamePage = () => {
     players, setPlayers, updatePlayerStatus,
     myInfo, setMyInfo, setMyRole,
     gamePhase, setPhase, phaseEndsAt,
+    phaseEndSent, setPhaseEndSent,
     vote1, setVote1, setVote1Result, updateVote1Progress,
     vote2, setVote2, setVote2Result, updateVote2Progress,
     nightAction, setMafiaProposal, setMafiaLocked, setMyNightAction, setPoliceResult,
@@ -328,6 +333,22 @@ const GamePage = () => {
     return () => clearInterval(timer);
   }, [phaseEndsAt]);
 
+  // Phase End 방식: 타이머 0초 도달 시 /phase/end 전송
+  useEffect(() => {
+    // WAITING, GAME_END는 타이머가 없으므로 제외
+    const timedPhases = ['COUNTDOWN', 'ASSIGN_ROLE', 'DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'NIGHT', 'DAY_RESULT'];
+
+    if (remainingSeconds === 0 && phaseEndsAt && !phaseEndSent && timedPhases.includes(gamePhase)) {
+      // 1회만 전송 (멱등성)
+      setPhaseEndSent(true);
+      websocketClient.sendPhaseEnd(gamePhase);
+
+      if (import.meta.env.DEV) {
+        console.log('[PhaseEnd] Sent phase end:', gamePhase);
+      }
+    }
+  }, [remainingSeconds, phaseEndsAt, phaseEndSent, gamePhase, setPhaseEndSent]);
+
   // 역할 백업 알림 (모달이 안 보일 경우 alert로 알림)
   const roleAlertShownRef = useRef(false);
   useEffect(() => {
@@ -505,7 +526,7 @@ const GamePage = () => {
                       <GameVideoSlot
                         player={player}
                         isMe={String(player.userId) === String(myInfo.userId)}
-                        canVote={gamePhase === 'DAY_VOTE' && amIAlive}
+                        canVote={gamePhase === 'VOTE_1' && amIAlive}
                         didIVote={vote1.hasVoted}
                         onVoteRequest={() => handleVoteClick(player)}
                         size="normal"
@@ -605,7 +626,7 @@ const GamePage = () => {
       )}
 
       {/* 2차 투표 (찬반) 모달 */}
-      {gamePhase === 'FINAL_VOTE' && accusedPlayer && !vote2.hasVoted && amIAlive && (
+      {gamePhase === 'VOTE_2' && accusedPlayer && !vote2.hasVoted && amIAlive && (
         <RealVote
           accusedPlayer={accusedPlayer}
           onVoteComplete={() => {}}

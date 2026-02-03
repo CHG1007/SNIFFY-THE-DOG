@@ -1,6 +1,22 @@
 import { create } from 'zustand';
 
 /**
+ * Phase End 방식 Phase 상수
+ */
+export const PHASES = {
+  WAITING: 'WAITING',
+  COUNTDOWN: 'COUNTDOWN',
+  ASSIGN_ROLE: 'ASSIGN_ROLE',
+  DAY: 'DAY',
+  VOTE_1: 'VOTE_1',      // 기존 DAY_VOTE
+  DEFENSE: 'DEFENSE',
+  VOTE_2: 'VOTE_2',      // 기존 FINAL_VOTE
+  NIGHT: 'NIGHT',
+  DAY_RESULT: 'DAY_RESULT',
+  GAME_END: 'GAME_END',
+};
+
+/**
  * 게임 상태 관리 스토어
  * ws명세.md 및 mafia_game_front_logic.md 기반
  */
@@ -21,7 +37,7 @@ const useGameStore = create((set, get) => ({
   },
 
   // === 게임 상태 ===
-  gamePhase: 'WAITING', // WAITING, DAY, DAY_VOTE, DEFENSE, FINAL_VOTE, NIGHT
+  gamePhase: 'WAITING', // WAITING, COUNTDOWN, ASSIGN_ROLE, DAY, VOTE_1, DEFENSE, VOTE_2, NIGHT, DAY_RESULT, GAME_END
   phaseEndsAt: null,
   dayCount: 1,
 
@@ -60,6 +76,9 @@ const useGameStore = create((set, get) => ({
   gameResult: null, // { winnerTeam, mvpUserId }
   nightResult: null, // { killedUserId, saved }
 
+  // === Phase End 방식 ===
+  phaseEndSent: false, // 중복 전송 방지 플래그
+
   // === 모달 상태 ===
   modals: {
     roleAssign: false,
@@ -89,6 +108,7 @@ const useGameStore = create((set, get) => ({
     aiChance: { isRequesting: false, targetUserId: null, result: null },
     gameResult: null,
     nightResult: null,
+    phaseEndSent: false,
   }),
 
   // 플레이어 목록 설정
@@ -113,16 +133,16 @@ const useGameStore = create((set, get) => ({
 
   // 게임 페이즈 변경
   setPhase: (gamePhase, phaseEndsAt = null) => set((state) => {
-    const newState = { gamePhase, phaseEndsAt };
+    const newState = { gamePhase, phaseEndsAt, phaseEndSent: false };
 
     // 페이즈 변경 시 투표/행동 상태 초기화
     if (gamePhase === 'DAY') {
       newState.vote1 = { hasVoted: false, myTarget: null, votedPlayers: [], result: null };
       newState.vote2 = { hasVoted: false, myVote: null, votedPlayers: [], result: null };
       newState.nightResult = null;
-    } else if (gamePhase === 'DAY_VOTE') {
+    } else if (gamePhase === 'VOTE_1') {
       newState.vote1 = { hasVoted: false, myTarget: null, votedPlayers: [], result: null };
-    } else if (gamePhase === 'FINAL_VOTE') {
+    } else if (gamePhase === 'VOTE_2') {
       newState.vote2 = { hasVoted: false, myVote: null, votedPlayers: [], result: null };
     } else if (gamePhase === 'NIGHT') {
       newState.nightAction = { mafiaTarget: null, mafiaLocked: false, doctorTarget: null, policeTarget: null, policeResult: state.nightAction.policeResult, hasActed: false };
@@ -130,6 +150,9 @@ const useGameStore = create((set, get) => ({
 
     return newState;
   }),
+
+  // Phase End 전송 플래그 설정
+  setPhaseEndSent: (sent) => set({ phaseEndSent: sent }),
 
   // Day 카운트 증가
   incrementDay: () => set((state) => ({ dayCount: state.dayCount + 1 })),
@@ -281,6 +304,7 @@ const useGameStore = create((set, get) => ({
     aiChance: { isRequesting: false, targetUserId: null, result: null },
     gameResult: null,
     nightResult: null,
+    phaseEndSent: false,
     modals: {
       roleAssign: false,
       vote1Confirm: false,
