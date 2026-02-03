@@ -611,16 +611,18 @@ const GamePage = () => {
                        myInfo.role === 'CITIZEN' && myInfo.aiChanceRemaining > 0 &&
                        String(player.userId) !== String(myInfo.userId) && player.isAlive && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation(); // 다른 클릭 이벤트와 겹치지 않게 방지
-                            setIsSelectMode(true); // 대상 선택 모드
-                            setIsGuidanceOpen(true); // 알림 모달
+                          onClick={() => {
+                            const newSelectMode = !isSelectMode;
+                            setIsSelectMode(!isSelectMode);
+                            if (newSelectMode) {
+                              setIsGuidanceOpen(true);
+                            }
                           }}
                           disabled={isAnalyzing}
                           className="absolute bottom-3 left-3 z-50 px-3 py-1 rounded-full text-xs font-bold
                                      bg-yellow-600 hover:bg-yellow-500 text-white transition-all"
                         >
-                          {isAnalyzing ? "분석 중 ..." : "AI 분석"}
+                          {isAnalyzing ? "AI 분석 중..." : isSelectMode ? "대상 선택 취소" : "3. AI 분석 시작"}
                         </button>
                       )}
                     </div>
