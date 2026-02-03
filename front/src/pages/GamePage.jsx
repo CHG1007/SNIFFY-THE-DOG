@@ -146,6 +146,22 @@ const GamePage = () => {
       case 'GAME_STARTED':
         setPhase(data.phase, data.phaseEndsAt);
         if (data.version) setVersion(data.version);
+        // 게임 시작 시 역할 정보가 포함되어 있으면 역할 모달 표시
+        if (data.role) {
+          setMyRole(data.role, data.aiChanceRemaining || 0);
+          setShowRoleModal(true);
+          if (data.role === 'MAFIA') {
+            websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
+          }
+        }
+        // my 객체에 역할 정보가 있는 경우
+        if (data.my?.role) {
+          setMyRole(data.my.role, data.my.aiChanceRemaining || 0);
+          setShowRoleModal(true);
+          if (data.my.role === 'MAFIA') {
+            websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
+          }
+        }
         break;
 
       // === 페이즈 변경 ===
@@ -155,6 +171,21 @@ const GamePage = () => {
         // 페이즈별 모달 리셋
         setShowVote1ResultModal(false);
         setShowVote2ResultModal(false);
+        // 첫 DAY 페이즈에서 역할 정보가 함께 올 경우
+        if (data.role && !myInfoRef.current?.role) {
+          setMyRole(data.role, data.aiChanceRemaining || 0);
+          setShowRoleModal(true);
+          if (data.role === 'MAFIA') {
+            websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
+          }
+        }
+        if (data.my?.role && !myInfoRef.current?.role) {
+          setMyRole(data.my.role, data.my.aiChanceRemaining || 0);
+          setShowRoleModal(true);
+          if (data.my.role === 'MAFIA') {
+            websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
+          }
+        }
         break;
 
       // === 1차 투표 ===
@@ -282,6 +313,24 @@ const GamePage = () => {
 
     return () => clearInterval(timer);
   }, [phaseEndsAt]);
+
+  // 역할 백업 알림 (모달이 안 보일 경우 alert로 알림)
+  const roleAlertShownRef = useRef(false);
+  useEffect(() => {
+    // 역할이 있고, 게임이 시작되었고(DAY 이후), 아직 alert를 안 보였으면
+    if (myInfo.role && gamePhase !== 'WAITING' && !roleAlertShownRef.current) {
+      roleAlertShownRef.current = true;
+      // 모달이 안 보이고 있으면 alert로 백업
+      if (!showRoleModal) {
+        const roleInfo = ROLE_INFO[myInfo.role];
+        alert(`당신의 역할: ${roleInfo?.name || myInfo.role}\n${roleInfo?.description || ''}`);
+      }
+    }
+    // 게임이 끝나면 다음 게임을 위해 리셋
+    if (gamePhase === 'WAITING') {
+      roleAlertShownRef.current = false;
+    }
+  }, [myInfo.role, gamePhase, showRoleModal]);
 
   // 플레이어 데이터 표준화
   const standardizedPlayers = useMemo(() => players.map(p => ({
