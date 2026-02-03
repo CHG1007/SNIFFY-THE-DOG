@@ -34,6 +34,9 @@ const WaitingRoomPage = () => {
   const [isMicOn, setIsMicOn] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
 
+  // --- 방 나가기 상태 ---
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+
   // ✅ 최신 상태 참조를 위한 Ref
   const myInfoRef = useRef(myInfo);
   const locationRef = useRef(location);
@@ -175,9 +178,8 @@ const WaitingRoomPage = () => {
         break;
 
       case 'KICKED':
-        alert(data.reason || "방장에 의해 강퇴되었습니다.");
         try { websocketClient.disconnect(); } catch(e) {}
-        navigate('/rooms');
+        setErrorMsg(data.reason || "방장에 의해 강퇴되었습니다.");
         break;
       
       case 'JOIN_REJECTED':
@@ -238,9 +240,7 @@ const WaitingRoomPage = () => {
   };
 
   const handleExit = () => {
-    if (window.confirm("정말 방을 나가시겠습니까?")) {
-      navigate('/rooms');
-    }
+    setIsExitModalOpen(true);
   };
 
   const handleToggleMic = () => setIsMicOn(!isMicOn);
@@ -349,10 +349,21 @@ const WaitingRoomPage = () => {
         />
       )}
       {errorMsg && (
-        <GameAlertModal
+      <LastBeggingModal
           isOpen={!!errorMsg}
-          onClose={() => setErrorMsg(null)}
           message={errorMsg}
+          onClose={() => {
+            setErrorMsg(null);   
+            navigate('/rooms');  
+          }}
+        />  
+      )}
+      {isExitModalOpen &&(
+        <LastBeggingModal
+          isOpen={isExitModalOpen}
+          onClose={() => setIsExitModalOpen(false)}
+          onConfirm={() => navigate('/rooms')}
+          message={"정말 방을\n나가시겠습니까?"}
         />
       )}
     </div>
