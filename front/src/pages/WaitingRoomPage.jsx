@@ -122,7 +122,7 @@ const WaitingRoomPage = () => {
         // 게임 중이면 이동
         if (rs.status === 'PLAYING' && type === 'ROOM_SNAPSHOT') {
           navigate(`/game/${roomId}`, {
-            state: { myInfo: data.my, players: rs.players }
+            state: { myInfo: data.my, players: rs.players, capacity: finalCapacity }
           });
         }
         break;
@@ -169,8 +169,8 @@ const WaitingRoomPage = () => {
         break;
 
       case 'PHASE_CHANGED':
-        navigate(`/game/${roomId}`, { 
-          state: { myInfo: myInfoRef.current, players } 
+        navigate(`/game/${roomId}`, {
+          state: { myInfo: myInfoRef.current, players, capacity: roomInfo?.capacity || 6 }
         });
         break;
 
