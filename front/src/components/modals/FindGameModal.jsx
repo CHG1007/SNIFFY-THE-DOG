@@ -12,12 +12,12 @@ const FindGameModal = ({ isOpen, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { enterRoom } = useRoomEntry();
 
-  const handleJoin = async () => {
+const handleJoin = async () => {
+    // 1. 입력값 검증 (클라이언트 단)
     if (inviteCode.trim() === "") {
       setError("입장 코드를 입력해주세요.");
       return;
     }
-
     try {
       setIsLoading(true);
       setError("");

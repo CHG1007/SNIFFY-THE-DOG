@@ -10,6 +10,7 @@
   --animate-pulse-slow: pulse-slow 8s ease-in-out infinite;
   --animate-float: float 6s ease-in-out infinite;
 
+  --animate-infinite-scroll: infinite-scroll 20s linear infinite;
   @keyframes fog-flow {
     0% { transform: translateX(-5%) scale(1.05); }
     100% { transform: translateX(5%) scale(1.1); }
@@ -22,6 +23,11 @@
     0% { transform: translateY(0px); }
     50% { transform: translateY(-12px); }
     100% { transform: translateY(0px); }
+  }
+  /* --- [추가] 무한 루프 키프레임 --- */
+  @keyframes infinite-scroll {
+    from { transform: translateY(0); }
+    to { transform: translateY(calc(-50% - 0.5rem)); }
   }
 }
 

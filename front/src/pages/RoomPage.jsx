@@ -30,129 +30,151 @@ const RoomPage = () => {
   const [isFindGameOpen, setIsFindGameOpen] = useState(false);
   const [isCreateGameOpen, setIsCreateGameOpen] = useState(false);
 
-  // 방 목록 조회 로직
-  const fetchRooms = async (page) => {
+  // 1. 현재 페이지 상태 관리 (기본값 1)
+  const totalPages = 10; // 전체 페이지 수
+
+ // [Logic Integration] 빠른 입장 핸들러 (Version A의 API 로직 사용)
+const handleQuickJoin = async () => {
     try {
-      setIsLoading(true);
-      // 백엔드는 0-based page 사용
-      const response = await getRoomList(page - 1, pageSize);
-      if (response.success) {
-        setRooms(response.data || []);
-      }
-    } catch (error) {
-      console.error("방 목록 로딩 실패:", error);
-    } finally {
-      setIsLoading(false);
+    console.log("빠른 입장 시도 중...");
+    const response = await quickJoin();
+    // 백엔드 응답 필드에 맞게 처리 (roomId 혹은 roomCode)
+
+     const roomId = response.data?.roomId || response.data?.roomCode;
+
+    if (roomId) {
+        navigate(`/rooms/${roomId}`);
+    } else {
+        alert("입장 가능한 방 정보를 받지 못했습니다.");
     }
-  };
+    } catch (error) {
+    console.error(error);
+    alert("빠른 입장에 실패했습니다. 입장 가능한 방이 없습니다.");
+    }
+};
 
-  useEffect(() => {
-    fetchRooms(currentPage);
-  }, [currentPage]);
 
-  // 방 직접 입장 핸들러
-  const handleJoinRoom = async (room) => {
+
+ 
+const fetchRooms = async (page) => {
     try {
-      // 입장 가능 앱 상태 체크 (REST - RoomId 사용)
-      const response = await getRoomDetail(room.roomId);
-      if (response.success && response.data.status === 'WAITING') {
+        setIsLoading(true);
+        // 백엔드는 0-based page 사용
+        const response = await getRoomList(page - 1, pageSize);
+        if (response.success) {
+            setRooms(response.data || []);
+        }
+    } catch (error) {
+        console.error("방 목록 로딩 실패:", error);
+    } finally {
+        setIsLoading(false);
+    }
+};
+
+useEffect(() => {
+        fetchRooms(currentPage);
+        }, [currentPage]);
+    
+
+
+// 방 직접 입장 핸들러
+const handleJoinRoom = async (room) => {
+    try {
+    // 입장 가능 앱 상태 체크 (REST - RoomId 사용)
+    const response = await getRoomDetail(room.roomId);
+    if (response.success && response.data.status === 'WAITING') {
         enterRoom(room.roomId, false);
-      } else {
+    } else {
         alert("이미 게임이 진행 중이거나 입장이 불가한 방입니다.");
         fetchRooms(currentPage); // 목록 갱신
-      }
-    } catch (error) {
-      console.error("입장 실패:", error);
-      alert("방 입장에 실패했습니다.");
     }
-  };
-
-  // [Logic Integration] 빠른 입장 핸들러 (Version A의 API 로직 사용)
-  const handleQuickJoin = async () => {
-    try {
-      console.log("빠른 입장 시도 중...");
-      const response = await quickJoin();
-      // 백엔드 응답 필드에 맞게 처리 (roomId 혹은 roomCode)
-      const roomId = response.data?.roomId || response.data?.roomCode;
-
-      if (roomId) {
-        navigate(`/waiting-room/${roomId}`);
-      } else {
-        alert("입장 가능한 방 정보를 받지 못했습니다.");
-      }
     } catch (error) {
-      console.error(error);
-      alert("빠른 입장에 실패했습니다. 입장 가능한 방이 없습니다.");
+    console.error("입장 실패:", error);
+    alert("방 입장에 실패했습니다.");
     }
-  };
+};
 
-  return (
-    <div className="w-full h-screen overflow-hidden flex flex-col">
-      <LobbyLayout
-        backgroundUrl="/assets/images/roompage/background.png"
-        onVideoTest={() => navigate('/video-test')}
-        topMenus={
-          <>
-            <TopMenu label="게임찾기" onClick={() => setIsFindGameOpen(true)} />
-            <TopMenu label="게임생성" onClick={() => setIsCreateGameOpen(true)} />
-            {/* API 로직이 연결된 핸들러 사용 */}
-            <TopMenu label="게임시작" onClick={handleQuickJoin} />
-          </>
-        }
-        leftPanel={<LeftPanel />}
-        mainPanel={
-          <div className="h-fit max-h-[90%] self-center flex flex-col rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-6 overflow-hidden shadow-2xl">
-            {/* 내부 콘텐츠 컨테이너 */}
-            <div className="w-full max-w-[1000px] mx-auto flex flex-col min-h-0">
+// 2. 페이지 이동 함수들
+const handlePrev = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1)); // 1보다 작아지지 않게
+};
 
-              {/* 방 목록 그리드 */}
-              <div className="grid grid-cols-3 gap-6 overflow-y-auto pt-4 px-4 custom-scrollbar content-start flex-1">
-                {isLoading ? (
-                  <div className="col-span-3 flex justify-center items-center h-40">
-                    <span className="text-white text-xl animate-pulse">방 목록을 불러오고 있습니다...</span>
-                  </div>
-                ) : rooms.length > 0 ? (
-                  rooms.map((room) => (
-                    <RoomCard
-                      key={room.roomId}
-                      roomCode={room.roomId.substring(0, 8)}
-                      title={room.title}
-                      hostName={room.isPrivate ? "PRIVATE" : "PUBLIC"}
-                      current={room.currentCount}
-                      capacity={room.capacity}
-                      onJoin={() => handleJoinRoom(room)}
-                    />
-                  ))
-                ) : (
-                  <div className="col-span-3 flex justify-center items-center h-40">
-                    <span className="text-white/50 text-xl italic uppercase tracking-widest">
-                      입장 가능한 방이 없습니다
-                    </span>
-                  </div>
-                )}
+const handleNext = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages)); // totalPages보다 커지지 않게
+};
+
+const handleSelect = (pageNumber) => {
+    setCurrentPage(pageNumber);
+};
+
+  
+return (
+<div className="w-full h-screen overflow-hidden flex flex-col">
+  <LobbyLayout
+    backgroundUrl="/assets/images/roompage/background.png"
+    onVideoTest={() => navigate('/video-test')}
+    topMenus={
+      <>
+        <TopMenu label="게임찾기" onClick={() => setIsFindGameOpen(true)} />
+        <TopMenu label="게임생성" onClick={() => setIsCreateGameOpen(true)} />
+        {/* API 로직이 연결된 핸들러 사용 */}
+        <TopMenu label="게임시작" onClick={handleQuickJoin} />
+      </>
+    }
+    leftPanel={<LeftPanel />}
+    mainPanel={
+      <div className="h-auto self-start flex flex-col rounded-2xl bg-white/15 backdrop-blur-md border border-white/10 p-5 overflow-hidden shadow-2xl">
+        {/* 내부 콘텐츠 컨테이너 */}
+        <div className="w-full max-w-[1000px] mx-auto flex flex-col min-h-0 overflow-hidden">
+
+          {/* 방 목록 그리드 */}
+          <div className="grid grid-cols-3 gap-4 pt-4 px-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
+            {isLoading ? (
+              <div className="col-span-3 flex justify-center items-center h-40">
+                <span className="text-white text-xl animate-pulse">방 목록을 불러오고 있습니다...</span>
               </div>
-
-              {/* 페이지네이션 (백엔드 totalPages 지원 시 연동 가능) */}
-              <div className="shrink-0 flex justify-center pt-4 pb-2">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={rooms.length === pageSize ? currentPage + 1 : currentPage}
-                  onPrev={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  onNext={() => setCurrentPage(prev => prev + 1)}
-                  onSelect={(p) => setCurrentPage(p)}
+            ) : rooms.length > 0 ? (
+              rooms.map((room) => (
+                <RoomCard
+                  key={room.roomId}
+                  roomCode={room.roomId.substring(0, 8)}
+                  title={room.title}
+                  hostName={room.isPrivate ? "PRIVATE" : "PUBLIC"}
+                  current={room.currentCount}
+                  capacity={room.capacity}
+                  onJoin={() => handleJoinRoom(room)}
                 />
+              ))
+            ) : (
+              <div className="col-span-3 flex justify-center items-center h-40">
+                <span className="text-white/50 text-xl italic uppercase tracking-widest">
+                  입장 가능한 방이 없습니다
+                </span>
               </div>
-            </div>
+            )}
           </div>
-        }
-      >
-        {/* 모달 렌더링 */}
-        <FindGameModal isOpen={isFindGameOpen} onClose={() => setIsFindGameOpen(false)} />
-        {isCreateGameOpen && (
-          <CreateGameModal isOpen={isCreateGameOpen} onClose={() => setIsCreateGameOpen(false)} />
-        )}
-      </LobbyLayout>
-    </div>
+
+          {/* 페이지네이션 (백엔드 totalPages 지원 시 연동 가능) */}
+          <div className="shrink-0 flex justify-center pt-4 pb-2">
+          <Pagination 
+            currentPage={currentPage} 
+            totalPages={totalPages} 
+            onPrev={handlePrev} 
+            onNext={handleNext} 
+            onSelect={handleSelect} 
+          />
+        </div>
+        </div>
+      </div>
+    }
+  >
+    {/* 모달 렌더링 */}
+    <FindGameModal isOpen={isFindGameOpen} onClose={() => setIsFindGameOpen(false)} />
+    {isCreateGameOpen && (
+      <CreateGameModal isOpen={isCreateGameOpen} onClose={() => setIsCreateGameOpen(false)} />
+    )}
+  </LobbyLayout>
+</div>
   );
 };
 

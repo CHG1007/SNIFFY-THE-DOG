@@ -28,7 +28,7 @@ export default function LobbyLayout({
         </div>
 
         {/* 메인 영역 */}
-        <div className="flex-1 min-h-0 flex gap-8 mb-10 items-center justify-center">
+        <div className="flex-1 min-h-0 flex gap-8 mb-10 items-start justify-center pt-2">
           <div className="shrink-0">{leftPanel}</div>
           <div className="flex-1 max-w-[1050px] min-h-0">{mainPanel}</div>
         </div>

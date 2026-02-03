@@ -8,21 +8,23 @@ const WaitingSlot = ({ player, isMe, isHost, onKickRequest }) => {
   // Mock Audio Visualizer
   useEffect(() => {
     if (!player.isMicOn) {
-        setAudioLevel(0);
         return;
     }
     const interval = setInterval(() => {
-      setAudioLevel(Math.floor(Math.random() * 100));
+    setAudioLevel(Math.floor(Math.random() * 100));
     }, 100);
-    return () => clearInterval(interval);
-  }, [player.isMicOn]);
-  
+    return () => {
+    clearInterval(interval);
+    setAudioLevel(0); // 언마운트되거나 마이크 꺼질 때 정리(Cleanup) 과정에서 처리
+  };
+}, [player.isMicOn]);
+  const currentAudioLevel = player.isMicOn ? audioLevel : 0;
   return (
     // Added 'aspect-video' to ensure ratio maintenance in the restored grid
     <div className={`
         relative w-full aspect-video rounded-2xl overflow-hidden transition-all duration-500
         group bg-[#111] 
-        ${player.isReady 
+        ${player.ready 
             ? 'shadow-[0_0_30px_rgba(255,100,0,0.3)] ring-2 ring-orange-500 translate-y-[-4px]' 
             : 'shadow-2xl border border-white/5 hover:border-white/20 hover:bg-[#1a1a1a]'
         }
@@ -51,7 +53,7 @@ const WaitingSlot = ({ player, isMe, isHost, onKickRequest }) => {
       </div>
 
       {/* 2. Ready Indicator (Top Left Badge) - ICON REMOVED */}
-      {player.isReady && (
+      {player.ready && (
          <div className="absolute top-4 left-4 z-30 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
              <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-3 py-1 rounded-full shadow-lg flex items-center justify-center font-bold text-[10px] tracking-wider uppercase backdrop-blur-sm border border-orange-400/30">
                 <span>READY</span>
@@ -80,12 +82,12 @@ const WaitingSlot = ({ player, isMe, isHost, onKickRequest }) => {
              </div>
           ) : (
             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white/50 border border-white/5">
-                {player.name.charAt(0)}
+                {player.displayName.charAt(0)}
             </div>
           )}
           
           <div className="flex flex-col justify-end">
-             <span className={`text-sm font-bold tracking-wide drop-shadow-md leading-none ${player.isReady ? 'text-white' : 'text-gray-400'}`}>
+             <span className={`text-sm font-bold tracking-wide drop-shadow-md leading-none ${player.ready ? 'text-white' : 'text-gray-400'}`}>
                 {player.name}
              </span>
              {isMe && <span className="text-[10px] text-orange-500 font-semibold tracking-wider uppercase mt-1">You</span>}
@@ -100,8 +102,8 @@ const WaitingSlot = ({ player, isMe, isHost, onKickRequest }) => {
                 key={i}
                 className="w-1 bg-emerald-400/80 rounded-t-sm transition-all duration-75 shadow-[0_0_10px_rgba(52,211,153,0.5)]"
                 style={{ 
-                  height: `${Math.max(15, audioLevel * (Math.random() * 0.8 + 0.2))}%`,
-                  opacity: 0.8
+                 height: `${Math.max(15, currentAudioLevel * (0.2 + i * 0.15))}%`,
+                 opacity: 0.8
                 }}
               />
             ))}
@@ -110,7 +112,7 @@ const WaitingSlot = ({ player, isMe, isHost, onKickRequest }) => {
       </div>
 
       {/* Ready Overlay Flash */}
-      {player.isReady && (
+      {player.ready && (
         <div className="absolute inset-0 border-2 border-orange-500/30 rounded-2xl pointer-events-none animate-pulse" />
       )}
 
