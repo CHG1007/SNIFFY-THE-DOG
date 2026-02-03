@@ -75,7 +75,14 @@ public class AuthService implements AuthUseCase, SocialLoginUseCase, ReissueToke
 
     @Override
     public AdminLoginResult adminLogin(AdminLoginCommand command) {
-        if (!"admin".equals(command.id()) || !"1234".equals(command.password())) {
+        boolean isValidAdminId = "admin".equals(command.id()) ||
+            "admin1".equals(command.id()) ||
+            "admin2".equals(command.id()) ||
+            "admin3".equals(command.id()) ||
+            "admin4".equals(command.id()) ||
+            "admin5".equals(command.id());
+
+        if (!isValidAdminId || !"1234".equals(command.password())) {
             throw ApplicationException.of(ExceptionType.BAD_REQUEST, "Invalid admin credentials");
         }
 
