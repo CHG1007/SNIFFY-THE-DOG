@@ -32,6 +32,15 @@ const reportData = {
   ]
 };
 
+const getRoleImage = (role) => {
+  switch (role) {
+    case 'MAFIA': return "/assets/images/resultpage/mafia.png";
+    case 'POLICE': return "/assets/images/resultpage/police.png";
+    case 'DOCTOR': return "/assets/images/resultpage/doctor.png";
+    default: return "/assets/images/resultpage/citizen.png";
+  }
+};
+
 export default function ResultPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -145,10 +154,10 @@ export default function ResultPage() {
 
             <div className="relative grid grid-cols-1 gap-x-10 gap-y-8 place-items-center py-6 sm:grid-cols-2 lg:grid-cols-3">
               {players.map((p) => (
-            <div key={p.id} className="flex flex-col items-center">
+            <div key={p.userId || p.id} className="flex flex-col items-center">
                     <img
-                    src={p.avatarSrc}
-                    alt={`${p.name} avatar`}
+                    src={getRoleImage(p.role || p.roleLabel)}
+                    alt={`${p.nickname || p.name} avatar`}
                     className="h-[100px] w-auto object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.55)]"
                     />
 
@@ -157,7 +166,7 @@ export default function ResultPage() {
                         className="text-white text-[23px] leading-none"
                         style={{ fontFamily: "Pretendard", fontWeight: "500" }}
                     >
-                        {p.name}
+                        {p.nickname || p.name}
                     </div>
                     <button
                         type="button"
@@ -173,7 +182,7 @@ export default function ResultPage() {
                         "hover:bg-black/30 active:scale-[0.99]",
                         ].join(" ")}
                         onClick={() => {
-                        handleOpenComplaint(p.name)
+                        handleOpenComplaint(p.nickname || p.name)
                         }}
                     >
                         <span className="text-primary text-[18px]">
@@ -241,10 +250,10 @@ function getResultConfig(winner) {
 
 /** 더미 데이터 */
 const defaultPlayers = [
-  { id: 1, name: "조채연", roleLabel: "경찰", avatarSrc: "/assets/images/resultpage/police.png" },
-  { id: 2, name: "최지희", roleLabel: "시민", avatarSrc: "/assets/images/resultpage/citizen.png" },
-  { id: 3, name: "변지영", roleLabel: "마피아", avatarSrc: "/assets/images/resultpage/mafia.png" },
-  { id: 4, name: "길태환", roleLabel: "의사", avatarSrc: "/assets/images/resultpage/doctor.png" },
-  { id: 5, name: "박연준", roleLabel: "시민", avatarSrc: "/assets/images/resultpage/citizen.png" },
-  { id: 6, name: "최홍권", roleLabel: "마피아", avatarSrc: "/assets/images/resultpage/mafia.png" },
+  { id: 1, name: "조채연", roleLabel: "POLICE", avatarSrc: "/assets/images/resultpage/police.png" },
+  { id: 2, name: "최지희", roleLabel: "CITIZEN", avatarSrc: "/assets/images/resultpage/citizen.png" },
+  { id: 3, name: "변지영", roleLabel: "MAFIA", avatarSrc: "/assets/images/resultpage/mafia.png" },
+  { id: 4, name: "길태환", roleLabel: "DOCTOR", avatarSrc: "/assets/images/resultpage/doctor.png" },
+  { id: 5, name: "박연준", roleLabel: "CITIZEN", avatarSrc: "/assets/images/resultpage/citizen.png" },
+  { id: 6, name: "최홍권", roleLabel: "MAFIA", avatarSrc: "/assets/images/resultpage/mafia.png" },
 ];

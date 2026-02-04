@@ -17,6 +17,11 @@ import GameAlertModal from '../components/modals/GameAlertModal';
 import NothingHappenModal from '../components/modals/NothingHappenModal';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
 
+// Refactored Modals
+import RoleAssignModal from '../components/modals/game/RoleAssignModal';
+import PoliceResultModal from '../components/modals/game/PoliceResultModal';
+import AiChanceResultModal from '../components/modals/game/AiChanceResultModal';
+
 // 시간 포맷 유틸리티
 const formatTime = (seconds) => {
   if (seconds < 0) seconds = 0;
@@ -76,7 +81,6 @@ const GamePage = () => {
   const [showVote1ResultModal, setShowVote1ResultModal] = useState(false);
   const [showVote2ResultModal, setShowVote2ResultModal] = useState(false);
   const [showNightResultModal, setShowNightResultModal] = useState(false);
-  const [showGameEndModal, setShowGameEndModal] = useState(false);
   const [nightTargetPlayer, setNightTargetPlayer] = useState(null);
   const [capacity, setCapacity] = useState(6); // 방 최대 인원
 
@@ -113,68 +117,88 @@ const GamePage = () => {
     useGameStore.setState({ roomCode: roomId });
   }, [location.state, roomId, setMyInfo, setPlayers]);
 
+  // 플레이어 데이터 표준화
+  const standardizedPlayers = useMemo(() => players.map(p => ({
+    userId: p.userId,
+    nickname: p.nickname || p.displayName || p.name,
+    isHost: p.isHost || false,
+    isAlive: p.isAlive ?? true,
+    photo: p.profileImage || p.photo || '',
+    stream: p.stream || null,
+    role: p.role, // 결과 페이지 전달용
+  })), [players]);
+
+  // 게임 종료 시 결과 페이지로 자동 이동
+  useEffect(() => {
+    if (gameResult) {
+      // 약간의 딜레이를 주어 사용자가 인지할 시간을 줄 수도 있음 (선택 사항)
+      // 현재는 즉시 이동 요구사항에 따름
+      navigate('/result', {
+        state: {
+          gameResult: gameResult,
+          players: standardizedPlayers
+        }
+      });
+    }
+  }, [gameResult, navigate, standardizedPlayers]);
+
   // WebSocket 메시지 핸들러
   const handleSocketMessage = useCallback((msg) => {
-    const type = msg.type;
-    const data = msg.data || msg;
+    const { type, data } = msg;
 
-    if (import.meta.env.DEV) console.log('[Game WS]', type, data);
+    // [수정] 백엔드 메시지 구조 불일치(Wrapper 유무) 대응
+    const payload = data || msg;
+
+    if (import.meta.env.DEV) console.log('[Game WS]', type, payload);
 
     switch (type) {
       // === 방/동기화 ===
       case 'ROOM_SNAPSHOT':
-        setPlayers(data.roomState?.players || []);
-        if (data.my) {
-          setMyInfo(data.my);
-          // ROOM_SNAPSHOT에서 역할 정보가 있고 아직 역할이 설정되지 않았다면 역할 모달 표시
+        setPlayers(payload.roomState?.players || []);
+        if (payload.my) {
+          setMyInfo(payload.my);
           const currentRole = myInfoRef.current?.role;
-          if (data.my.role && !currentRole) {
-            setMyRole(data.my.role, data.my.aiChanceRemaining || 0);
+          if (payload.my.role && !currentRole) {
+            setMyRole(payload.my.role, payload.my.aiChanceRemaining || 0);
             setShowRoleModal(true);
-            // 마피아인 경우 마피아 채널 구독
-            if (data.my.role === 'MAFIA') {
+            if (payload.my.role === 'MAFIA') {
               websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
             }
           }
         }
-        if (data.version) setVersion(data.version);
-        // 페이즈 정보가 있으면 설정
-        if (data.roomState?.phase) {
-          setPhase(data.roomState.phase, data.roomState.phaseEndsAt);
+        if (payload.version) setVersion(payload.version);
+        if (payload.roomState?.phase) {
+          setPhase(payload.roomState.phase, payload.roomState.phaseEndsAt);
         }
-        // capacity 정보가 있으면 설정
-        if (data.roomState?.capacity) {
-          setCapacity(data.roomState.capacity);
+        if (payload.roomState?.capacity) {
+          setCapacity(payload.roomState.capacity);
         }
         break;
 
-      // === 역할 배정 (개인 채널) - 백엔드가 별도 메시지를 보내는 경우 ===
+      // === 역할 배정 ===
       case 'ROLE_ASSIGNED':
-        setMyRole(data.role, data.aiChanceRemaining || 0);
+        setMyRole(payload.role, payload.aiChanceRemaining || 0);
         setShowRoleModal(true);
-        // 마피아인 경우 마피아 채널 구독
-        if (data.role === 'MAFIA') {
+        if (payload.role === 'MAFIA') {
           websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
         }
         break;
 
       // === 게임 시작 ===
       case 'GAME_STARTED':
-        setPhase(data.phase, data.phaseEndsAt);
-        if (data.version) setVersion(data.version);
-        // 게임 시작 시 역할 정보가 포함되어 있으면 역할 모달 표시
-        if (data.role) {
-          setMyRole(data.role, data.aiChanceRemaining || 0);
+        setPhase(payload.phase, payload.phaseEndsAt);
+        if (payload.version) setVersion(payload.version);
+        if (payload.role) {
+          setMyRole(payload.role, payload.aiChanceRemaining || 0);
           setShowRoleModal(true);
-          if (data.role === 'MAFIA') {
+          if (payload.role === 'MAFIA') {
             websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
           }
         }
-        // my 객체에 역할 정보가 있는 경우
-        if (data.my?.role) {
-          setMyRole(data.my.role, data.my.aiChanceRemaining || 0);
+        if (payload.my?.role) {
+          setMyRole(payload.my.role, payload.my.aiChanceRemaining || 0);
           setShowRoleModal(true);
-          if (data.my.role === 'MAFIA') {
+          if (payload.my.role === 'MAFIA') {
             websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
           }
         }
@@ -182,23 +206,21 @@ const GamePage = () => {
 
       // === 페이즈 변경 ===
       case 'PHASE_CHANGED':
-        setPhase(data.phase, data.phaseEndsAt);
-        if (data.version) setVersion(data.version);
-        // 페이즈별 모달 리셋
+        setPhase(payload.phase, payload.phaseEndsAt);
+        if (payload.version) setVersion(payload.version);
         setShowVote1ResultModal(false);
         setShowVote2ResultModal(false);
-        // 첫 DAY 페이즈에서 역할 정보가 함께 올 경우
-        if (data.role && !myInfoRef.current?.role) {
-          setMyRole(data.role, data.aiChanceRemaining || 0);
+        if (payload.role && !myInfoRef.current?.role) {
+          setMyRole(payload.role, payload.aiChanceRemaining || 0);
           setShowRoleModal(true);
-          if (data.role === 'MAFIA') {
+          if (payload.role === 'MAFIA') {
             websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
           }
         }
-        if (data.my?.role && !myInfoRef.current?.role) {
-          setMyRole(data.my.role, data.my.aiChanceRemaining || 0);
+        if (payload.my?.role && !myInfoRef.current?.role) {
+          setMyRole(payload.my.role, payload.my.aiChanceRemaining || 0);
           setShowRoleModal(true);
-          if (data.my.role === 'MAFIA') {
+          if (payload.my.role === 'MAFIA') {
             websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
           }
         }
@@ -206,73 +228,71 @@ const GamePage = () => {
 
       // === 1차 투표 ===
       case 'VOTE1_UPDATE':
-        updateVote1Progress(data.userId, data.hasVoted);
-        if (data.version) setVersion(data.version);
+        updateVote1Progress(payload.userId, payload.hasVoted);
+        if (payload.version) setVersion(payload.version);
         break;
 
       case 'VOTE1_RESULT':
-        setVote1Result(data.accusedUserId, data.isTie);
+        setVote1Result(payload.accusedUserId, payload.isTie);
         setShowVote1ResultModal(true);
-        if (data.version) setVersion(data.version);
+        if (payload.version) setVersion(payload.version);
         break;
 
       // === 2차 투표 ===
       case 'VOTE2_UPDATE':
-        updateVote2Progress(data.userId, data.hasVoted);
-        if (data.version) setVersion(data.version);
+        updateVote2Progress(payload.userId, payload.hasVoted);
+        if (payload.version) setVersion(payload.version);
         break;
 
       case 'VOTE2_RESULT':
-        setVote2Result(data.approved, data.executedUserId, { agree: data.agree, disagree: data.disagree });
+        setVote2Result(payload.approved, payload.executedUserId, payload.counts || { agree: payload.agree, disagree: payload.disagree });
         setShowVote2ResultModal(true);
-        if (data.version) setVersion(data.version);
+        if (payload.version) setVersion(payload.version);
         break;
 
-      // === 플레이어 상태 변경 (사망 등) ===
+      // === 플레이어 상태 변경 ===
       case 'PLAYER_STATUS_CHANGED':
-        updatePlayerStatus(data.userId, { isAlive: data.isAlive });
-        if (data.version) setVersion(data.version);
+        updatePlayerStatus(payload.userId, { isAlive: payload.isAlive });
+        if (payload.version) setVersion(payload.version);
         break;
 
-      // === 밤 결과 (아침에 공개) ===
+      // === 밤 결과 ===
       case 'NIGHT_RESOLVED':
-        setNightResult(toUserId(data.killedUserId), data.saved);
+        setNightResult(toUserId(payload.killedUserId), payload.saved);
         setShowNightResultModal(true);
-        if (data.version) setVersion(data.version);
+        if (payload.version) setVersion(payload.version);
         break;
       case 'NIGHT_RESULT':
-        setNightResult(toUserId(data.killedUserId), data.saved);
+        setNightResult(toUserId(payload.killedUserId), payload.saved);
         setShowNightResultModal(true);
-        if (data.version) setVersion(data.version);
+        if (payload.version) setVersion(payload.version);
         break;
 
-      // === 경찰 수사 결과 (개인 채널) ===
+      // === 경찰 수사 결과 ===
       case 'POLICE_RESULT':
-        setPoliceResult(toUserId(data.targetUserId), data.isMafia);
+        setPoliceResult(toUserId(payload.targetUserId), payload.isMafia);
         openModal('policeResult');
         break;
 
       // === AI 찬스 ===
       case 'AI_CHANCE_STARTED':
-        // AI 분석 시작됨
         break;
 
       case 'AI_CHANCE_RESULT':
-        setAiChanceResult(data);
+        setAiChanceResult(payload);
         openModal('aiChance');
         break;
 
       // === 게임 종료 ===
       case 'GAME_FINISHED':
-        setGameResult(data.winnerTeam, data.mvpUserId);
-        setShowGameEndModal(true);
-        if (data.version) setVersion(data.version);
+        setGameResult(payload.winnerTeam, payload.mvpUserId);
+        // setShowGameEndModal(true); // 제거
+        if (payload.version) setVersion(payload.version);
         break;
 
-      // === 게임 재시작 (대기실로 복귀) ===
+      // === 게임 재시작 ===
       case 'GAME_RESTARTED':
-        if (data.version) setVersion(data.version);
-        // 대기실로 이동
+        if (payload.version) setVersion(payload.version);
         navigate(`/rooms/${roomId}`, {
           state: { fromGame: true }
         });
@@ -280,7 +300,7 @@ const GamePage = () => {
 
       // === 에러 처리 ===
       case 'ERROR':
-        console.error('[Game Error]', data.message);
+        console.error('[Game Error]', payload.message);
         break;
 
       default:
@@ -318,7 +338,6 @@ const GamePage = () => {
 
   // WebSocket 연결
   useEffect(() => {
-    // autoSync: true - 연결 후 자동으로 sync 호출하여 현재 게임 상태 받아옴
     websocketClient.connect(roomId, handleSocketMessage, { autoSync: true });
 
     return () => {
@@ -328,7 +347,7 @@ const GamePage = () => {
     };
   }, [roomId, handleSocketMessage, reset]);
 
-  // 타이머 계산 (서버 시간 기반)
+  // 타이머 계산
   useEffect(() => {
     if (!phaseEndsAt) {
       setRemainingSeconds(0);
@@ -348,22 +367,18 @@ const GamePage = () => {
     return () => clearInterval(timer);
   }, [phaseEndsAt]);
 
-  // Phase End 방식: 타이머 0초 도달 시 /phase/end 전송
+  // Phase End 방식
   useEffect(() => {
-    // WAITING, GAME_END는 타이머가 없으므로 제외
     const timedPhases = ['COUNTDOWN', 'ASSIGN_ROLE', 'DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'NIGHT', 'DAY_RESULT'];
 
     if (!phaseEndsAt || phaseEndSent || !timedPhases.includes(gamePhase)) {
       return;
     }
 
-    // Race condition 방지: 실제 시간을 직접 계산하여 double-check
-    // (페이지 로드 시 remainingSeconds가 초기값 0인 상태에서 바로 전송되는 것 방지)
     const now = Date.now();
     const end = new Date(phaseEndsAt).getTime();
     const actualRemaining = Math.floor((end - now) / 1000);
 
-    // remainingSeconds가 0이고, 실제로 시간이 지났을 때만 전송
     if (remainingSeconds === 0 && actualRemaining <= 0) {
       setPhaseEndSent(true);
       websocketClient.sendPhaseEnd(gamePhase);
@@ -374,32 +389,19 @@ const GamePage = () => {
     }
   }, [remainingSeconds, phaseEndsAt, phaseEndSent, gamePhase, setPhaseEndSent]);
 
-  // 역할 백업 알림 (모달이 안 보일 경우 alert로 알림)
+  // 역할 백업 알림
   const roleAlertShownRef = useRef(false);
   useEffect(() => {
-    // 역할이 있고, 게임이 시작되었고(DAY 이후), 아직 alert를 안 보였으면
     if (myInfo.role && gamePhase !== 'WAITING' && !roleAlertShownRef.current) {
       roleAlertShownRef.current = true;
-      // 모달이 안 보이고 있으면 alert로 백업
       if (!showRoleModal) {
-        openModal('roleBackup'); // Zustand의 모달 시스템 사용
+        openModal('roleBackup');
       }
     }
-    // 게임이 끝나면 다음 게임을 위해 리셋
     if (gamePhase === 'WAITING') {
       roleAlertShownRef.current = false;
     }
   }, [myInfo.role, gamePhase, showRoleModal, openModal]);
-
-  // 플레이어 데이터 표준화
-  const standardizedPlayers = useMemo(() => players.map(p => ({
-    userId: p.userId,
-    nickname: p.nickname || p.displayName || p.name,
-    isHost: p.isHost || false,
-    isAlive: p.isAlive ?? true,
-    photo: p.profileImage || p.photo || '',
-    stream: p.stream || null,
-  })), [players]);
 
   // 생존자 목록
   const alivePlayers = useMemo(() =>
@@ -477,12 +479,6 @@ const GamePage = () => {
     requestAiChance(targetPlayer.userId);
   };
 
-  // === 게임 종료 후 대기실로 복귀 ===
-  const handleBackToWaitingRoom = () => {
-    // 서버에 restart 요청 → GAME_RESTARTED 메시지 → 모든 플레이어가 대기실로 이동
-    websocketClient.sendRestart();
-  };
-
   // 피고인 정보 (2차 투표용)
   const accusedPlayer = useMemo(() => {
     if (!vote1.result?.accusedUserId) return null;
@@ -558,7 +554,8 @@ const GamePage = () => {
 
                       {/* 밤 행동 버튼 (마피아/의사/경찰) */}
                       {gamePhase === 'NIGHT' && amIAlive && player.isAlive &&
-                        String(player.userId) !== String(myInfo.userId) &&
+                        // 의사 자가 치료 가능하도록 조건 수정
+                        (String(player.userId) !== String(myInfo.userId) || myInfo.role === 'DOCTOR') &&
                         ['MAFIA', 'DOCTOR', 'POLICE'].includes(myInfo.role) && (
                           <button
                             onClick={() => handleNightAction(player)}
@@ -609,23 +606,12 @@ const GamePage = () => {
       {/* === 모달들 === */}
 
       {/* 역할 배정 모달 */}
-      {showRoleModal && myInfo.role && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-md">
-          <div className="text-center">
-            <h1 className="text-5xl font-black text-white mb-8">당신의 역할은</h1>
-            <div className={`text-7xl font-black ${ROLE_INFO[myInfo.role]?.color} mb-6`}>
-              {ROLE_INFO[myInfo.role]?.name}
-            </div>
-            <p className="text-xl text-gray-300 mb-12">{ROLE_INFO[myInfo.role]?.description}</p>
-            <button
-              onClick={() => setShowRoleModal(false)}
-              className="px-8 py-3 bg-[#ff8a00] text-white font-bold rounded-full hover:bg-orange-500 transition-all"
-            >
-              확인
-            </button>
-          </div>
-        </div>
-      )}
+      <RoleAssignModal
+        isOpen={showRoleModal}
+        role={myInfo.role}
+        roleInfo={ROLE_INFO[myInfo.role]}
+        onClose={() => setShowRoleModal(false)}
+      />
 
       <LastBeggingModal
         isOpen={modals.roleBackup}
@@ -693,85 +679,20 @@ const GamePage = () => {
       )}
 
       {/* 경찰 수사 결과 모달 */}
-      {modals.policeResult && nightAction.policeResult && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-md">
-          <div className="text-center">
-            <h1 className="text-4xl font-black text-blue-400 mb-8">수사 결과</h1>
-            <p className="text-2xl text-white mb-6">
-              {standardizedPlayers.find(p => String(p.userId) === String(nightAction.policeResult.targetUserId))?.nickname}님은
-            </p>
-            <div className={`text-5xl font-black mb-12 ${nightAction.policeResult.isMafia ? 'text-red-500' : 'text-green-500'}`}>
-              {nightAction.policeResult.isMafia ? '마피아입니다!' : '마피아가 아닙니다.'}
-            </div>
-            <button
-              onClick={() => closeModal('policeResult')}
-              className="px-8 py-3 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-500 transition-all"
-            >
-              확인
-            </button>
-          </div>
-        </div>
-      )}
+      <PoliceResultModal
+        isOpen={modals.policeResult && !!nightAction.policeResult}
+        targetName={standardizedPlayers.find(p => String(p.userId) === String(nightAction.policeResult?.targetUserId))?.nickname}
+        isMafia={nightAction.policeResult?.isMafia}
+        onClose={() => closeModal('policeResult')}
+      />
 
       {/* AI 찬스 결과 모달 */}
-      {modals.aiChance && aiChance.result && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-md">
-          <div className="text-center max-w-md">
-            <h1 className="text-4xl font-black text-yellow-400 mb-8">AI 분석 결과</h1>
-            <p className="text-xl text-white mb-4">
-              {standardizedPlayers.find(p => String(p.userId) === String(aiChance.result.targetUserId))?.nickname}님
-            </p>
-            <div className="bg-black/50 rounded-xl p-6 mb-8 border border-yellow-500/30">
-              <p className="text-lg text-gray-200">{aiChance.result.summary}</p>
-              {aiChance.result.metrics && (
-                <div className="mt-4 flex justify-center gap-8">
-                  <div>
-                    <span className="text-gray-400 text-sm">긴장도</span>
-                    <div className="text-2xl font-bold text-yellow-400">
-                      {Math.round(aiChance.result.metrics.tension * 100)}%
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 text-sm">신뢰도</span>
-                    <div className="text-2xl font-bold text-green-400">
-                      {Math.round(aiChance.result.metrics.confidence * 100)}%
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <button
-              onClick={() => closeModal('aiChance')}
-              className="px-8 py-3 bg-yellow-600 text-white font-bold rounded-full hover:bg-yellow-500 transition-all"
-            >
-              확인
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 게임 종료 모달 */}
-      {showGameEndModal && gameResult && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95 backdrop-blur-md">
-          <div className="text-center">
-            <h1 className={`text-6xl font-black mb-8
-              ${gameResult.winnerTeam === 'CITIZEN' ? 'text-green-500' : 'text-red-500'}`}>
-              {gameResult.winnerTeam === 'CITIZEN' ? '시민 승리!' : '마피아 승리!'}
-            </h1>
-            {gameResult.mvpUserId && (
-              <p className="text-2xl text-yellow-400 mb-12">
-                MVP: {standardizedPlayers.find(p => String(p.userId) === String(gameResult.mvpUserId))?.nickname}
-              </p>
-            )}
-            <button
-              onClick={handleBackToWaitingRoom}
-              className="px-8 py-4 bg-[#ff8a00] text-white text-xl font-bold rounded-full hover:bg-orange-500 transition-all"
-            >
-              대기실로 돌아가기
-            </button>
-          </div>
-        </div>
-      )}
+      <AiChanceResultModal
+        isOpen={modals.aiChance && !!aiChance.result}
+        targetName={standardizedPlayers.find(p => String(p.userId) === String(aiChance.result?.targetUserId))?.nickname}
+        result={aiChance.result}
+        onClose={() => closeModal('aiChance')}
+      />
     </div>
   );
 };
