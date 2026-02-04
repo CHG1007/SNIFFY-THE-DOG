@@ -14,8 +14,7 @@ public record RoomState(
         String phase,
         Instant phaseEndsAt,
         long version,
-        List<PlayerSummary> players
-) {
+        List<PlayerSummary> players) {
     public static RoomState from(RoomSession room) {
         return new RoomState(
                 room.getId().toString(),
@@ -28,7 +27,6 @@ public record RoomState(
                 room.getVersion(),
                 room.getPlayers().values().stream()
                         .map(PlayerSummary::from)
-                        .toList()
-        );
+                        .toList());
     }
 }

@@ -46,7 +46,7 @@ const useGameStore = create((set, get) => ({
     hasVoted: false,
     myTarget: null,
     votedPlayers: [], // 투표한 플레이어 목록 (hasVoted만 알 수 있음)
-    result: null, // { selectedUserId, isTie }
+    result: null, // { accusedUserId, isTie }
   },
   vote2: {
     hasVoted: false,
@@ -178,8 +178,8 @@ const useGameStore = create((set, get) => ({
   })),
 
   // 1차 투표 결과
-  setVote1Result: (selectedUserId, isTie) => set((state) => ({
-    vote1: { ...state.vote1, result: { selectedUserId, isTie } },
+  setVote1Result: (accusedUserId, isTie) => set((state) => ({
+    vote1: { ...state.vote1, result: { accusedUserId, isTie } },
   })),
 
   // 2차 투표 (찬반)
