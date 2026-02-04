@@ -92,6 +92,7 @@ const GamePage = () => {
   // Refs
   const myInfoRef = useRef(myInfo);
   const playersRef = useRef(players);
+  const gameFinishedPlayersRef = useRef([]);
 
   // ***** AI *****
   const { startAnalysis, isAnalyzing } = useAnalysis();        // 분석 시작
@@ -142,12 +143,17 @@ const GamePage = () => {
   // 게임 종료 시 결과 페이지로 자동 이동
   useEffect(() => {
     if (gameResult) {
-      // 약간의 딜레이를 주어 사용자가 인지할 시간을 줄 수도 있음 (선택 사항)
-      // 현재는 즉시 이동 요구사항에 따름
-      navigate('/result', {
+      const winnerParam = gameResult.winnerTeam === 'MAFIA' ? 'mafia' : 'citizen';
+      const playersWithRoles = standardizedPlayers.map(p => {
+        const finished = gameFinishedPlayersRef.current.find(
+          fp => String(fp.userId) === String(p.userId)
+        );
+        return finished ? { ...p, role: finished.role } : p;
+      });
+      navigate(`/result?winner=${winnerParam}`, {
         state: {
           gameResult: gameResult,
-          players: standardizedPlayers
+          players: playersWithRoles
         }
       });
     }
@@ -296,8 +302,10 @@ const GamePage = () => {
 
       // === 게임 종료 ===
       case 'GAME_FINISHED':
+        if (payload.players) {
+          gameFinishedPlayersRef.current = payload.players;
+        }
         setGameResult(payload.winnerTeam, payload.mvpUserId);
-        // setShowGameEndModal(true); // 제거
         if (payload.version) setVersion(payload.version);
         break;
 

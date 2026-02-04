@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Phase End 방식 - 클라이언트 트리거 Phase 전환 서비스
@@ -85,6 +87,14 @@ public class PhaseEndService implements PhaseEndUseCase {
             return; // 멱등성 - 이미 처리됨
         }
 
+        holder.playerRoles = updated.getPlayers().entrySet().stream()
+                .map(e -> Map.<String, Object>of(
+                        "userId", e.getKey().value(),
+                        "nickname", e.getValue().getDisplayName(),
+                        "role", e.getValue().getGameRole() != null ? e.getValue().getGameRole().name() : "CITIZEN"
+                ))
+                .collect(Collectors.toList());
+
         log.info("[PhaseEnd] Phase changed: roomCode={}, from={}, to={}, version={}",
                 roomCode, requestedPhase, holder.newPhase, holder.newVersion);
 
@@ -137,6 +147,7 @@ public class PhaseEndService implements PhaseEndUseCase {
             gameFinished.put("version", holder.newVersion);
             gameFinished.put("winnerTeam", tr.winner().name());
             gameFinished.put("mvpUserId", null);
+            gameFinished.put("players", holder.playerRoles);
             gameMessagePort.sendToRoom(roomCode, "GAME_FINISHED", gameFinished);
 
               // 게임 결과 처리 (비동기) - GameHistory 생성 및 GameLog MongoDB 저장
@@ -159,5 +170,6 @@ public class PhaseEndService implements PhaseEndUseCase {
         int round;
         Instant startedAt;
         Instant endedAt;
+        List<Map<String, Object>> playerRoles;
     }
 }
