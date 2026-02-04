@@ -160,7 +160,7 @@ export default function RoomPage() {
               </div>
 
               {/* 페이지네이션 */}
-              <div className="shrink-0 mt-auto flex justify-center pt-10 pb-2">
+              <div className="shrink-0 mt-auto flex justify-center pt-2 pb-0">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
