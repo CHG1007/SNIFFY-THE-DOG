@@ -66,7 +66,7 @@ public class CastVote1Service implements CastVote1UseCase {
             // 4. 투표 반영 하기 호호,, 코드 안에 메서드로 (touch()로 version++ 자동)
             room.castDayVote(voterId, targetId);
 
-            vote1ResultHolder.round = 1; //todo: round 변경 해야함 ..
+            vote1ResultHolder.round = room.getGameState().round(); 
 
             // 5. 전원 투표 완료면 집계해서 accused 설정
             long aliveCount = room.getPlayers().values().stream().filter(PlayerState::isAlive).count(); // 투표해야하는 사람 수
