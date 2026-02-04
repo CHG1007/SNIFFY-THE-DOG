@@ -4,6 +4,8 @@ import UserHistorySection from '../components/mypage/UserHistorySection';
 import { getMyProfile, getUserBadges, getUserGameHistory, updateNickname } from '../api/userApi';
 import useAuthStore from '../stores/useAuthStore';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
+import AiAnalyzeModal from '../components/modals/AiAnalyzeModal';
+
 
 const MyPage = () => {
   const { user, setUser } = useAuthStore();
@@ -16,6 +18,10 @@ const MyPage = () => {
   //알림 모달
   const [errorMsg, setErrorMsg] = useState(null);
   const [subMsg, setSubMsg] = useState(null);
+
+  // ai 결과 보고서 모달
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [selectedAnalysis, setSelectedAnalysis] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -43,7 +49,9 @@ const MyPage = () => {
             role: item.job, // Mapping job -> role
             result: item.result,
             team: item.winner,
-            playTime: item.playTime
+            playTime: item.playTime,
+
+            onReport: () => handleOpenAnalysis(item.gameId)
           }));
           setGames(mappedGames);
         }
@@ -116,6 +124,24 @@ const MyPage = () => {
     console.log("Report game:", game);
   };
 
+  // 분석 버튼 클릭 시 실행할 핸들러 추가
+  const handleOpenAnalysis = async (gameId) => {
+    try {
+      // TODO: 실제 API 연결 (예: const res = await getGameAnalysis(gameId);)
+      // 현재는 테스트용 더미 데이터 세팅
+      const dummyData = {
+        totalSummary: "전체 게임 요약 3줄이 들어가는 공간입니다.\n두 번째 줄입니다.\n세 번째 줄입니다.",
+        playerReports: {
+          [profile?.nickname]: "나의 개인 활약상 2줄이 들어가는 공간입니다.\n두 번째 줄입니다."
+        }
+      };
+      setSelectedAnalysis(dummyData);
+      setIsAiModalOpen(true);
+    } catch (error) {
+      console.error("분석 데이터를 가져오지 못했습니다.", error);
+    }
+  };
+
   // Profile Image Logic: (userId % 4) + 1
   const profileImgIndex = profile ? (profile.userId % 4) + 1 : 1;
   const profileImagePath = `/assets/images/mypage/profile/profile${profileImgIndex}.png`;
@@ -140,9 +166,15 @@ const MyPage = () => {
         </section>
 
         <section className="w-full flex-1 min-h-0 overflow-hidden">
-          <UserHistorySection games={games} onReport={handleReport} />
+          <UserHistorySection games={games} onReport={handleReport}/>
         </section>
       </div>
+      <AiAnalyzeModal 
+        isOpen={isAiModalOpen} 
+        onClose={() => setIsAiModalOpen(false)} 
+        data={selectedAnalysis}
+        nickname={profile?.nickname}
+      />
       {/* 정보 알림용 모달 (Okay 버튼) */}
       <LastBeggingModal
         isOpen={!!errorMsg}
