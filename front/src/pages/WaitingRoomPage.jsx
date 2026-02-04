@@ -286,7 +286,7 @@ const WaitingRoomPage = () => {
   const amIReady = myInfo.ready === true;
 
   const formattedPlayers = players.map(p => {
-    const isMe = p.userId === myInfo.userId;
+    const isMe = String(p.userId) === String(myInfo.userId);
     return {
       userId: p.userId,
       name: p.nickname || p.displayName,
