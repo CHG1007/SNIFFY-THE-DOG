@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import VideoCanvas from "../video/VideoCanvas";
 import VoteConfirmModal from "../modals/VoteConfirmModal";
 
-const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteRequest, size = "normal" }) => {
+const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteRequest, size = "normal", track }) => {
   const [audioLevel, setAudioLevel] = useState(0);
 
   // 사이즈별 스타일 정의
@@ -23,7 +23,7 @@ const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteRequest, size = 
       group`}>
       {/* 비디오 캔버스 */}
       <div className="w-full h-full">
-        <VideoCanvas stream={player.stream} isMuted={isMe} photo={player.photo}/>
+        <VideoCanvas track={track} isMuted={isMe} isLocal={isMe} />
       </div>
 
       {/* 투표 버튼 레이어 */}
