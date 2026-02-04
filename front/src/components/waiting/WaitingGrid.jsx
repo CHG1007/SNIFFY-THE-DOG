@@ -29,7 +29,7 @@ const WaitingGrid = ({ players, myId, isHost, onKick, capacity = 6 }) => {
             {player ? (
               <WaitingSlot 
                 player={player} 
-                isMe={player.userId === myId} 
+                isMe={String(player.userId) === String(myId)}
                 isHost={isHost} 
                 onKickRequest={onKick} 
               />
