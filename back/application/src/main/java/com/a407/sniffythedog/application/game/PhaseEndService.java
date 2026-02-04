@@ -3,12 +3,11 @@ package com.a407.sniffythedog.application.game;
 import com.a407.sniffythedog.application.game.in.PhaseEndCommand;
 import com.a407.sniffythedog.application.game.in.PhaseEndUseCase;
 import com.a407.sniffythedog.application.game.out.GameMessagePort;
-import com.a407.sniffythedog.application.gamelog.GameResultService;
+import com.a407.sniffythedog.application.night.in.NightResolveCommand;
 import com.a407.sniffythedog.application.night.in.NightResolveUseCase;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.enums.Phase;
-import com.a407.sniffythedog.domain.game.enums.Winner;
 import com.a407.sniffythedog.domain.game.vo.PhaseEndResult;
 import com.a407.sniffythedog.domain.game.vo.PhaseTransitionResult;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
@@ -30,6 +29,7 @@ public class PhaseEndService implements PhaseEndUseCase {
 
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
+    private final NightResolveUseCase nightResolveUseCase;
 
     @Override
     public void execute(PhaseEndCommand command) {
@@ -42,6 +42,16 @@ public class PhaseEndService implements PhaseEndUseCase {
             requestedPhase = Phase.valueOf(command.phase());
         } catch (IllegalArgumentException e) {
             log.warn("[PhaseEnd] Invalid phase: {}", command.phase());
+            return;
+        }
+
+        // NIGHT phase는 phase/end가 들어오면 서버에서 정산까지 처리한다.
+        if (requestedPhase == Phase.NIGHT) {
+            nightResolveUseCase.execute(new NightResolveCommand(
+                    roomCode,
+                    command.userId(),
+                    command.requestId()
+            ));
             return;
         }
 
