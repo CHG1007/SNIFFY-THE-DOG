@@ -44,6 +44,7 @@ const MyPage = () => {
         }
 
         if (gamesRes.success) {
+          console.log("📦 서버에서 온 전적 데이터 원본:", gamesRes.data);
           const mappedGames = (gamesRes.data.content || []).map(item => ({
             gameId: item.gameId,
             date: item.startAt ? new Date(item.startAt).toISOString().split('T')[0].replace(/-/g, '.') : '',
