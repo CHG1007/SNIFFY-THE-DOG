@@ -5,6 +5,12 @@ import { useState, useEffect, useRef } from 'react';
 const Header = () => {
   const navigate = useNavigate();
   const {user, logout } = useAuthStore();
+  
+  // Profile Image Logic: (userId % 4) + 1
+  const userId = user?.userId || user?.id || 0;
+  const profileImgIndex = (userId % 4) + 1;
+  const profileImagePath = `/assets/images/mypage/profile/profile${profileImgIndex}.png`;
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -57,7 +63,7 @@ const Header = () => {
           <div className="w-10 h-10 rounded-full bg-gray-600 overflow-hidden border-2 border-gray-500">
             {/* 없는 api 호출 임시 수정 <img src="/api/placeholder/32/32" alt="profile" /> */}
             <img
-                src={user?.profileImage || "https://ui-avatars.com/api/?name=User&background=random"}
+                src={profileImagePath}
                 alt="profile"
                 className="w-full h-full object-cover"
             />

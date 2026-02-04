@@ -3,6 +3,7 @@ import ProfileCard from '../components/mypage/ProfileCard';
 import UserHistorySection from '../components/mypage/UserHistorySection';
 import { getMyProfile, getUserBadges, getUserGameHistory, updateNickname } from '../api/userApi';
 import useAuthStore from '../stores/useAuthStore';
+import LastBeggingModal from '../components/modals/LastBeggingModal';
 
 const MyPage = () => {
   const { user, setUser } = useAuthStore();
@@ -12,47 +13,65 @@ const MyPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editNickname, setEditNickname] = useState(user?.nickname || "");
 
+  //알림 모달
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [subMsg, setSubMsg] = useState(null);
+
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [profileRes, badgesRes, gamesRes] = await Promise.all([
+          getMyProfile(),
+          getUserBadges(),
+          getUserGameHistory(0, 20) // Load first 20 games
+        ]);
+
+        if (profileRes.success) {
+          setProfile(profileRes.data);
+          setEditNickname(profileRes.data.nickname);
+        }
+        
+        if (badgesRes.success) {
+           // Handle badge response structure: { badges: [...] }
+          setBadges(badgesRes.data.badges || []);
+        }
+
+        if (gamesRes.success) {
+          const mappedGames = (gamesRes.data.content || []).map(item => ({
+            gameId: item.gameId,
+            date: item.startAt ? new Date(item.startAt).toISOString().split('T')[0].replace(/-/g, '.') : '',
+            role: item.job, // Mapping job -> role
+            result: item.result,
+            team: item.winner,
+            playTime: item.playTime
+          }));
+          setGames(mappedGames);
+        }
+
+      } catch (error) {
+        console.error("Failed to fetch my page data:", error);
+      }
+    };
+
     fetchData();
   }, []);
 
-  const fetchData = async () => {
-    try {
-      const [profileRes, badgesRes, gamesRes] = await Promise.all([
-        getMyProfile(),
-        getUserBadges(),
-        getUserGameHistory(0, 20) // Load first 20 games
-      ]);
-
-      if (profileRes.success) {
-        setProfile(profileRes.data);
-        setEditNickname(profileRes.data.nickname);
-      }
-      
-      if (badgesRes.success) {
-         // Handle badge response structure: { badges: [...] }
-        setBadges(badgesRes.data.badges || []);
-      }
-
-      if (gamesRes.success) {
-        const mappedGames = (gamesRes.data.content || []).map(item => ({
-          gameId: item.gameId,
-          date: item.startAt ? new Date(item.startAt).toISOString().split('T')[0].replace(/-/g, '.') : '',
-          role: item.job, // Mapping job -> role
-          result: item.result,
-          team: item.winner,
-          playTime: item.playTime
-        }));
-        setGames(mappedGames);
-      }
-
-    } catch (error) {
-      console.error("Failed to fetch my page data:", error);
-    }
-  };
-
   const handleSaveNickname = async () => {
-    if (!editNickname.trim()) return;
+    const trimmedNickname = editNickname.trim();
+
+    const validPattern = /^[가-힣a-zA-Z0-9]+$/;
+    
+    if (trimmedNickname.length < 1 || trimmedNickname.length > 20) {
+      setErrorMsg("닉네임 길이를\n확인해주세요.");
+      setSubMsg("- 1자 이상 20자 이하로 입력\n- 공백은 포함될 수 없습니다.");
+      return;
+    }
+    
+    if (!validPattern.test(trimmedNickname)) {
+      setErrorMsg("사용할 수 없는 문자가\n포함되었습니다.");
+      setSubMsg("- 한글, 영문, 숫자만 사용 가능\n- 특수문자 및 초성/모음 불가");
+      return;
+    }
     
     try {
       const res = await updateNickname(editNickname);
@@ -71,16 +90,19 @@ const MyPage = () => {
             localStorage.setItem('user', JSON.stringify(updatedUser)); // 새로고침 대비
           }
           
-          setIsEditing(false); // 수정 모드 종료
-          alert("닉네임이 변경되었습니다.");
+          setErrorMsg("닉네임이 성공적으로\n변경되었습니다.");
+          setSubMsg(null); // 성공 시 서브 메시지 비움
+          setIsEditing(false);
       } else {
         // success가 false인 경우 (백엔드 에러 메시지 등)
         console.error("Nickname update failed:", res);
-        alert("닉네임 변경에 실패했습니다.");
+        setErrorMsg("닉네임 변경에\n실패했습니다.");
+        setSubMsg("이미 사용 중인\n닉네임일 수 있습니다.");
       }
     } catch (error) {
       console.error("Failed to update nickname:", error);
-      alert("닉네임 변경 중 오류가 발생했습니다.");
+      setErrorMsg("닉네임 변경 중\n오류가 발생했습니다.");
+      setSubMsg(null);
     }
   };
 
@@ -121,6 +143,17 @@ const MyPage = () => {
           <UserHistorySection games={games} onReport={handleReport} />
         </section>
       </div>
+      {/* 정보 알림용 모달 (Okay 버튼) */}
+      <LastBeggingModal
+        isOpen={!!errorMsg}
+        message={errorMsg}
+        subMessage={subMsg} 
+        onClose={() => {
+          setErrorMsg(null);
+          setSubMsg(null);
+        }}
+      />
+
     </div>
   );
 };

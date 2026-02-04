@@ -209,7 +209,7 @@ const GamePage = () => {
         break;
 
       case 'VOTE1_RESULT':
-        setVote1Result(data.selectedUserId, data.isTie);
+        setVote1Result(data.accusedUserId, data.isTie);
         setShowVote1ResultModal(true);
         if (data.version) setVersion(data.version);
         break;
@@ -221,7 +221,7 @@ const GamePage = () => {
         break;
 
       case 'VOTE2_RESULT':
-        setVote2Result(data.approved, data.executedUserId, data.counts);
+        setVote2Result(data.approved, data.executedUserId, { agree: data.agree, disagree: data.disagree });
         setShowVote2ResultModal(true);
         if (data.version) setVersion(data.version);
         break;
@@ -484,8 +484,8 @@ const GamePage = () => {
 
   // 피고인 정보 (2차 투표용)
   const accusedPlayer = useMemo(() => {
-    if (!vote1.result?.selectedUserId) return null;
-    return standardizedPlayers.find(p => String(p.userId) === String(vote1.result.selectedUserId));
+    if (!vote1.result?.accusedUserId) return null;
+    return standardizedPlayers.find(p => String(p.userId) === String(vote1.result.accusedUserId));
   }, [vote1.result, standardizedPlayers]);
 
   // 밤 사망자 정보
@@ -530,7 +530,7 @@ const GamePage = () => {
                 gameState: { trial: { accusedUserId: accusedPlayer.userId } },
                 players: standardizedPlayers
               }}
-              onTimeout={() => {}}
+              onTimeout={() => { }}
             />
           </div>
         ) : (
@@ -557,33 +557,33 @@ const GamePage = () => {
 
                       {/* 밤 행동 버튼 (마피아/의사/경찰) */}
                       {gamePhase === 'NIGHT' && amIAlive && player.isAlive &&
-                       String(player.userId) !== String(myInfo.userId) &&
-                       ['MAFIA', 'DOCTOR', 'POLICE'].includes(myInfo.role) && (
-                        <button
-                          onClick={() => handleNightAction(player)}
-                          disabled={nightAction.hasActed}
-                          className={`absolute bottom-3 right-3 z-50 px-3 py-1 rounded-full text-xs font-bold transition-all
+                        String(player.userId) !== String(myInfo.userId) &&
+                        ['MAFIA', 'DOCTOR', 'POLICE'].includes(myInfo.role) && (
+                          <button
+                            onClick={() => handleNightAction(player)}
+                            disabled={nightAction.hasActed}
+                            className={`absolute bottom-3 right-3 z-50 px-3 py-1 rounded-full text-xs font-bold transition-all
                             ${nightAction.hasActed
-                              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                              : 'bg-purple-600 hover:bg-purple-500 text-white'
-                            }`}
-                        >
-                          {myInfo.role === 'MAFIA' ? '습격' : myInfo.role === 'DOCTOR' ? '치료' : '조사'}
-                        </button>
-                      )}
+                                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                : 'bg-purple-600 hover:bg-purple-500 text-white'
+                              }`}
+                          >
+                            {myInfo.role === 'MAFIA' ? '습격' : myInfo.role === 'DOCTOR' ? '치료' : '조사'}
+                          </button>
+                        )}
 
                       {/* AI 찬스 버튼 (시민, 낮에만) */}
                       {gamePhase === 'DAY' && amIAlive &&
-                       myInfo.role === 'CITIZEN' && myInfo.aiChanceRemaining > 0 &&
-                       String(player.userId) !== String(myInfo.userId) && player.isAlive && (
-                        <button
-                          onClick={() => handleAiChance(player)}
-                          className="absolute bottom-3 left-3 z-50 px-3 py-1 rounded-full text-xs font-bold
+                        myInfo.role === 'CITIZEN' && myInfo.aiChanceRemaining > 0 &&
+                        String(player.userId) !== String(myInfo.userId) && player.isAlive && (
+                          <button
+                            onClick={() => handleAiChance(player)}
+                            className="absolute bottom-3 left-3 z-50 px-3 py-1 rounded-full text-xs font-bold
                                      bg-yellow-600 hover:bg-yellow-500 text-white transition-all"
-                        >
-                          AI 분석
-                        </button>
-                      )}
+                          >
+                            AI 분석
+                          </button>
+                        )}
                     </div>
                   ) : (
                     /* 빈 슬롯 (대기방 스타일) */
@@ -652,7 +652,7 @@ const GamePage = () => {
       {gamePhase === 'VOTE_2' && accusedPlayer && !vote2.hasVoted && amIAlive && (
         <RealVote
           accusedPlayer={accusedPlayer}
-          onVoteComplete={() => {}}
+          onVoteComplete={() => { }}
           onVote={handleFinalVote}
         />
       )}

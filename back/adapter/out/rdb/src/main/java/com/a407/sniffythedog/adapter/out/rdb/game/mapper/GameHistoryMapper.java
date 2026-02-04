@@ -9,9 +9,21 @@ public class GameHistoryMapper {
     private GameHistoryMapper() {
     }
 
+    public static GameHistoryEntity toEntity(GameHistory domain) {
+        return new GameHistoryEntity(
+            domain.getId() != null ? domain.getId().value() : null,
+            domain.getRoomId(),
+            domain.getWinner(),
+            domain.getStartAt(),
+            domain.getEndAt(),
+            domain.getPlayTime()
+        );
+    }
+
     public static GameHistory toDomain(GameHistoryEntity entity) {
         return GameHistory.reconstitute(
             GameHistoryId.of(entity.getId()),
+            entity.getRoomId(),
             entity.getWinner(),
             entity.getStartAt(),
             entity.getEndAt(),
