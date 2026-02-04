@@ -338,13 +338,23 @@ const GamePage = () => {
     // WAITING, GAME_END는 타이머가 없으므로 제외
     const timedPhases = ['COUNTDOWN', 'ASSIGN_ROLE', 'DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'NIGHT', 'DAY_RESULT'];
 
-    if (remainingSeconds === 0 && phaseEndsAt && !phaseEndSent && timedPhases.includes(gamePhase)) {
-      // 1회만 전송 (멱등성)
+    if (!phaseEndsAt || phaseEndSent || !timedPhases.includes(gamePhase)) {
+      return;
+    }
+
+    // Race condition 방지: 실제 시간을 직접 계산하여 double-check
+    // (페이지 로드 시 remainingSeconds가 초기값 0인 상태에서 바로 전송되는 것 방지)
+    const now = Date.now();
+    const end = new Date(phaseEndsAt).getTime();
+    const actualRemaining = Math.floor((end - now) / 1000);
+
+    // remainingSeconds가 0이고, 실제로 시간이 지났을 때만 전송
+    if (remainingSeconds === 0 && actualRemaining <= 0) {
       setPhaseEndSent(true);
       websocketClient.sendPhaseEnd(gamePhase);
 
       if (import.meta.env.DEV) {
-        console.log('[PhaseEnd] Sent phase end:', gamePhase);
+        console.log('[PhaseEnd] Sent phase end:', gamePhase, 'actualRemaining:', actualRemaining);
       }
     }
   }, [remainingSeconds, phaseEndsAt, phaseEndSent, gamePhase, setPhaseEndSent]);
