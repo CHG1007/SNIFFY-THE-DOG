@@ -61,6 +61,15 @@ public class NightActionService implements
             if (!mafia.isMafia()) throw ApplicationException.of(ExceptionType.BAD_REQUEST);
 
             requireAlive(room, targetId);
+
+            // 2. [선착순 체크] 이미 타겟이 설정되어 있는지 확인
+            GameUserId currentTarget = room.getGameState().night().mafiaTargetUserId();
+            
+            if (currentTarget != null) {
+                // 먼저 눌렸다면 후속 요청은 모두 거절
+                throw ApplicationException.of(ExceptionType.ALREADY_VOTED, "이미 타겟이 확정되었습니다.");
+            }
+
             room.setMafiaTarget(targetId);
 
             holder.shouldLog = true;
