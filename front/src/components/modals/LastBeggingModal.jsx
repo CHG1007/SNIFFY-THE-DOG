@@ -12,21 +12,32 @@ const LastBeggingModal = ({ isOpen, onClose, onConfirm, message }) => {
           {message}
         </p>
 
-        <div className="flex w-full gap-4 px-4">
-          {/* 1. Yes/No가 필요한 '선택형'일 때만 Yes 버튼을 보여줌 */}
-          {isConfirmType && (
+        <div className="flex w-full justify-center gap-4 px-4">
+          {isConfirmType ? (
+            // [선택형] Yes / No 버튼 2개
+            <>
+              <ConfirmBtn 
+                text="Yes" 
+                variant="primary"
+                className="flex-1 py-3 text-xl" 
+                onClick={onConfirm} 
+              />
+              <ConfirmBtn 
+                text="No" 
+                variant="secondary" 
+                className="flex-1 py-3 text-xl" 
+                onClick={onClose} 
+              />
+            </>
+          ) : (
+            // [알림형] Okay 버튼 1개 (길이를 줄이기 위해 w-48 등 고정폭 권장)
             <ConfirmBtn 
-              text="Yes" 
-              className="flex-1 py-3 text-xl" 
-              onClick={onConfirm} 
+              text="Okay" 
+              variant="primary"
+              className="w-48 py-3 text-xl" 
+              onClick={onClose} 
             />
           )}
-          <ConfirmBtn 
-            text="No" 
-            variant="secondary" 
-            className="flex-1 py-3 text-xl" 
-            onClick={onClose} 
-          />
         </div>
       </div>
     </ModalWrapper>
