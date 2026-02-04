@@ -68,7 +68,7 @@ export default function RoomPage() {
       
       handleJoinRoom(targetRoom);
     } else {
-      setErrorMsg("현재 페이지에 입장 가능한 \n공개방이 없습니다.");
+      setErrorMsg("현재 입장 가능한 \n공개방이 없습니다.");
     }
   };
 
