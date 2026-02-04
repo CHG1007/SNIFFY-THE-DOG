@@ -222,6 +222,13 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
             finishedMsg.put("version", updated.getVersion());
             finishedMsg.put("winnerTeam", holder.winnerTeam);
             finishedMsg.put("mvpUserId", null);
+            finishedMsg.put("players", updated.getPlayers().entrySet().stream()
+                    .map(e -> Map.of(
+                            "userId", e.getKey().value(),
+                            "nickname", e.getValue().getDisplayName(),
+                            "role", e.getValue().getGameRole() != null ? e.getValue().getGameRole().name() : "CITIZEN"
+                    ))
+                    .collect(Collectors.toList()));
             gameMessagePort.sendToRoom(roomCode, "GAME_FINISHED", finishedMsg);
 
             gameResultService.processGameResult(

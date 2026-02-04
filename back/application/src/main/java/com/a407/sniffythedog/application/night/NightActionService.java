@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class NightActionService implements
@@ -232,7 +234,15 @@ public class NightActionService implements
 
         // 4. 게임 종료
         if (holder.finished) {
-            roomEventPort.publishGameFinished(roomCode, version, holder.winnerTeam, null);
+            List<RoomEventPort.PlayerRoleInfo> playerRoles = updated.getPlayers().entrySet().stream()
+                    .map(e -> new RoomEventPort.PlayerRoleInfo(
+                            e.getKey().value(),
+                            e.getValue().getDisplayName(),
+                            e.getValue().getGameRole() != null ? e.getValue().getGameRole().name() : "CITIZEN"
+                    ))
+                    .collect(Collectors.toList());
+
+            roomEventPort.publishGameFinished(roomCode, version, holder.winnerTeam, null, playerRoles);
 
             gameResultService.processGameResult(
                     roomCode,
