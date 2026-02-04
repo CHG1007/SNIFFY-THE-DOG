@@ -22,7 +22,7 @@ const UserHistorySection = ({ games, onReport }) => {
   return (
     <div className="w-full flex flex-col items-start mt-0">
       {/* 타이틀 */}
-      <h3 className="text-[#ff8a00] text-2xl font-black mb-6 italic tracking-tighter drop-shadow-md">
+      <h3 className="text-white/80 text-2xl font-bold mb-6 tracking-tight drop-shadow-md">
         전적
       </h3>
       
