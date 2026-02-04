@@ -4,12 +4,14 @@ import com.a407.sniffythedog.application.common.exception.ApplicationException;
 import com.a407.sniffythedog.application.common.exception.ExceptionType;
 import com.a407.sniffythedog.application.game.in.*;
 import com.a407.sniffythedog.application.game.out.GameMessagePort;
+import com.a407.sniffythedog.application.gamelog.GameResultService;
 import com.a407.sniffythedog.application.gamelog.out.GameLogRedisPort;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.PlayerState;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.enums.Phase;
 import com.a407.sniffythedog.domain.game.enums.RoomStatus;
+import com.a407.sniffythedog.domain.game.enums.Winner;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.PhaseTiming;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
@@ -31,6 +33,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
     private final GameLogRedisPort gameLogRedisPort;
+    private final GameResultService gameResultService;
 
     private static final PhaseTiming GAME_TIMING = new PhaseTiming(60, 30, 30, 15, 30);
 
@@ -220,6 +223,13 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
             finishedMsg.put("winnerTeam", holder.winnerTeam);
             finishedMsg.put("mvpUserId", null);
             gameMessagePort.sendToRoom(roomCode, "GAME_FINISHED", finishedMsg);
+
+            gameResultService.processGameResult(
+                    roomCode,
+                    Winner.valueOf(holder.winnerTeam),
+                    updated.getStartedAt(),
+                    updated.getEndedAt() != null ? updated.getEndedAt() : Instant.now()
+            );
         }
     }
 
