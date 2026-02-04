@@ -82,7 +82,7 @@ const GamePage = () => {
   } = useGameStore();
 
   // LiveKit 자동 연결 (방 입장 시 즉시 연결)
-  const { tracks: liveTracks, localTrack } = useLiveKit(roomId);
+  const { tracks: liveTracks, localTrack, room: lkRoom } = useLiveKit(roomId);
 
   // 로컬 UI 상태
   const [remainingSeconds, setRemainingSeconds] = useState(0);
@@ -569,16 +569,26 @@ const GamePage = () => {
     // 1. 시민이 아니고 남은 찬스 없으면 못 함
     if (myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0 || isAnalyzing) return;
 
-    // 2. 비디오 트랙 찾기
+    // 2. 비디오 트랙 찾기 (LiveKit 전용)
     const targetId = String(targetPlayer.userId);
-    const targetPlayerObj = players.find(p => String(p.userId) === targetId);
-    // 3. LiveKit 스트림에서 비디오와 오디오 추출
-    const videoTrack = targetPlayerObj?.stream?.getVideoTracks()[0];
-    const audioTrack = targetPlayerObj?.stream?.getAudioTracks()[0];
+    const isMe = targetId === String(myInfo.userId);
+
+    const videoTrack = isMe ? localTrack : liveTracks[targetId];
 
     if (!videoTrack) {
       alert("상대방의 카메라가 꺼져 있습니다.");
       return;
+    }
+
+    // 3. 오디오 트랙 추출 (LiveKit Room을 통해)
+    let audioTrack = null;
+    if (lkRoom) {
+      const participant = isMe
+        ? lkRoom.localParticipant
+        : lkRoom.getParticipantByIdentity(targetId);
+
+      const audioPub = participant?.getTrackPublication('microphone'); // Track.Source.Microphone
+      audioTrack = audioPub?.track;
     }
 
     setIsSelectMode(false); // 선택 완료했으니 모드 해제
@@ -629,38 +639,38 @@ const GamePage = () => {
 
       {/* AI 찬스 버튼 (시민, 낮에만) */}
       {myInfo.role === 'CITIZEN' && (
-      <div className="absolute top-6 right-6 z-[100]">
-      <button
-        onClick={() => {
-          // 💡 클릭 방어: 낮이고, 살아있고, 시민이고, 찬스가 있을 때만 작동
-          if (gamePhase !== 'DAY' || !amIAlive || myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0) return;
-          
-          const newSelectMode = !isSelectMode;
-          setIsSelectMode(newSelectMode);
-          if (newSelectMode) {
-            setIsGuidanceOpen(true);
-          }
-        }}
-        // 💡 비활성화 조건: 낮이 아니거나, 죽었거나, 시민이 아니거나, 찬스가 없거나, 분석 중일 때
-        disabled={
-          isAnalyzing || 
-          gamePhase !== 'DAY' || 
-          !amIAlive || 
-          myInfo.role !== 'CITIZEN' || 
-          myInfo.aiChanceRemaining <= 0
-        }
-        className={`px-6 py-2 rounded-full text-sm font-pretendard font-black transition-all shadow-lg active:scale-95 focus:outline-none focus:ring-0
-        ${isSelectMode 
-          ? "bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)] border-none" // 🔴 선택 취소: 테두리 절대 금지!
-          : isAnalyzing
-            ? "bg-white text-[#69D6E3] border-2 border-[#69D6E3] animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.7)]" 
-            : "bg-[#69D6E3] text-white border-2 border-white/30 hover:opacity-90 shadow-[0_0_10px_rgba(105,214,227,0.4)]"
-        } 
+        <div className="absolute top-6 right-6 z-[100]">
+          <button
+            onClick={() => {
+              // 💡 클릭 방어: 낮이고, 살아있고, 시민이고, 찬스가 있을 때만 작동
+              if (gamePhase !== 'DAY' || !amIAlive || myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0) return;
+
+              const newSelectMode = !isSelectMode;
+              setIsSelectMode(newSelectMode);
+              if (newSelectMode) {
+                setIsGuidanceOpen(true);
+              }
+            }}
+            // 💡 비활성화 조건: 낮이 아니거나, 죽었거나, 시민이 아니거나, 찬스가 없거나, 분석 중일 때
+            disabled={
+              isAnalyzing ||
+              gamePhase !== 'DAY' ||
+              !amIAlive ||
+              myInfo.role !== 'CITIZEN' ||
+              myInfo.aiChanceRemaining <= 0
+            }
+            className={`px-6 py-2 rounded-full text-sm font-pretendard font-black transition-all shadow-lg active:scale-95 focus:outline-none focus:ring-0
+        ${isSelectMode
+                ? "bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)] border-none" // 🔴 선택 취소: 테두리 절대 금지!
+                : isAnalyzing
+                  ? "bg-white text-[#69D6E3] border-2 border-[#69D6E3] animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.7)]"
+                  : "bg-[#69D6E3] text-white border-2 border-white/30 hover:opacity-90 shadow-[0_0_10px_rgba(105,214,227,0.4)]"
+              } 
         ${(gamePhase !== 'DAY' || !amIAlive || myInfo.aiChanceRemaining <= 0) && !isAnalyzing && !isSelectMode ? "opacity-40 cursor-not-allowed" : ""}`}
-      >
-        {isAnalyzing ? "분석 중..." : isSelectMode ? "선택 취소" : "킁킁 찬스"}
-        </button>
-    </div>
+          >
+            {isAnalyzing ? "분석 중..." : isSelectMode ? "선택 취소" : "킁킁 찬스"}
+          </button>
+        </div>
       )}
 
       {/* 페이즈 및 역할 정보 */}
@@ -718,14 +728,14 @@ const GamePage = () => {
                       />
                       {/* AI 선택 모드일 때만 나타나는 투명 클릭 판 */}
                       {isSelectMode && String(player.userId) !== String(myInfo.userId) && player.isAlive && (
-                      <div 
-                        onClick={() => handleAiChance(player)} 
-                        className="absolute inset-0 z-[60] bg-[#69D6E3]/10 cursor-crosshair flex items-center justify-center transition-all border-4 border-[#69D6E3] rounded-xl opacity-0 group-hover:opacity-100"
-                      >
-                        <div className="bg-[#69D6E3] text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg animate-pulse">
-                          클릭하여 분석
+                        <div
+                          onClick={() => handleAiChance(player)}
+                          className="absolute inset-0 z-[60] bg-[#69D6E3]/10 cursor-crosshair flex items-center justify-center transition-all border-4 border-[#69D6E3] rounded-xl opacity-0 group-hover:opacity-100"
+                        >
+                          <div className="bg-[#69D6E3] text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg animate-pulse">
+                            클릭하여 분석
+                          </div>
                         </div>
-                      </div>
                       )}
 
                       {/* 밤 행동 버튼 (마피아/의사/경찰) */}
@@ -850,16 +860,16 @@ const GamePage = () => {
       />
 
       {/* AI 분석 결과 모달 (여기에 두세요!) */}
-      <AiAnalysisResultModal 
+      <AiAnalysisResultModal
         isOpen={modals.aiChance}           // Zustand 상자에서 '열림' 상태 가져오기
         result={aiChance.result}           // AI가 분석한 (identity, narrative) 데이터
         onClose={() => closeModal('aiChance')} // 닫기 버튼 누르면 상자 닫기
       />
 
       {/* 안내 모달 (얼굴 클릭하라는 창) */}
-      <UserSelectModal 
-        isOpen={isGuidanceOpen} 
-        onClose={() => setIsGuidanceOpen(false)} 
+      <UserSelectModal
+        isOpen={isGuidanceOpen}
+        onClose={() => setIsGuidanceOpen(false)}
       />
     </div>
   );
