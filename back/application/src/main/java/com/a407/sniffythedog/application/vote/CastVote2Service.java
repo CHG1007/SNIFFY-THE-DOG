@@ -71,8 +71,8 @@ public class CastVote2Service implements CastVote2UseCase {
             // 투표 반영
             room.castFinalVote(voterId, vote);
 
-            //todo: round 일단 1로 저장함
-            holder.round = 1;
+
+            holder.round = room.getGameState().round();
 
             // 살아있는 사람의 수
             long aliveCount = room.getPlayers().values()

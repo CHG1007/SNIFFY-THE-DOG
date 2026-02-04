@@ -12,6 +12,7 @@ import com.a407.sniffythedog.domain.gamelog.entity.GameLog;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GameResultService {
@@ -30,28 +32,32 @@ public class GameResultService {
 
     @Async // 비동기로 백그라운드에서 실행합니다.
     public void processGameResult(String roomId, Winner winner, Instant startAt, Instant endAt) {
-        // 1. Redis에서 임시 로그 데이터(Player 목록 + 이벤트 목록) 가져오기
-        TempGameLogData tempData = gameLogRedisPort.loadGameLog(roomId)
-                .orElseThrow(() -> new RuntimeException("해당 방의 게임 로그를 찾을 수 없습니다: " + roomId));
+        try {
+            // 1. Redis에서 임시 로그 데이터(Player 목록 + 이벤트 목록) 가져오기
+            TempGameLogData tempData = gameLogRedisPort.loadGameLog(roomId)
+                    .orElseThrow(() -> new RuntimeException("해당 방의 게임 로그를 찾을 수 없습니다: " + roomId));
 
-        // 2. GameHistory 생성 및 MySQL 저장 → gameHistoryId 획득
-        int playTime = (int) Duration.between(startAt, endAt).getSeconds();
-        GameHistory history = GameHistory.create(roomId, winner, startAt, endAt, playTime);
-        GameHistory savedHistory = gameHistorySavePort.save(history);
-        Long gameHistoryId = savedHistory.getId().value();
+            // 2. GameHistory 생성 및 MySQL 저장 → gameHistoryId 획득
+            int playTime = (int) Duration.between(startAt, endAt).getSeconds();
+            GameHistory history = GameHistory.create(roomId, winner, startAt, endAt, playTime);
+            GameHistory savedHistory = gameHistorySavePort.save(history);
+            Long gameHistoryId = savedHistory.getId().value();
 
-        // 3. GameLog 생성 (gameHistoryId 사용)
-        GameLog gameLog = GameLog.create(gameHistoryId, tempData.players(), tempData.startedAt());
-        // 이벤트 복사
-        tempData.events().forEach(gameLog::addEvent);
-        // winner 설정
-        gameLog.finish(winner, tempData.players());
+            // 3. GameLog 생성 (gameHistoryId 사용)
+            GameLog gameLog = GameLog.create(gameHistoryId, tempData.players(), tempData.startedAt());
+            // 이벤트 복사
+            tempData.events().forEach(gameLog::addEvent);
+            // winner 설정
+            gameLog.finish(winner, tempData.players());
 
-        // 4. 순수 로그 상태를 MongoDB에 저장 (gameHistoryId 키 사용)
-        gameLogPort.save(gameLog);
+            // 4. 순수 로그 상태를 MongoDB에 저장 (gameHistoryId 키 사용)
+            gameLogPort.save(gameLog);
 
-        // 5. 모든 저장이 끝났으므로 Redis 임시 로그 삭제
-        gameLogRedisPort.deleteGameLog(roomId);
+            // 5. 모든 저장이 끝났으므로 Redis 임시 로그 삭제
+            gameLogRedisPort.deleteGameLog(roomId);
+        } catch (Exception e) {
+            log.error("[GameResult] roomId={} 게임 결과 저장 실패", roomId, e);
+        }
     }
 
     /**
