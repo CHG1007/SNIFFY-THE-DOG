@@ -16,6 +16,10 @@ import CreateGameModal from '../components/modals/CreateGameModal';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
 import GameAlertModal from '../components/modals/GameAlertModal';
 
+// LiveKit
+import useLiveKit from '../hooks/useLiveKit';
+import useLiveKitStore from '../stores/useLiveKitStore';
+
 const WaitingRoomPage = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
@@ -31,7 +35,7 @@ const WaitingRoomPage = () => {
   // --- 로컬 UI 상태 ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [targetKickPlayer, setTargetKickPlayer] = useState(null);
-  const [isMicOn, setIsMicOn] = useState(false);
+  const [isMicOn, setIsMicOn] = useState(true);
   const [isVideoOn, setIsVideoOn] = useState(true);
 
   // --- 방 나가기 상태 ---
@@ -44,11 +48,15 @@ const WaitingRoomPage = () => {
   // 게임 페이지로 이동 중인지 추적 (cleanup에서 leave 전송 방지)
   const navigatingToGameRef = useRef(false);
 
+  // LiveKit 연결
+  const { tracks: liveTracks, localTrack, toggleMic: lkToggleMic, toggleVideo: lkToggleVideo } = useLiveKit(roomId);
+  const lkReset = useLiveKitStore(state => state.reset);
+
   // ✅ [초기화] 방 생성 직후라면 location state 정보를 우선 사용
   useEffect(() => {
     const state = location.state || {};
     const created = state.createdData;
-    
+
     if (created) {
       setRoomInfo({
         title: created.title,
@@ -76,7 +84,7 @@ const WaitingRoomPage = () => {
       case 'JOIN_ACK':
       case 'ROOM_SNAPSHOT': // ✅ JOIN_ACK와 SNAPSHOT 로직 통합 관리
         const rs = data.roomState;
-        
+
         setPlayers(rs.players);
         setMyInfo(data.my);
 
@@ -84,29 +92,29 @@ const WaitingRoomPage = () => {
         // 1. 서버에서 받은 데이터(rs)를 최우선으로 사용
         // 2. 서버 데이터가 비어있다면(그럴리 없지만), 로컬 state(createdData)나 기존 roomInfo 사용
         // 3. 그래도 없으면 기본값 사용
-        
+
         const localCreated = locationRef.current.state?.createdData;
         const localInviteCode = locationRef.current.state?.inviteCode;
-        
+
         // 서버에서 title/capacity가 오면 그것을 쓰고, 없으면 로컬 정보 사용
         const serverTitle = rs.title; // 백엔드 RoomState 수정 후 여기로 값이 들어옴
-        const serverCapacity = rs.capacity; 
+        const serverCapacity = rs.capacity;
 
         // 방 제목 결정
         const finalTitle = serverTitle || localCreated?.title || roomInfo?.title || "즐거운 마피아 게임";
-        
+
         // 방 인원 결정
         const finalCapacity = serverCapacity || localCreated?.capacity || roomInfo?.capacity || 8;
-        
+
         // 초대 코드 결정
         let finalInviteCode = rs.roomCode || rs.inviteCode || roomId;
         // RoomId 객체 문자열 파싱 처리
         if (typeof finalInviteCode === 'string' && finalInviteCode.includes('RoomId[value=')) {
-            finalInviteCode = finalInviteCode.replace('RoomId[value=', '').replace(']', '');
+          finalInviteCode = finalInviteCode.replace('RoomId[value=', '').replace(']', '');
         }
         // 로컬에 초대코드가 있고 서버 코드가 이상하면 로컬 우선 (방 생성 직후)
         if (localInviteCode && (!finalInviteCode || finalInviteCode === roomId)) {
-            finalInviteCode = localInviteCode;
+          finalInviteCode = localInviteCode;
         }
 
         const isPrivate = rs.status === 'PRIVATE' || rs.isPrivate || localCreated?.isPrivate || false;
@@ -122,9 +130,9 @@ const WaitingRoomPage = () => {
 
         // JOIN_ACK 일 때만 sync 호출
         if (type === 'JOIN_ACK') {
-           websocketClient.sync();
+          websocketClient.sync();
         }
-        
+
         // 게임 중이면 이동
         if (rs.status === 'PLAYING' && type === 'ROOM_SNAPSHOT') {
           // 게임 페이지로 이동 시 leave 메시지 전송 방지
@@ -143,11 +151,11 @@ const WaitingRoomPage = () => {
         });
         // 누군가 들어왔을 때 혹시 방 정보가 갱신되었다면 반영
         if (data.roomState) {
-             setRoomInfo(prev => ({
-                 ...prev,
-                 // 서버에서 title/capacity 보내준다면 여기서도 갱신 가능
-                 hostUserId: data.roomState.hostUserId 
-             }));
+          setRoomInfo(prev => ({
+            ...prev,
+            // 서버에서 title/capacity 보내준다면 여기서도 갱신 가능
+            hostUserId: data.roomState.hostUserId
+          }));
         }
         break;
 
@@ -160,7 +168,7 @@ const WaitingRoomPage = () => {
 
       case 'PLAYER_STATUS_CHANGED':
       case 'ROOM_READY_UPDATED':
-        setPlayers((prev) => prev.map(p => 
+        setPlayers((prev) => prev.map(p =>
           String(p.userId) === String(data.userId) ? { ...p, ready: data.ready } : p
         ));
         if (myInfoRef.current && String(data.userId) === String(myInfoRef.current.userId)) {
@@ -185,10 +193,10 @@ const WaitingRoomPage = () => {
         break;
 
       case 'KICKED':
-        try { websocketClient.disconnect(); } catch(e) {}
+        try { websocketClient.disconnect(); } catch (e) { }
         setErrorMsg(data.reason || "방장에 의해 강퇴되었습니다.");
         break;
-      
+
       case 'JOIN_REJECTED':
       case 'ERROR':
         setErrorMsg(data.message || "오류가 발생했습니다.");
@@ -200,7 +208,7 @@ const WaitingRoomPage = () => {
       default:
         break;
     }
-  }, [navigate, roomId, roomInfo]); 
+  }, [navigate, roomId, roomInfo]);
 
 
   // --- 소켓 연결 등 기존 로직 유지 ---
@@ -209,7 +217,7 @@ const WaitingRoomPage = () => {
     websocketClient.connect(roomId, onMessage);
 
     const handleBeforeUnload = () => {
-      try { websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` }); } catch (e) {}
+      try { websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` }); } catch (e) { }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
@@ -217,11 +225,12 @@ const WaitingRoomPage = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // 게임 페이지로 이동하는 경우에는 leave 메시지를 보내지 않음
       if (!navigatingToGameRef.current) {
-        try { websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` }); } catch (e) {}
+        try { websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` }); } catch (e) { }
         websocketClient.disconnect();
+        lkReset();
       }
     };
-  }, [roomId]); 
+  }, [roomId]);
 
   // --- 핸들러들 (Ready, Kick, Mic, Video...) ---
   const handleToggleReady = () => {
@@ -253,9 +262,22 @@ const WaitingRoomPage = () => {
     setIsExitModalOpen(true);
   };
 
-  const handleToggleMic = () => setIsMicOn(!isMicOn);
-  const handleToggleVideo = () => setIsVideoOn(!isVideoOn);
+  const handleToggleMic = async () => {
+    await lkToggleMic();
+    setIsMicOn(!isMicOn);
+  };
+
+  const handleToggleVideo = async () => {
+    await lkToggleVideo();
+    setIsVideoOn(!isVideoOn);
+  };
+
   const handleCountdownComplete = () => console.log("Countdown finished!");
+
+  const onConfirmExit = () => {
+    lkReset(); // LiveKit 연결 종료
+    navigate('/rooms');
+  };
 
   // --- 렌더링 ---
   if (!roomInfo || !myInfo) return <LoadingPage message="대기방에 입장 중입니다..." />;
@@ -263,16 +285,20 @@ const WaitingRoomPage = () => {
   const amIHost = myInfo.userId === roomInfo.hostUserId;
   const amIReady = myInfo.ready === true;
 
-  const formattedPlayers = players.map(p => ({
-    userId: p.userId,
-    name: p.nickname || p.displayName,
-    displayName: p.nickname || p.displayName,
-    isHost: p.userId === roomInfo.hostUserId,
-    ready: p.ready,
-    isMicOn: p.userId === myInfo.userId ? isMicOn : false,
-    isVideoOn: p.userId === myInfo.userId ? isVideoOn : true,
-    photo: p.profileImage,
-  }));
+  const formattedPlayers = players.map(p => {
+    const isMe = String(p.userId) === String(myInfo.userId);
+    return {
+      userId: p.userId,
+      name: p.nickname || p.displayName,
+      displayName: p.nickname || p.displayName,
+      isHost: p.userId === roomInfo.hostUserId,
+      ready: p.ready,
+      isMicOn: isMe ? isMicOn : true, // 상대방은 일단 켜져있다고 가정하거나 별도 싱크 필요
+      isVideoOn: isMe ? isVideoOn : true,
+      photo: p.profileImage,
+      track: isMe ? localTrack : liveTracks[String(p.userId)],
+    };
+  });
 
   if (countdown !== null) {
     return <GameStartCountdown count={countdown} onComplete={handleCountdownComplete} />;
@@ -307,8 +333,8 @@ const WaitingRoomPage = () => {
           players={formattedPlayers}
           myId={myInfo.userId}
           isHost={amIHost}
-          onKick={setTargetKickPlayer} 
-          capacity={roomInfo.capacity} 
+          onKick={setTargetKickPlayer}
+          capacity={roomInfo.capacity}
         />
       </main>
 
@@ -324,8 +350,8 @@ const WaitingRoomPage = () => {
         <button
           onClick={handleToggleReady}
           className={`group relative px-8 py-2.5 rounded-full font-black text-lg italic tracking-wider transition-all duration-300 overflow-hidden shadow-lg min-w-[140px] flex items-center justify-center border-2
-            ${amIReady 
-              ? 'bg-primary border-primary text-white shadow-[0_0_20px_rgba(234,102,0,0.5)] hover:bg-primary hover:shadow-[0_0_24px_rgba(234,102,0,0.7)]' 
+            ${amIReady
+              ? 'bg-primary border-primary text-white shadow-[0_0_20px_rgba(234,102,0,0.5)] hover:bg-primary hover:shadow-[0_0_24px_rgba(234,102,0,0.7)]'
               : 'bg-white border-white text-black hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]'
             }`}
         >
@@ -346,7 +372,7 @@ const WaitingRoomPage = () => {
           initialData={roomInfo}
           isEdit={true}
           isHost={amIHost}
-          inviteCode={roomInfo.inviteCode} 
+          inviteCode={roomInfo.inviteCode}
           onSave={handleUpdateRoom}
         />
       )}
@@ -359,20 +385,20 @@ const WaitingRoomPage = () => {
         />
       )}
       {errorMsg && (
-      <LastBeggingModal
+        <LastBeggingModal
           isOpen={!!errorMsg}
           message={errorMsg}
           onClose={() => {
-            setErrorMsg(null);   
-            navigate('/rooms');  
+            setErrorMsg(null);
+            navigate('/rooms');
           }}
-        />  
+        />
       )}
-      {isExitModalOpen &&(
+      {isExitModalOpen && (
         <LastBeggingModal
           isOpen={isExitModalOpen}
           onClose={() => setIsExitModalOpen(false)}
-          onConfirm={() => navigate('/rooms')}
+          onConfirm={onConfirmExit}
           message={"정말 방을\n나가시겠습니까?"}
         />
       )}

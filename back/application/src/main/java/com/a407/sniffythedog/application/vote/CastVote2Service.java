@@ -2,6 +2,7 @@ package com.a407.sniffythedog.application.vote;
 
 import com.a407.sniffythedog.application.common.exception.ApplicationException;
 import com.a407.sniffythedog.application.common.exception.ExceptionType;
+import com.a407.sniffythedog.application.gamelog.GameResultService;
 import com.a407.sniffythedog.application.gamelog.out.GameLogRedisPort;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.application.vote.in.CastVote2Command;
@@ -12,6 +13,7 @@ import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.enums.FinalVoteResult;
 import com.a407.sniffythedog.domain.game.enums.Phase;
 import com.a407.sniffythedog.domain.game.enums.RoomStatus;
+import com.a407.sniffythedog.domain.game.enums.Winner;
 import com.a407.sniffythedog.domain.game.enums.YesNo;
 import com.a407.sniffythedog.domain.game.vo.FinalVoteState;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
@@ -21,6 +23,9 @@ import com.a407.sniffythedog.domain.gamelog.vo.GameEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,7 @@ public class CastVote2Service implements CastVote2UseCase {
     private final RedisRoomPort redisRoomPort;
     private final RoomEventPort roomEventPort;
     private final GameLogRedisPort gameLogRedisPort;
+    private final GameResultService gameResultService;
 
     @Override
     public void execute(CastVote2Command command) {
@@ -71,8 +77,8 @@ public class CastVote2Service implements CastVote2UseCase {
             // 투표 반영
             room.castFinalVote(voterId, vote);
 
-            //todo: round 일단 1로 저장함
-            holder.round = 1;
+
+            holder.round = room.getGameState().round();
 
             // 살아있는 사람의 수
             long aliveCount = room.getPlayers().values()
@@ -159,11 +165,32 @@ public class CastVote2Service implements CastVote2UseCase {
             }
 
             if (holder.finished) {
+                gameLogRedisPort.saveEvent(
+                        command.roomCode(),
+                        GameEvent.gameFinished(holder.round, holder.winnerTeam)
+                );
+
+                List<RoomEventPort.PlayerRoleInfo> playerRoles = updated.getPlayers().entrySet().stream()
+                        .map(e -> new RoomEventPort.PlayerRoleInfo(
+                                e.getKey().value(),
+                                e.getValue().getDisplayName(),
+                                e.getValue().getGameRole() != null ? e.getValue().getGameRole().name() : "CITIZEN"
+                        ))
+                        .collect(Collectors.toList());
+
                 roomEventPort.publishGameFinished(
                         command.roomCode(),
                         updated.getVersion(),
                         holder.winnerTeam,
-                        null
+                        null,
+                        playerRoles
+                );
+
+                gameResultService.processGameResult(
+                        command.roomCode(),
+                        Winner.valueOf(holder.winnerTeam),
+                        updated.getStartedAt(),
+                        updated.getEndedAt() != null ? updated.getEndedAt() : Instant.now()
                 );
             }
         }
