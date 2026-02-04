@@ -664,7 +664,7 @@ const GamePage = () => {
           targetPlayer={accusedPlayer}
           message={vote2.result?.approved
             ? "처형되었습니다."
-            : "생존했습니다."
+            : "생존했습니다."   
           }
           onTimeout={() => setShowVote2ResultModal(false)}
         />
