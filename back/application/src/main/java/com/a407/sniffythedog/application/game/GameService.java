@@ -8,6 +8,7 @@ import com.a407.sniffythedog.application.gamelog.out.GameLogRedisPort;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.PlayerState;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
+import com.a407.sniffythedog.domain.game.enums.Phase;
 import com.a407.sniffythedog.domain.game.enums.RoomStatus;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.PhaseTiming;
@@ -137,8 +138,14 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
             // PLAYING: 탈주 = 사망 처리
             else if (room.getStatus() == RoomStatus.PLAYING) {
-                // 살아있으면 죽이고(이미 죽은 사람이면 그냥 넘어감)
-                if (player.isAlive()) {
+                Phase currentPhase = room.getGameState().phase();
+
+                // 설정 단계(COUNTDOWN, ASSIGN_ROLE)에서는 죽음 처리하지 않음
+                // (페이지 전환으로 인한 WebSocket 재연결 시 죽음 방지)
+                boolean isSetupPhase = (currentPhase == Phase.COUNTDOWN || currentPhase == Phase.ASSIGN_ROLE);
+
+                if (!isSetupPhase && player.isAlive()) {
+                    // 실제 게임 중에만 죽음 처리
                     room.killPlayer(gameUserId);
                     holder.killed = true;
                     holder.killedUserId = userId;
@@ -160,11 +167,13 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
                 holder.leftUserId = userId;
 
-                // 승리 체크 + 종료 반영
-                room.checkAndEndIfGameOver().ifPresent(winner -> {
-                    holder.finished = true;
-                    holder.winnerTeam = winner.name();
-                });
+                // 설정 단계가 아닐 때만 승리 체크
+                if (!isSetupPhase) {
+                    room.checkAndEndIfGameOver().ifPresent(winner -> {
+                        holder.finished = true;
+                        holder.winnerTeam = winner.name();
+                    });
+                }
             }
             else {
                 throw ApplicationException.of(ExceptionType.ROOM_NOT_JOINABLE);

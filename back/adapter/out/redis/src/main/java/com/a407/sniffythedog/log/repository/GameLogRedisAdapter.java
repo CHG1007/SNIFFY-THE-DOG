@@ -1,9 +1,8 @@
 package com.a407.sniffythedog.log.repository;
 
 import com.a407.sniffythedog.application.gamelog.out.GameLogRedisPort;
-import com.a407.sniffythedog.domain.gamelog.entity.GameLog;
+import com.a407.sniffythedog.application.gamelog.out.TempGameLogData;
 import com.a407.sniffythedog.domain.gamelog.vo.GameEvent;
-import com.a407.sniffythedog.domain.gamelog.vo.GameLogId;
 import com.a407.sniffythedog.domain.gamelog.vo.PlayerResult;
 import com.a407.sniffythedog.log.entity.RedisGameLogMetaJson;
 import com.a407.sniffythedog.log.mapper.GameLogMapper;
@@ -48,7 +47,7 @@ public class GameLogRedisAdapter implements GameLogRedisPort {
     }
 
     @Override
-    public Optional<GameLog> loadGameLog(String roomId) {
+    public Optional<TempGameLogData> loadGameLog(String roomId) {
         String metaKey = KEY_PREFIX_META + roomId;
         String eventKey = KEY_PREFIX_EVENTS + roomId;
 
@@ -62,18 +61,8 @@ public class GameLogRedisAdapter implements GameLogRedisPort {
         List<GameEvent> events = (eventJsons == null) ? List.of() :
                 eventJsons.stream().map(gameLogMapper::jsonToEvent).collect(Collectors.toList());
 
-        // 3. GameLog 도메인 객체로 재조립 (reconstitute)
-        GameLog gameLog = GameLog.reconstitute(
-                GameLogId.of(roomId), // 임시 ID로 RoomID 사용
-                meta.roomId(),
-                meta.players(),
-                events,
-                null, // Winner와 EndedAt은 게임 종료 시점에 설정됨 (아직 진행 중일 수 있음)
-                meta.startedAt(),
-                null
-        );
-
-        return Optional.of(gameLog);
+        // 3. TempGameLogData로 반환 (gameHistoryId는 나중에 GameResultService에서 설정)
+        return Optional.of(new TempGameLogData(meta.players(), events, meta.startedAt()));
     }
 
     @Override

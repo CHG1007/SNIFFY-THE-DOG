@@ -41,6 +41,9 @@ const WaitingRoomPage = () => {
   const myInfoRef = useRef(myInfo);
   const locationRef = useRef(location);
 
+  // 게임 페이지로 이동 중인지 추적 (cleanup에서 leave 전송 방지)
+  const navigatingToGameRef = useRef(false);
+
   // ✅ [초기화] 방 생성 직후라면 location state 정보를 우선 사용
   useEffect(() => {
     const state = location.state || {};
@@ -124,6 +127,8 @@ const WaitingRoomPage = () => {
         
         // 게임 중이면 이동
         if (rs.status === 'PLAYING' && type === 'ROOM_SNAPSHOT') {
+          // 게임 페이지로 이동 시 leave 메시지 전송 방지
+          navigatingToGameRef.current = true;
           navigate(`/game/${roomId}`, {
             state: { myInfo: data.my, players: rs.players, capacity: finalCapacity }
           });
@@ -172,6 +177,8 @@ const WaitingRoomPage = () => {
         break;
 
       case 'PHASE_CHANGED':
+        // 게임 페이지로 이동 시 leave 메시지 전송 방지
+        navigatingToGameRef.current = true;
         navigate(`/game/${roomId}`, {
           state: { myInfo: myInfoRef.current, players, capacity: roomInfo?.capacity || 6 }
         });
@@ -208,8 +215,11 @@ const WaitingRoomPage = () => {
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      try { websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` }); } catch (e) {}
-      websocketClient.disconnect();
+      // 게임 페이지로 이동하는 경우에는 leave 메시지를 보내지 않음
+      if (!navigatingToGameRef.current) {
+        try { websocketClient.publish('leave', { requestId: `req-leave-${Date.now()}` }); } catch (e) {}
+        websocketClient.disconnect();
+      }
     };
   }, [roomId]); 
 

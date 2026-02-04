@@ -7,5 +7,5 @@ import java.util.Optional;
 
 public interface GameLogMongoRepository extends MongoRepository<GameLogDocument, String> {
 
-    Optional<GameLogDocument> findByRoomId(String roomId);
+    Optional<GameLogDocument> findByGameHistoryId(Long gameHistoryId);
 }

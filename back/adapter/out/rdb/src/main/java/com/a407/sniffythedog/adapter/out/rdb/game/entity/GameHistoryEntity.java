@@ -27,6 +27,9 @@ public class GameHistoryEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "room_id", nullable = false)
+    private String roomId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "winner", nullable = false)
     private Winner winner;

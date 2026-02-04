@@ -1,6 +1,5 @@
 package com.a407.sniffythedog.application.gamelog.out;
 
-import com.a407.sniffythedog.domain.gamelog.entity.GameLog;
 import com.a407.sniffythedog.domain.gamelog.vo.GameEvent;
 import com.a407.sniffythedog.domain.gamelog.vo.PlayerResult;
 
@@ -20,9 +19,9 @@ public interface GameLogRedisPort {
     void saveEvent(String roomId, GameEvent event);
 
     /**
-     * 게임 종료 후 Redis에 저장된 데이터를 모아 GameLog 도메인 객체로 복원
+     * 게임 종료 후 Redis에 저장된 임시 데이터를 로드
      */
-    Optional<GameLog> loadGameLog(String roomId);
+    Optional<TempGameLogData> loadGameLog(String roomId);
 
     /**
      * 로그 데이터 삭제 (DB 이관 후 정리)

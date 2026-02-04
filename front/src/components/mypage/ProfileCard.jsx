@@ -23,6 +23,7 @@ const ProfileCard = ({
         </div>
       </div>
 
+
       {/* Profile Info */}
       <div className="flex flex-col items-start gap-2">
         {/* Badges Display Area */}
