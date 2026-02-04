@@ -548,6 +548,42 @@ const GamePage = () => {
         <TimeScreen timeLeft={formatTime(remainingSeconds)} gameStatus={gamePhase} />
       </div>
 
+      {/* AI 찬스 버튼 (시민, 낮에만) */}
+      {myInfo.role === 'CITIZEN' && (
+      <div className="absolute top-6 right-6 z-[100]">
+      <button
+        onClick={() => {
+          // 💡 클릭 방어: 낮이고, 살아있고, 시민이고, 찬스가 있을 때만 작동
+          if (gamePhase !== 'DAY' || !amIAlive || myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0) return;
+          
+          const newSelectMode = !isSelectMode;
+          setIsSelectMode(newSelectMode);
+          if (newSelectMode) {
+            setIsGuidanceOpen(true);
+          }
+        }}
+        // 💡 비활성화 조건: 낮이 아니거나, 죽었거나, 시민이 아니거나, 찬스가 없거나, 분석 중일 때
+        disabled={
+          isAnalyzing || 
+          gamePhase !== 'DAY' || 
+          !amIAlive || 
+          myInfo.role !== 'CITIZEN' || 
+          myInfo.aiChanceRemaining <= 0
+        }
+        className={`px-6 py-2 rounded-full text-sm font-pretendard font-black transition-all shadow-lg active:scale-95 focus:outline-none focus:ring-0
+        ${isSelectMode 
+          ? "bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)] border-none" // 🔴 선택 취소: 테두리 절대 금지!
+          : isAnalyzing
+            ? "bg-white text-[#69D6E3] border-2 border-[#69D6E3] animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.7)]" 
+            : "bg-[#69D6E3] text-white border-2 border-white/30 hover:opacity-90 shadow-[0_0_10px_rgba(105,214,227,0.4)]"
+        } 
+        ${(gamePhase !== 'DAY' || !amIAlive || myInfo.aiChanceRemaining <= 0) && !isAnalyzing && !isSelectMode ? "opacity-40 cursor-not-allowed" : ""}`}
+      >
+        {isAnalyzing ? "분석 중..." : isSelectMode ? "선택 취소" : "킁킁 찬스"}
+        </button>
+    </div>
+      )}
+
       {/* 페이즈 및 역할 정보 */}
       <div className="absolute top-6 left-6 z-[100] flex flex-col gap-2">
         <div className="bg-black/60 px-4 py-2 rounded-lg border border-white/10">
@@ -562,7 +598,7 @@ const GamePage = () => {
         )}
         {myInfo.role === 'CITIZEN' && myInfo.aiChanceRemaining > 0 && (
           <div className="bg-black/60 px-4 py-2 rounded-lg border border-white/10">
-            <span className="text-yellow-400 text-xs">AI 찬스: {myInfo.aiChanceRemaining}회</span>
+            <span className="text-[#69D6E3] text-xs">AI 찬스: {myInfo.aiChanceRemaining}회</span>
           </div>
         )}
       </div>
@@ -591,7 +627,7 @@ const GamePage = () => {
                   className={`flex-grow-0 flex-shrink-0 ${getFlexBasis(capacity)} min-w-[280px] max-w-[400px] transition-all duration-500`}
                 >
                   {player ? (
-                    <div className="w-full aspect-video relative">
+                    <div className="w-full aspect-video relative group">
                       {/* 원래 있던 화면 */}
                       <GameVideoSlot
                         player={player}
@@ -605,9 +641,9 @@ const GamePage = () => {
                       {isSelectMode && String(player.userId) !== String(myInfo.userId) && player.isAlive && (
                       <div 
                         onClick={() => handleAiChance(player)} 
-                        className="absolute inset-0 z-[60] bg-yellow-400/10 cursor-crosshair flex items-center justify-center transition-all border-4 border-yellow-400 rounded-xl"
+                        className="absolute inset-0 z-[60] bg-[#69D6E3]/10 cursor-crosshair flex items-center justify-center transition-all border-4 border-[#69D6E3] rounded-xl opacity-0 group-hover:opacity-100"
                       >
-                        <div className="bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded shadow-lg animate-pulse">
+                        <div className="bg-[#69D6E3] text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg animate-pulse">
                           클릭하여 분석
                         </div>
                       </div>
@@ -629,26 +665,6 @@ const GamePage = () => {
                             {myInfo.role === 'MAFIA' ? '습격' : myInfo.role === 'DOCTOR' ? '치료' : '조사'}
                           </button>
                         )}
-
-                      {/* AI 찬스 버튼 (시민, 낮에만) */}
-                      {gamePhase === 'DAY' && amIAlive &&
-                       myInfo.role === 'CITIZEN' && myInfo.aiChanceRemaining > 0 &&
-                       String(player.userId) !== String(myInfo.userId) && player.isAlive && (
-                        <button
-                          onClick={() => {
-                            const newSelectMode = !isSelectMode;
-                            setIsSelectMode(!isSelectMode);
-                            if (newSelectMode) {
-                              setIsGuidanceOpen(true);
-                            }
-                          }}
-                          disabled={isAnalyzing}
-                          className="absolute bottom-3 left-3 z-50 px-3 py-1 rounded-full text-xs font-bold
-                                     bg-yellow-600 hover:bg-yellow-500 text-white transition-all"
-                        >
-                          {isAnalyzing ? "AI 분석 중..." : isSelectMode ? "대상 선택 취소" : "3. AI 분석 시작"}
-                        </button>
-                      )}
                     </div>
                   ) : (
                     /* 빈 슬롯 (대기방 스타일) */
