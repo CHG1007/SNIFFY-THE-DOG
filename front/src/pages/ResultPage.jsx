@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import LastBeggingModal from '../components/modals/LastBeggingModal';
 import FutureReportModal from "../components/modals/FutureReportModal";
 import useGameStore from "../stores/useGameStore"
+import ComplaintModal from "../components/modals/ComplaintModal";
 
 const reportData = {
   MAFIA: {
@@ -42,6 +43,10 @@ export default function ResultPage() {
   const [showFutureReport, setShowFutureReport] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const { myInfo, gameResult } = useGameStore();
+
+  // 신고 모달
+  const [isComplaintOpen, setIsComplaintOpen] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState("");
   
   useEffect(() => {
     // 3초(3000ms) 후에 모달 상태를 true로 변경
@@ -56,7 +61,6 @@ export default function ResultPage() {
   // 첫 번째 모달에서 '아니오'를 누르거나 닫을 때 실행되는 함수
   const handleCloseFirstModal = () => {
     setIsModalOpen(false);
-    navigate("/rooms");
   };
 
   const handleConfirm = () => {
@@ -91,7 +95,12 @@ export default function ResultPage() {
   // 두 번째 모달(미래 보고서)에서 '확인'을 눌렀을 때 실행
   const handleFinalClose = () => {
     setShowFutureReport(false);
-    navigate("/rooms"); // 즉시 이동
+  };
+
+  // 신고 버튼 클릭 핸들러
+  const handleOpenComplaint = (name) => {
+    setSelectedTarget(name);
+    setIsComplaintOpen(true);
   };
 
   return (
@@ -102,6 +111,18 @@ export default function ResultPage() {
             className="absolute inset-0 h-full w-full object-cover scale-[1.03]"
         />
       <div className={`absolute inset-0 ${config.overlay}`} />
+      
+      {/* 로비로 돌아가기 버튼 추가 (우측 상단) */}
+      <div className="absolute bottom-18 left-1/2 -translate-x-1/2 z-50">
+        <button
+          onClick={() => navigate("/rooms")}
+          className="px-6 py-2 rounded-lg border-2 border-white/30 bg-white/10 text-white font-semibold backdrop-blur-md hover:bg-white/20 transition-all active:scale-95"
+          style={{ fontFamily: "Pretendard" }}
+        >
+          로비로 돌아가기
+        </button>
+      </div>
+      
       <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10">
             <h1 style={{ fontFamily: "PressStart2P", color: "white", textAlign: "center", fontSize: "100px" }}>{config.titleText}</h1>
 
@@ -152,8 +173,7 @@ export default function ResultPage() {
                         "hover:bg-black/30 active:scale-[0.99]",
                         ].join(" ")}
                         onClick={() => {
-                        // TODO: 신고 로직 연결
-                        console.log("report:", p.id, p.name);
+                        handleOpenComplaint(p.name)
                         }}
                     >
                         <span className="text-primary text-[18px]">
@@ -187,6 +207,12 @@ export default function ResultPage() {
         isOpen={showFutureReport} 
         onClose={handleFinalClose} 
         data={selectedReport}
+      />
+
+      <ComplaintModal 
+        isOpen={isComplaintOpen} 
+        onClose={() => setIsComplaintOpen(false)} 
+        targetName={selectedTarget}
       />
     </div>
   );

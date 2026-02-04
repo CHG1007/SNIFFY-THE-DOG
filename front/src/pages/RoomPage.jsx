@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 // API
@@ -65,14 +65,14 @@ export default function RoomPage() {
       const targetRoom = candidates[0];
       
       console.log(`[QuickJoin] 입장 시도: ${targetRoom.title} (${targetRoom.currentCount}/${targetRoom.capacity}명)`);
-      
-      handleJoinRoom(targetRoom);
+
+      handleJoinRoom(targetRoom.roomId);
     } else {
       setErrorMsg("현재 입장 가능한 \n공개방이 없습니다.");
     }
   };
 
-  const fetchRooms = async (page) => {
+  const fetchRooms = useCallback(async (page) => {
     try {
       setIsLoading(true);
       const response = await getRoomList(page - 1, pageSize); // 0-based
@@ -90,18 +90,18 @@ export default function RoomPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pageSize]);
 
   useEffect(() => {
     fetchRooms(currentPage);
   }, [currentPage]);
 
   // 방 직접 입장
-  const handleJoinRoom = async (room) => {
+  const handleJoinRoom = async (roomId) => {
     try {
-      const response = await getRoomDetail(room.roomId);
+      const response = await getRoomDetail(roomId);
       if (response.success && response.data.status === "WAITING") {
-        enterRoom(room.roomId, false);
+        enterRoom(roomId, false);
       } else {
         setErrorMsg("이미 게임이 진행 중이거나 입장이 불가한 방입니다.");
         fetchRooms(currentPage);
@@ -138,14 +138,14 @@ export default function RoomPage() {
                 {rooms.length > 0 ? (
                   rooms.map((room) => (
                     <RoomCard
-                      key={room.roomId}
-                      roomCode={room.roomId.substring(0, 8)}
-                      title={room.title}
-                      hostName={(room.isPrivate ?? room.private) ? "PRIVATE" : "PUBLIC"}
-                      current={room.currentCount}
-                      capacity={room.capacity}
-                      onJoin={() => handleJoinRoom(room)}
-                    />
+                        roomId={room.roomId}
+                        roomCode={room.roomId.substring(0, 8)}
+                        title={room.title}
+                        hostName={(room.isPrivate ?? room.private) ? "PRIVATE" : "PUBLIC"}
+                        current={room.currentCount}
+                        capacity={room.capacity}
+                        onJoin={handleJoinRoom}
+                        />
                   ))
                 ) : (
                   <div className="col-span-3 flex flex-col justify-center items-center h-[380px] gap-2">
@@ -160,7 +160,30 @@ export default function RoomPage() {
               </div>
 
               {/* 페이지네이션 */}
-              <div className="shrink-0 mt-auto flex justify-center pt-2 pb-0">
+              <div className="relative shrink-0 mt-auto flex justify-center pt-2 pb-0">
+                <button
+                  type="button"
+                  onClick={() => fetchRooms(currentPage)}
+                  disabled={isLoading}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-2 text-xs text-white/90 transition hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  title="방 목록 새로고침"
+                  aria-label="방 목록 새로고침"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                    <polyline points="21 3 21 9 15 9" />
+                  </svg>
+                  새로고침
+                </button>
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}

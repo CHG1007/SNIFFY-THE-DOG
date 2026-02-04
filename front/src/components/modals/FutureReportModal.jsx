@@ -16,7 +16,8 @@ const FutureReportModal = ({ isOpen, onClose, data }) => {
       <div className="parchment-scroll relative w-full max-w-[600px] max-h-[85vh] overflow-y-auto rounded-sm p-10 text-center flex flex-col items-center">
         <div className="content mb-8">
           <h2 className="fade-in-item text-2xl font-bold text-[#4a3728] mb-8" style={{ animationDelay: '1.5s' }}>
-            당신은 <span className="text-[#b22222]">{data.jobTitle}</span>였습니다!
+            <span className="block mb-2">당신의 직업은</span>
+            <span className="text-[#b22222]">{data.jobTitle}</span>였습니다!
           </h2>
 
           {data.stats.map((stat, idx) => (
