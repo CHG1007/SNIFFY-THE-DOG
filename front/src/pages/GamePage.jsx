@@ -88,6 +88,11 @@ const GamePage = () => {
     playersRef.current = players;
   }, [myInfo, players]);
 
+  const toUserId = (value) => {
+    if (value && typeof value === 'object') return value.value ?? value;
+    return value;
+  };
+
   // 초기 데이터 설정 (WaitingRoomPage에서 넘어온 경우)
   useEffect(() => {
     const state = location.state || {};
@@ -229,14 +234,19 @@ const GamePage = () => {
 
       // === 밤 결과 (아침에 공개) ===
       case 'NIGHT_RESOLVED':
-        setNightResult(data.killedUserId, data.saved);
+        setNightResult(toUserId(data.killedUserId), data.saved);
+        setShowNightResultModal(true);
+        if (data.version) setVersion(data.version);
+        break;
+      case 'NIGHT_RESULT':
+        setNightResult(toUserId(data.killedUserId), data.saved);
         setShowNightResultModal(true);
         if (data.version) setVersion(data.version);
         break;
 
       // === 경찰 수사 결과 (개인 채널) ===
       case 'POLICE_RESULT':
-        setPoliceResult(data.targetUserId, data.isMafia);
+        setPoliceResult(toUserId(data.targetUserId), data.isMafia);
         openModal('policeResult');
         break;
 
@@ -288,12 +298,15 @@ const GamePage = () => {
     if (import.meta.env.DEV) console.log('[Mafia WS]', type, data);
 
     switch (type) {
+      case 'MAFIA_RESULT':
+        setMafiaLocked(toUserId(data.targetUserId));
+        break;
       case 'MAFIA_TARGET_PROPOSED':
-        setMafiaProposal(data.fromUserId, data.targetUserId);
+        setMafiaProposal(toUserId(data.fromUserId), toUserId(data.targetUserId));
         break;
 
       case 'MAFIA_TARGET_LOCKED':
-        setMafiaLocked(data.targetUserId);
+        setMafiaLocked(toUserId(data.targetUserId));
         break;
 
       default:
@@ -438,7 +451,7 @@ const GamePage = () => {
 
     switch (myInfo.role) {
       case 'MAFIA':
-        websocketClient.sendMafiaPropose(targetUserId);
+        websocketClient.sendMafiaConfirm(targetUserId);
         break;
       case 'DOCTOR':
         websocketClient.sendDoctorSelect(targetUserId);
