@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 // API
@@ -69,7 +69,7 @@ export default function RoomPage() {
     }
   };
 
-  const fetchRooms = async (page) => {
+  const fetchRooms = useCallback(async (page) => {
     try {
       setIsLoading(true);
       const response = await getRoomList(page - 1, pageSize); // 0-based
@@ -87,7 +87,7 @@ export default function RoomPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pageSize]);
 
   useEffect(() => {
     fetchRooms(currentPage);
@@ -135,14 +135,14 @@ export default function RoomPage() {
                 {rooms.length > 0 ? (
                   rooms.map((room) => (
                     <RoomCard
-                      key={room.roomId}
-                      roomCode={room.roomId.substring(0, 8)}
-                      title={room.title}
-                      hostName={(room.isPrivate ?? room.private) ? "PRIVATE" : "PUBLIC"}
-                      current={room.currentCount}
-                      capacity={room.capacity}
-                      onJoin={() => handleJoinRoom(room)}
-                    />
+                        roomId={room.roomId}
+                        roomCode={room.roomId.substring(0, 8)}
+                        title={room.title}
+                        hostName={(room.isPrivate ?? room.private) ? "PRIVATE" : "PUBLIC"}
+                        current={room.currentCount}
+                        capacity={room.capacity}
+                        onJoin={handleJoinRoom}
+                        />
                   ))
                 ) : (
                   <div className="col-span-3 flex flex-col justify-center items-center h-[380px] gap-2">

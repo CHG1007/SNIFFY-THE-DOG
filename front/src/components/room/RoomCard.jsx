@@ -1,5 +1,8 @@
-export default function RoomCard({
+import { memo, useCallback } from "react";
+
+function RoomCard({
   roomCode,
+  roomId,
   title,
   hostName,
   current,
@@ -7,11 +10,16 @@ export default function RoomCard({
   onJoin,
 }) {
   const isFull = current >= capacity;
+  const handleClick = useCallback(() => {
+    if (!isFull && onJoin) {
+      onJoin(roomId);
+    }
+  }, [isFull, onJoin, roomId]);
 
   return (
     <div
       className="relative rounded-xl overflow-visible shadow-lg border border-black/10 bg-[#efe6c8] max-w-[300px] max-h-[600px] cursor-pointer"
-      onClick={() => !isFull && onJoin()}
+      onClick={handleClick}
       role={onJoin ? "button" : undefined}
       tabIndex={onJoin ? 0 : undefined}
     >
@@ -44,3 +52,5 @@ export default function RoomCard({
     </div>
   );
 }
+
+export default memo(RoomCard);
