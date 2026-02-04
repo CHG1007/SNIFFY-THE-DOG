@@ -36,7 +36,7 @@ public class GameLogMapper {
         // 3. Document 생성자 순서에 맞춰서 데이터 전달
         return new GameLogDocument(
                 gameLog.getId() != null ? gameLog.getId().value() : null,
-                gameLog.getRoomId(),
+                gameLog.getGameHistoryId(),
                 playerDocs,
                 eventDocs,
                 gameLog.getWinner() != null ? gameLog.getWinner().name() : null,
@@ -57,7 +57,7 @@ public class GameLogMapper {
 
         GameLog gameLog = GameLog.reconstitute(
                 GameLogId.of(doc.getId()),
-                doc.getRoomId(),
+                doc.getGameHistoryId(),
                 players,
                 events,
                 doc.getWinner() != null ? Winner.valueOf(doc.getWinner()) : null,

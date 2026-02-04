@@ -11,5 +11,5 @@ public interface GameLogPort {
 
     Optional<GameLog> findById(GameLogId id);
 
-    Optional<GameLog> findByRoomId(String roomId);
+    Optional<GameLog> findByGameHistoryId(Long gameHistoryId);
 }

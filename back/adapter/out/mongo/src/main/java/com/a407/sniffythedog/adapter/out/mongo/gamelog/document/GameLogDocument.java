@@ -14,7 +14,7 @@ public class GameLogDocument {
     private String id;
 
     @Indexed(unique = true)
-    private String roomId;
+    private Long gameHistoryId;
 
     private List<PlayerResultDoc> players;
     private List<GameEventDoc> events;
@@ -26,11 +26,11 @@ public class GameLogDocument {
     public GameLogDocument() {
     }
 
-    public GameLogDocument(String id, String roomId, List<PlayerResultDoc> players,
+    public GameLogDocument(String id, Long gameHistoryId, List<PlayerResultDoc> players,
                            List<GameEventDoc> events, String winner,
                            Instant startedAt, Instant endedAt, String totalSummary) {
         this.id = id;
-        this.roomId = roomId;
+        this.gameHistoryId = gameHistoryId;
         this.players = players;
         this.events = events;
         this.winner = winner;
@@ -47,12 +47,12 @@ public class GameLogDocument {
         this.id = id;
     }
 
-    public String getRoomId() {
-        return roomId;
+    public Long getGameHistoryId() {
+        return gameHistoryId;
     }
 
-    public void setRoomId(String roomId) {
-        this.roomId = roomId;
+    public void setGameHistoryId(Long gameHistoryId) {
+        this.gameHistoryId = gameHistoryId;
     }
 
     public List<PlayerResultDoc> getPlayers() {
