@@ -38,7 +38,7 @@ public class NightActionService implements
 
     //todo: gameEvent가 room >= 1 이어서 round가 1로 일단 해둠
     private int currentRound(RoomSession room) {
-        return 1;
+        return room.getGameState().round();
     }
 
     // 마피아 확정
