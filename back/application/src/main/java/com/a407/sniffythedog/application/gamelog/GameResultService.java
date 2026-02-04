@@ -6,6 +6,7 @@ import com.a407.sniffythedog.application.gamelog.out.GameLogRedisPort;
 import com.a407.sniffythedog.application.gamelog.out.GameLogGmsPort;
 import com.a407.sniffythedog.application.gamelog.out.GameLogPort;
 import com.a407.sniffythedog.application.gamelog.out.TempGameLogData;
+import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.GameHistory;
 import com.a407.sniffythedog.domain.game.enums.Winner;
 import com.a407.sniffythedog.domain.gamelog.entity.GameLog;
@@ -29,6 +30,7 @@ public class GameResultService {
     private final GameHistorySavePort gameHistorySavePort; // MySQL GameHistory 저장
     private final ObjectMapper objectMapper; // JSON 해석
     private final GameLogGmsPort gameLogGmsPort; // AI 분석
+    private final RedisRoomPort redisRoomPort; // Redis 방 삭제
 
     @Async // 비동기로 백그라운드에서 실행합니다.
     public void processGameResult(String roomId, Winner winner, Instant startAt, Instant endAt) {
@@ -55,6 +57,9 @@ public class GameResultService {
 
             // 5. 모든 저장이 끝났으므로 Redis 임시 로그 삭제
             gameLogRedisPort.deleteGameLog(roomId);
+
+            // 6. Redis에서 방 삭제 (공개 목록 인덱스 포함)
+            redisRoomPort.deleteRoom(roomId);
         } catch (Exception e) {
             log.error("[GameResult] roomId={} 게임 결과 저장 실패", roomId, e);
         }
