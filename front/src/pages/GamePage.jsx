@@ -15,6 +15,7 @@ import VoteConfirmModal from '../components/modals/VoteConfirmModal';
 import RealVote from '../components/modals/RealVoteModal';
 import GameAlertModal from '../components/modals/GameAlertModal';
 import NothingHappenModal from '../components/modals/NothingHappenModal';
+import LastBeggingModal from '../components/modals/LastBeggingModal';
 
 // 시간 포맷 유틸리티
 const formatTime = (seconds) => {
@@ -367,15 +368,14 @@ const GamePage = () => {
       roleAlertShownRef.current = true;
       // 모달이 안 보이고 있으면 alert로 백업
       if (!showRoleModal) {
-        const roleInfo = ROLE_INFO[myInfo.role];
-        alert(`당신의 역할: ${roleInfo?.name || myInfo.role}\n${roleInfo?.description || ''}`);
+        openModal('roleBackup'); // Zustand의 모달 시스템 사용
       }
     }
     // 게임이 끝나면 다음 게임을 위해 리셋
     if (gamePhase === 'WAITING') {
       roleAlertShownRef.current = false;
     }
-  }, [myInfo.role, gamePhase, showRoleModal]);
+  }, [myInfo.role, gamePhase, showRoleModal, openModal]);
 
   // 플레이어 데이터 표준화
   const standardizedPlayers = useMemo(() => players.map(p => ({
@@ -612,6 +612,13 @@ const GamePage = () => {
           </div>
         </div>
       )}
+
+      <LastBeggingModal
+        isOpen={modals.roleBackup}
+        onClose={() => closeModal('roleBackup')}
+        message={`당신의 역할은\n[${ROLE_INFO[myInfo.role]?.name || myInfo.role}] 입니다.`}
+        subMessage={ROLE_INFO[myInfo.role]?.description}
+      />
 
       {/* 1차 투표 확인 모달 */}
       <VoteConfirmModal
