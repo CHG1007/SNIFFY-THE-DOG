@@ -29,11 +29,12 @@ const MyPage = () => {
       try {
         const [profileRes, badgesRes, gamesRes] = await Promise.all([
           getMyProfile(),
-          getUserBadges(),
+          getUserBadges().catch(err => ({ success: false, data: { badges: [] } })),
           getUserGameHistory(0, 20) // Load first 20 games
         ]);
 
         if (profileRes.success) {
+          console.log("🆔 나의 진짜 userId는 바로 이거야!! ->", profileRes.data.userId);
           setProfile(profileRes.data);
           setEditNickname(profileRes.data.nickname);
         }
@@ -129,23 +130,29 @@ const MyPage = () => {
   // 분석 버튼 클릭 시 실행할 핸들러 추가
   const handleOpenAnalysis = async (gameId) => {
     try {
-      // 💡 2. 가짜 데이터 대신 진짜 서버에 요청을 보냅니다!
-      const res = await getAiAnalysis(gameId);
+      // 💡 1. 이제 토큰(token)을 직접 안 보내도 됩니다!
+      // apiClient가 가로채서(Interceptor) 자동으로 붙여줄 거예요.
+      const res = await getAiAnalysis(gameId); 
 
-      if (res.success) {
-        // 3. 서버에서 받은 데이터를 모달에 넣어줍니다.
-        // res.data 안에는 summary와 narrative 같은 정보가 들어있을 거예요.
+      if (res.success && res.data) {
         setSelectedAnalysis(res.data);
         setIsAiModalOpen(true);
       } else {
-        setErrorMsg("분석 리포트를\n찾을 수 없습니다.");
-        setSubMsg("아직 분석 중이거나\n데이터가 없을 수 있습니다.");
+        // 💡 2. 만약 분석 결과가 없다면 "분석 요청(POST)"을 보냅니다.
+        await requestAiAnalysis(gameId); 
+        setErrorMsg("AI 분석을 시작했습니다.");
+        setSubMsg("잠시 후 다시 확인해주세요!");
       }
     } catch (error) {
-      console.error("분석 데이터를 가져오지 못했습니다.", error);
-      setErrorMsg("서버와 통신 중\n오류가 발생했습니다.");
+      try {
+        await requestAiAnalysis(gameId);
+        setErrorMsg("리포트가 없어 분석을 요청했습니다.");
+        setSubMsg("1분 뒤에 다시 눌러주세요!");
+      } catch (e) {
+        setErrorMsg("서버 통신 오류가 발생했습니다.");
+      }
     }
-  };  
+  };
 
   // Profile Image Logic: (userId % 4) + 1
   const profileImgIndex = profile ? (profile.userId % 4) + 1 : 1;
@@ -171,7 +178,7 @@ const MyPage = () => {
         </section>
 
         <section className="w-full flex-1 min-h-0 overflow-hidden">
-          <UserHistorySection games={games} onReport={handleReport}/>
+          <UserHistorySection games={games} onReport={handleOpenAnalysis}/>
         </section>
       </div>
       <AiAnalyzeModal 

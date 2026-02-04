@@ -1,13 +1,24 @@
-import axios from 'axios';
+import apiClient from './apiClient'; // 💡 직접 만든 apiClient를 가져옵니다.
 
-// AI 분석 결과를 가져오는 함수입니다.
+// 1. [조회] 리포트 가져오기
 export const getAiAnalysis = async (gameHistoryId) => {
   try {
-    // 자바 컨트롤러의 @GetMapping("/{gameHistoryId}") 주소로 요청을 보냅니다.
-    const response = await axios.get(`/api/gamelog/${gameHistoryId}`);
-    return response.data; // 서버에서 준 ApiResponse<MyGameLogResult>가 담깁니다.
+    // 💡 apiClient를 쓰면 headers에 토큰을 직접 안 넣어도 알아서 붙여서 나갑니다!
+    const response = await apiClient.get(`/api/gamelog/${gameHistoryId}`);
+    return response.data;
   } catch (error) {
-    console.error("AI 분석 데이터를 가져오는 데 실패했습니다.", error);
-    return { success: false };
+    console.error("조회 중 에러 발생:", error);
+    throw error;
+  }
+};
+
+// 2. [요청] 분석 시작 시키기
+export const requestAiAnalysis = async (gameHistoryId) => {
+  try {
+    const response = await apiClient.post(`/api/gamelog/${gameHistoryId}/analyze`);
+    return response.data;
+  } catch (error) {
+    console.error("분석 요청 중 에러 발생:", error);
+    throw error;
   }
 };
