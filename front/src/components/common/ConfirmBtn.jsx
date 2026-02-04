@@ -1,6 +1,6 @@
 const ConfirmBtn = ({ text, onClick, variant = "primary", className = "" }) => {
   const variants = {
-    primary: "bg-[#ff8a00] hover:bg-[#ffaa44] text-white",
+    primary: "bg-[#EA6600] hover:bg-[#ffaa44] text-white",
     secondary: "bg-[#333333] hover:bg-[#444444] text-white", 
     danger: "bg-red-600 hover:bg-red-500 text-white",
   };

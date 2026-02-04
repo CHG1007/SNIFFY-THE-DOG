@@ -11,6 +11,7 @@ import LobbyLayout from "../components/room/LobbyLayout";
 import TopMenu from "../components/room/TopMenu";
 import RoomCard from "../components/room/RoomCard";
 import Pagination from "../components/room/Pagination";
+import LastBeggingModal from "../components/modals/LastBeggingModal"
 
 import Lottie from "lottie-react";
 
@@ -22,6 +23,8 @@ export default function RoomPage() {
   const navigate = useNavigate();
   const { enterRoom } = useRoomEntry();
   const [emptyAnim, setEmptyAnim] = useState(null);
+
+  const [errorMsg, setErrorMsg] = useState(null);
 
   useEffect(() => {
     fetch("/assets/images/roompage/emptyroom.json")
@@ -65,7 +68,7 @@ export default function RoomPage() {
       
       handleJoinRoom(targetRoom);
     } else {
-      alert("현재 페이지에 입장 가능한 공개방이 없습니다.\n새로고침을 하거나 다른 페이지를 확인해주세요.");
+      setErrorMsg("현재 페이지에 입장 가능한 \n공개방이 없습니다.");
     }
   };
 
@@ -100,12 +103,12 @@ export default function RoomPage() {
       if (response.success && response.data.status === "WAITING") {
         enterRoom(room.roomId, false);
       } else {
-        alert("이미 게임이 진행 중이거나 입장이 불가한 방입니다.");
+        setErrorMsg("이미 게임이 진행 중이거나 입장이 불가한 방입니다.");
         fetchRooms(currentPage);
       }
     } catch (error) {
       console.error("입장 실패:", error);
-      alert("방 입장에 실패했습니다.");
+      setErrorMsg("방 입장에 실패했습니다.");
     }
   };
 
@@ -174,6 +177,14 @@ export default function RoomPage() {
         <FindGameModal isOpen={isFindGameOpen} onClose={() => setIsFindGameOpen(false)} />
         {isCreateGameOpen && (
           <CreateGameModal isOpen={isCreateGameOpen} onClose={() => setIsCreateGameOpen(false)} />
+        )}
+        {errorMsg && (
+          <LastBeggingModal
+            isOpen={!!errorMsg}
+            message={errorMsg}
+            onClose={() => setErrorMsg(null)}
+            // onConfirm이 없으므로 '확인' 버튼 하나만 나옵니다.
+          />
         )}
       </LobbyLayout>
     </div>
