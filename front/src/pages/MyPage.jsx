@@ -5,6 +5,7 @@ import { getMyProfile, getUserBadges, getUserGameHistory, updateNickname } from 
 import useAuthStore from '../stores/useAuthStore';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
 import AiAnalyzeModal from '../components/modals/AiAnalyzeModal';
+import { getAiAnalysis } from '../api/gameApi';
 
 
 const MyPage = () => {
@@ -127,20 +128,23 @@ const MyPage = () => {
   // 분석 버튼 클릭 시 실행할 핸들러 추가
   const handleOpenAnalysis = async (gameId) => {
     try {
-      // TODO: 실제 API 연결 (예: const res = await getGameAnalysis(gameId);)
-      // 현재는 테스트용 더미 데이터 세팅
-      const dummyData = {
-        totalSummary: "전체 게임 요약 3줄이 들어가는 공간입니다.\n두 번째 줄입니다.\n세 번째 줄입니다.",
-        playerReports: {
-          [profile?.nickname]: "나의 개인 활약상 2줄이 들어가는 공간입니다.\n두 번째 줄입니다."
-        }
-      };
-      setSelectedAnalysis(dummyData);
-      setIsAiModalOpen(true);
+      // 💡 2. 가짜 데이터 대신 진짜 서버에 요청을 보냅니다!
+      const res = await getAiAnalysis(gameId);
+
+      if (res.success) {
+        // 3. 서버에서 받은 데이터를 모달에 넣어줍니다.
+        // res.data 안에는 summary와 narrative 같은 정보가 들어있을 거예요.
+        setSelectedAnalysis(res.data);
+        setIsAiModalOpen(true);
+      } else {
+        setErrorMsg("분석 리포트를\n찾을 수 없습니다.");
+        setSubMsg("아직 분석 중이거나\n데이터가 없을 수 있습니다.");
+      }
     } catch (error) {
       console.error("분석 데이터를 가져오지 못했습니다.", error);
+      setErrorMsg("서버와 통신 중\n오류가 발생했습니다.");
     }
-  };
+  };  
 
   // Profile Image Logic: (userId % 4) + 1
   const profileImgIndex = profile ? (profile.userId % 4) + 1 : 1;
