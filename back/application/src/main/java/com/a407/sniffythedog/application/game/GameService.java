@@ -206,11 +206,10 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
         // 3) 종료면 GAME_FINISHED
         if (holder.finished) {
-            Map<String, Object> finishedMsg = Map.of(
-                    "version", updated.getVersion(),
-                    "winnerTeam", holder.winnerTeam,
-                    "mvpUserId", null
-            );
+            java.util.HashMap<String, Object> finishedMsg = new java.util.HashMap<>();
+            finishedMsg.put("version", updated.getVersion());
+            finishedMsg.put("winnerTeam", holder.winnerTeam);
+            finishedMsg.put("mvpUserId", null);
             gameMessagePort.sendToRoom(roomCode, "GAME_FINISHED", finishedMsg);
         }
     }
