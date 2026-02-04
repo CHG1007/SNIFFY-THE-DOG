@@ -52,13 +52,17 @@ const OnboardingPage = () => {
     navigate('/tutorial');
   };
 
-    return (
-    <div 
-      className="min-h-screen flex flex-col items-center justify-center relative bg-cover bg-center bg-no-repeat bg-fixed"
-      style={{
-        backgroundImage: `url('/assets/images/onboarding/background.png')`,
-      }}
-    >
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+      <img
+        src="/assets/images/onboarding/background.png"
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 z-0 h-full w-full object-cover"
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
+      />
       {/* 관리자 로그인 트리거 (좌측 하단 투명 영역) */}
       <div 
         className="fixed bottom-0 left-0 w-24 h-24 z-[9999]"
@@ -71,14 +75,19 @@ const OnboardingPage = () => {
       />
       
       {/* 로고 섹션 */}
-      <div className="mb-16 text-center">
+      <div className="mb-16 text-center relative z-10">
         <h1 className="text-6xl font-black italic tracking-tighter">
-            <img src="/assets/images/onboarding/title.png" alt="Mafia Logo" className="w-170 mx-auto mb-4" />
+          <img
+            src="/assets/images/onboarding/title.png"
+            alt="Mafia Logo"
+            className="w-170 mx-auto mb-4"
+            decoding="async"
+          />
         </h1>
       </div>
 
       {/* 버튼 섹션: 정의한 함수들을 onClick에 연결 */}
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 relative z-10">
         {isAuthenticated ? (
           <OnboardingBtn type="primary" onClick={handleStartGame}>
             게임 시작하기
