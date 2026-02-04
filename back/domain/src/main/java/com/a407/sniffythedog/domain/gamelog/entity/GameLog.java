@@ -10,7 +10,7 @@ import java.util.*;
 public class GameLog {
 
     private GameLogId id;
-    private final String roomId;
+    private final Long gameHistoryId;
     private final List<PlayerResult> players;
     private final List<GameEvent> events;
     private Winner winner;
@@ -20,10 +20,10 @@ public class GameLog {
 
     private final Map<Long, String> aiReports = new HashMap<>();
 
-    private GameLog(GameLogId id, String roomId, List<PlayerResult> players,
+    private GameLog(GameLogId id, Long gameHistoryId, List<PlayerResult> players,
                     List<GameEvent> events, Winner winner, Instant startedAt, Instant endedAt) {
         this.id = id;
-        this.roomId = Objects.requireNonNull(roomId, "roomId must not be null");
+        this.gameHistoryId = Objects.requireNonNull(gameHistoryId, "gameHistoryId must not be null");
         this.players = new ArrayList<>(players);
         this.events = new ArrayList<>(events);
         this.winner = winner;
@@ -41,14 +41,14 @@ public class GameLog {
         this.totalSummary = totalSummary;
     }
 
-    public static GameLog create(String roomId, List<PlayerResult> players, Instant startedAt) {
-        return new GameLog(null, roomId, players, new ArrayList<>(), null, startedAt, null);
+    public static GameLog create(Long gameHistoryId, List<PlayerResult> players, Instant startedAt) {
+        return new GameLog(null, gameHistoryId, players, new ArrayList<>(), null, startedAt, null);
     }
 
-    public static GameLog reconstitute(GameLogId id, String roomId, List<PlayerResult> players,
+    public static GameLog reconstitute(GameLogId id, Long gameHistoryId, List<PlayerResult> players,
                                         List<GameEvent> events, Winner winner,
                                         Instant startedAt, Instant endedAt) {
-        return new GameLog(id, roomId, players, events, winner, startedAt, endedAt);
+        return new GameLog(id, gameHistoryId, players, events, winner, startedAt, endedAt);
     }
 
     public void addEvent(GameEvent event) {
@@ -70,8 +70,8 @@ public class GameLog {
         return id;
     }
 
-    public String getRoomId() {
-        return roomId;
+    public Long getGameHistoryId() {
+        return gameHistoryId;
     }
 
     public List<PlayerResult> getPlayers() {

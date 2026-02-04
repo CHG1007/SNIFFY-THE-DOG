@@ -33,8 +33,8 @@ public class GameLogRepositoryAdapter implements GameLogPort {
     }
 
     @Override
-    public Optional<GameLog> findByRoomId(String roomId) {
-        return mongoRepository.findByRoomId(roomId)
+    public Optional<GameLog> findByGameHistoryId(Long gameHistoryId) {
+        return mongoRepository.findByGameHistoryId(gameHistoryId)
                 .map(GameLogMapper::toDomain);
     }
 }

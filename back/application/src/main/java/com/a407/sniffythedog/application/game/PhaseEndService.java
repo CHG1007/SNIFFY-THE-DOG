@@ -3,9 +3,11 @@ package com.a407.sniffythedog.application.game;
 import com.a407.sniffythedog.application.game.in.PhaseEndCommand;
 import com.a407.sniffythedog.application.game.in.PhaseEndUseCase;
 import com.a407.sniffythedog.application.game.out.GameMessagePort;
+import com.a407.sniffythedog.application.gamelog.GameResultService;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
 import com.a407.sniffythedog.domain.game.enums.Phase;
+import com.a407.sniffythedog.domain.game.enums.Winner;
 import com.a407.sniffythedog.domain.game.vo.PhaseEndResult;
 import com.a407.sniffythedog.domain.game.vo.PhaseTransitionResult;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
@@ -13,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,6 +29,7 @@ public class PhaseEndService implements PhaseEndUseCase {
 
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
+    private final GameResultService gameResultService;
 
     @Override
     public void execute(PhaseEndCommand command) {
@@ -59,6 +63,8 @@ public class PhaseEndService implements PhaseEndUseCase {
             holder.newPhase = room.getGameState().phase();
             holder.phaseEndsAt = room.getGameState().phaseEndsAt().toString();
             holder.round = room.getGameState().round();
+            holder.startedAt = room.getStartedAt();
+            holder.endedAt = room.getEndedAt();
 
             return room;
         });
@@ -120,6 +126,14 @@ public class PhaseEndService implements PhaseEndUseCase {
             gameFinished.put("winnerTeam", tr.winner().name());
             gameFinished.put("mvpUserId", null);
             gameMessagePort.sendToRoom(roomCode, "GAME_FINISHED", gameFinished);
+
+            // 게임 결과 처리 (비동기) - GameHistory 생성 및 GameLog MongoDB 저장
+            gameResultService.processGameResult(
+                    roomCode,
+                    tr.winner(),
+                    holder.startedAt,
+                    holder.endedAt != null ? holder.endedAt : Instant.now()
+            );
         }
     }
 
@@ -130,5 +144,7 @@ public class PhaseEndService implements PhaseEndUseCase {
         Phase newPhase;
         String phaseEndsAt;
         int round;
+        Instant startedAt;
+        Instant endedAt;
     }
 }

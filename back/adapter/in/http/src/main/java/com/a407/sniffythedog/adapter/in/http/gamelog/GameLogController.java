@@ -16,34 +16,31 @@ public class GameLogController {
     private final GameResultService gameResultService;
 
     // 실제 서비스용: 인증된 사용자 ID 사용
-    @GetMapping("/{roomId}")
+    @GetMapping("/{gameHistoryId}")
     public ApiResponse<MyGameLogResult> viewMyAnalysis(
-            @PathVariable String roomId,
+            @PathVariable Long gameHistoryId,
             @AuthenticationPrincipal AuthenticatedUser user) {
-        MyGameLogResult analysisResult = gameResultService.getMyAnalysis(roomId, user.userId());
+        MyGameLogResult analysisResult = gameResultService.getMyAnalysis(gameHistoryId, user.userId());
         return ApiResponse.success(analysisResult);
     }
 
     /**
-     * TEST
-     * GMS로 전송 -> 저장
+     * AI 분석 리포트 생성 요청
+     * (사용자가 명시적으로 요청하거나, 결과 페이지 진입 시 호출)
      */
-    @GetMapping("/start")
-    public String triggerAiAnalysis() {
-        String testRoomId = "sniffy-test-" + System.currentTimeMillis();
-        gameResultService.processGame(testRoomId);
-        return "AI Analysis Started! RoomID: " + testRoomId;
+    @PostMapping("/{gameHistoryId}/analyze")
+    public ApiResponse<String> requestAiAnalysis(@PathVariable Long gameHistoryId) {
+        gameResultService.requestAiAnalysis(gameHistoryId);
+        return ApiResponse.success("AI 분석이 시작되었습니다.");
     }
 
     /**
-     * TEST
-     * MongoDB -> WEB
-     * (테스트용은 유지하되, 필요 시 삭제 가능)
+     * 결과 조회 (테스트/내부용)
      */
-    @GetMapping("/result/{roomId}/{userId}")
+    @GetMapping("/result/{gameHistoryId}/{userId}")
     public MyGameLogResult viewTestAnalysis(
-            @PathVariable String roomId,
+            @PathVariable Long gameHistoryId,
             @PathVariable Long userId) {
-        return gameResultService.getMyAnalysis(roomId, userId);
+        return gameResultService.getMyAnalysis(gameHistoryId, userId);
     }
 }
