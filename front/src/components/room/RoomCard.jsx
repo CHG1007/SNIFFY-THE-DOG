@@ -10,7 +10,7 @@ export default function RoomCard({
 
   return (
     <div
-      className="relative rounded-xl overflow-visible shadow-lg border border-black/10 bg-[#efe6c8] max-w-[300px] cursor-pointer"
+      className="relative rounded-xl overflow-visible shadow-lg border border-black/10 bg-[#efe6c8] max-w-[300px] max-h-[600px] cursor-pointer"
       onClick={() => !isFull && onJoin()}
       role={onJoin ? "button" : undefined}
       tabIndex={onJoin ? 0 : undefined}

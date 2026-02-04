@@ -136,10 +136,12 @@ public class RoomSession {
         this.status = RoomStatus.PLAYING;
         this.startedAt = Instant.now();
         assignRoles();
+        // COUNTDOWN phase로 시작
         this.gameState = new GameState(
                 1,
-                Phase.DAY,
-                Instant.now().plusSeconds(timing.daySec()),
+                Phase.COUNTDOWN,
+                Instant.now().plusSeconds(Phase.COUNTDOWN.getDefaultDurationSeconds()),
+                false,
                 VoteState.empty(),
                 TrialState.empty(),
                 NightState.empty()
@@ -147,6 +149,146 @@ public class RoomSession {
         touch();
     }
 
+    /**
+     * Phase End 방식 - 클라이언트가 요청한 Phase 종료 처리
+     * @param requestedPhase 클라이언트가 종료 요청한 phase
+     * @return PhaseEndResult 전환 결과
+     */
+    public PhaseEndResult endPhase(Phase requestedPhase) {
+        // 1. 유효성 검증
+        if (this.status != RoomStatus.PLAYING) {
+            return PhaseEndResult.ignored("게임이 진행 중이 아닙니다");
+        }
+        if (gameState.phase() != requestedPhase) {
+            return PhaseEndResult.ignored("요청한 phase와 현재 phase가 일치하지 않습니다");
+        }
+        if (gameState.phaseEnded()) {
+            return PhaseEndResult.ignored("이미 종료된 phase입니다"); // 멱등성
+        }
+
+        // 2. 현재 phase 종료 처리
+        this.gameState = gameState.markPhaseEnded();
+
+        // 3. Phase별 종료 로직 + 다음 Phase 결정
+        PhaseTransitionResult transition = processPhaseEnd(requestedPhase);
+
+        // 4. 다음 Phase로 전환
+        if (!transition.isGameEnded()) {
+            Phase nextPhase = transition.nextPhase();
+            Instant endsAt = Instant.now().plusSeconds(nextPhase.getDefaultDurationSeconds());
+            this.gameState = gameState.toPhase(nextPhase, endsAt);
+
+            // Phase별 추가 상태 초기화
+            if (nextPhase == Phase.DAY) {
+                this.gameState = gameState
+                        .withDayVote(VoteState.empty())
+                        .withTrial(TrialState.empty())
+                        .withNight(NightState.empty());
+            } else if (nextPhase == Phase.VOTE_1) {
+                this.gameState = gameState.withDayVote(VoteState.empty());
+            } else if (nextPhase == Phase.NIGHT) {
+                this.gameState = gameState.withNight(NightState.empty());
+            }
+        } else {
+            endGame();
+        }
+
+        touch();
+        return PhaseEndResult.success(transition);
+    }
+
+    /**
+     * Phase별 종료 시 처리 로직
+     */
+    private PhaseTransitionResult processPhaseEnd(Phase phase) {
+        return switch (phase) {
+            case COUNTDOWN -> PhaseTransitionResult.simple(Phase.ASSIGN_ROLE);
+            case ASSIGN_ROLE -> PhaseTransitionResult.simple(Phase.DAY);
+            case DAY -> PhaseTransitionResult.simple(Phase.VOTE_1);
+            case VOTE_1 -> processVote1End();
+            case DEFENSE -> PhaseTransitionResult.simple(Phase.VOTE_2);
+            case VOTE_2 -> processVote2End();
+            case NIGHT -> processNightEnd();
+            case DAY_RESULT -> processDayResultEnd();
+            default -> PhaseTransitionResult.simple(Phase.GAME_END);
+        };
+    }
+
+    /**
+     * VOTE_1 종료 처리 - 투표 집계
+     */
+    private PhaseTransitionResult processVote1End() {
+        VoteState voteState = gameState.dayVote();
+        Map<GameUserId, Long> counts = voteState.countVotes();
+
+        long maxVotes = 0;
+        List<GameUserId> candidates = new ArrayList<>();
+
+        for (Map.Entry<GameUserId, Long> entry : counts.entrySet()) {
+            long count = entry.getValue();
+            if (count > maxVotes) {
+                maxVotes = count;
+                candidates.clear();
+                candidates.add(entry.getKey());
+            } else if (count == maxVotes) {
+                candidates.add(entry.getKey());
+            }
+        }
+
+        if (maxVotes > 0 && candidates.size() == 1) {
+            // 단독 1위 → DEFENSE
+            GameUserId accused = candidates.get(0);
+            this.gameState = gameState.withTrial(TrialState.withAccused(accused));
+            return PhaseTransitionResult.withAccused(Phase.DEFENSE, accused);
+        } else {
+            // 동점/무효 → NIGHT
+            return PhaseTransitionResult.tie(Phase.NIGHT);
+        }
+    }
+
+    /**
+     * VOTE_2 종료 처리 - 찬반 투표 집계
+     */
+    private PhaseTransitionResult processVote2End() {
+        concludeTrial();
+        return PhaseTransitionResult.simple(Phase.NIGHT);
+    }
+
+    /**
+     * NIGHT 종료 처리 - 밤 행동 결과 (resolve는 별도로 호출되어야 함)
+     */
+    private PhaseTransitionResult processNightEnd() {
+        // 밤 결과는 NightActionService.resolve()에서 처리
+        // 여기서는 DAY_RESULT로 전환만 처리
+        return PhaseTransitionResult.simple(Phase.DAY_RESULT);
+    }
+
+    /**
+     * DAY_RESULT 종료 처리 - 승리 조건 판정
+     */
+    private PhaseTransitionResult processDayResultEnd() {
+        // 승리 조건 확인
+        if (isGameOver()) {
+            Winner winner = isCitizenWin() ? Winner.CITIZEN : Winner.MAFIA;
+            return PhaseTransitionResult.gameEnd(winner);
+        }
+        // 게임 계속 - 다음 DAY로 (라운드 증가)
+        this.gameState = new GameState(
+                gameState.round() + 1,
+                gameState.phase(),
+                gameState.phaseEndsAt(),
+                gameState.phaseEnded(),
+                VoteState.empty(),
+                TrialState.empty(),
+                NightState.empty()
+        );
+        return PhaseTransitionResult.simple(Phase.DAY);
+    }
+
+    /**
+     * @deprecated Phase End 방식으로 대체됨. endPhase() 사용 권장
+     */
+    @Deprecated
     public void proceedToNextPhase(PhaseTiming timing) {
         if (this.status != RoomStatus.PLAYING) return;
 
@@ -154,26 +296,26 @@ public class RoomSession {
         Instant now = Instant.now();
 
         switch (currentPhase) {
-            // 1. 낮(DAY) -> 투표(DAY_VOTE)
+            // 1. 낮(DAY) -> 투표(VOTE_1)
             case DAY:
                 this.gameState = gameState
-                        .toPhase(Phase.DAY_VOTE, now.plusSeconds(timing.dayVoteSec()))
+                        .toPhase(Phase.VOTE_1, now.plusSeconds(timing.dayVoteSec()))
                         .withDayVote(VoteState.empty());
                 break;
 
-            // 2. 투표(DAY_VOTE) -> 최후변론(DEFENSE) or 밤(NIGHT)
-            case DAY_VOTE:
+            // 2. 투표(VOTE_1) -> 최후변론(DEFENSE) or 밤(NIGHT)
+            case VOTE_1:
                 handleDayVoteEnd(now, timing);
                 break;
 
-            // 3. 최후변론(DEFENSE) -> 찬반투표(FINAL_VOTE)
+            // 3. 최후변론(DEFENSE) -> 찬반투표(VOTE_2)
             case DEFENSE:
                 this.gameState = gameState
-                        .toPhase(Phase.FINAL_VOTE, now.plusSeconds(timing.finalVoteSec()));
+                        .toPhase(Phase.VOTE_2, now.plusSeconds(timing.finalVoteSec()));
                 break;
 
-            // 4. 찬반투표(FINAL_VOTE) -> 밤(NIGHT)
-            case FINAL_VOTE:
+            // 4. 찬반투표(VOTE_2) -> 밤(NIGHT)
+            case VOTE_2:
                 concludeTrial(); // 재판 종료 처리
                 this.gameState = gameState
                         .toPhase(Phase.NIGHT, now.plusSeconds(timing.nightSec()))
@@ -195,10 +337,10 @@ public class RoomSession {
     }
 
     /**
-     * 1차 투표 집계 로직
-     * 동률 -> phase : night
-     * 최다 득표 존재 -> phase : defense
+     * 1차 투표 집계 로직 (proceedToNextPhase용)
+     * @deprecated endPhase() 방식의 processVote1End() 사용 권장
      */
+    @Deprecated
     private void handleDayVoteEnd(Instant now, PhaseTiming timing) {
         VoteState voteState = gameState.dayVote();
         Map<GameUserId, Long> counts = voteState.countVotes();

@@ -296,6 +296,14 @@ class WebSocketClient {
       requestId: `restart-${Date.now()}`,
     });
   }
+
+  // Phase End 방식 - 타이머 0초 도달 시 phase 종료 요청
+  sendPhaseEnd(phase) {
+    this.publish('phase/end', {
+      phase,
+      requestId: `phase-end-${Date.now()}`,
+    });
+  }
 }
 
 // 싱글톤으로 내보내기

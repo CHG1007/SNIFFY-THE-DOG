@@ -12,44 +12,45 @@ const MyPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editNickname, setEditNickname] = useState(user?.nickname || "");
 
+
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [profileRes, badgesRes, gamesRes] = await Promise.all([
+          getMyProfile(),
+          getUserBadges(),
+          getUserGameHistory(0, 20) // Load first 20 games
+        ]);
+
+        if (profileRes.success) {
+          setProfile(profileRes.data);
+          setEditNickname(profileRes.data.nickname);
+        }
+        
+        if (badgesRes.success) {
+           // Handle badge response structure: { badges: [...] }
+          setBadges(badgesRes.data.badges || []);
+        }
+
+        if (gamesRes.success) {
+          const mappedGames = (gamesRes.data.content || []).map(item => ({
+            gameId: item.gameId,
+            date: item.startAt ? new Date(item.startAt).toISOString().split('T')[0].replace(/-/g, '.') : '',
+            role: item.job, // Mapping job -> role
+            result: item.result,
+            team: item.winner,
+            playTime: item.playTime
+          }));
+          setGames(mappedGames);
+        }
+
+      } catch (error) {
+        console.error("Failed to fetch my page data:", error);
+      }
+    };
+
     fetchData();
   }, []);
-
-  const fetchData = async () => {
-    try {
-      const [profileRes, badgesRes, gamesRes] = await Promise.all([
-        getMyProfile(),
-        getUserBadges(),
-        getUserGameHistory(0, 20) // Load first 20 games
-      ]);
-
-      if (profileRes.success) {
-        setProfile(profileRes.data);
-        setEditNickname(profileRes.data.nickname);
-      }
-      
-      if (badgesRes.success) {
-         // Handle badge response structure: { badges: [...] }
-        setBadges(badgesRes.data.badges || []);
-      }
-
-      if (gamesRes.success) {
-        const mappedGames = (gamesRes.data.content || []).map(item => ({
-          gameId: item.gameId,
-          date: item.startAt ? new Date(item.startAt).toISOString().split('T')[0].replace(/-/g, '.') : '',
-          role: item.job, // Mapping job -> role
-          result: item.result,
-          team: item.winner,
-          playTime: item.playTime
-        }));
-        setGames(mappedGames);
-      }
-
-    } catch (error) {
-      console.error("Failed to fetch my page data:", error);
-    }
-  };
 
   const handleSaveNickname = async () => {
     if (!editNickname.trim()) return;

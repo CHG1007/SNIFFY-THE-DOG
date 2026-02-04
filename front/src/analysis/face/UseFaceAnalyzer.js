@@ -31,12 +31,14 @@ export function useFaceAnalyzer() {
     console.log("face-api models loaded");
   };
 
-  const analyzeOnce = async () => {
-    if (!videoRef.current) return null;
+  const analyzeOnce = async (extenalVideo) => {
+    const videoToAnalyze = extenalVideo || videoRef.current;
+
+    if (!videoToAnalyze) return null;
 
     const result = await faceapi
       .detectSingleFace(
-        videoRef.current,
+        videoToAnalyze,
         new faceapi.TinyFaceDetectorOptions()
       )
       .withFaceExpressions();

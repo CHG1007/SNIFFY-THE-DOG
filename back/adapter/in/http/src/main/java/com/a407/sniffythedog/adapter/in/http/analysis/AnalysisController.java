@@ -17,7 +17,17 @@ public class AnalysisController {
     @PostMapping("/frames")
     public ResponseEntity<AnalyzeAnalysisResponse> analyze(@RequestBody AnalyzeAnalysisRequest request) {
         // 1. 서비스에게 주방 쟁반(DTO)을 받는다
-        var resultDto = analysisService.analyze(request.getPayload());
+        System.out.println("받은 방 ID: " + request.getRoomId());
+        System.out.println("받은 방 ID: " + request.getActorUserId());
+        System.out.println("받은 방 ID: " + request.getTargetUserId());
+        System.out.println("받은 방 ID: " + request.getRound());
+
+        var resultDto = analysisService.analyze(
+                request.getRoomId(),
+                request.getActorUserId(),
+                request.getTargetUserId(),
+                request.getRound(),
+                request.getPayload());
 
         // 2. 컨트롤러가 자기 접시(Response)로 옮겨 담는다
         return ResponseEntity.ok(new AnalyzeAnalysisResponse(

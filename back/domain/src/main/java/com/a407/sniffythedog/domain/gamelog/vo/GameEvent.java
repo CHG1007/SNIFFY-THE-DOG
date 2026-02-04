@@ -191,4 +191,20 @@ public record GameEvent(
         );
     }
 
+    // AI 분석 결과
+    public static GameEvent aiAnalysis(int round, Long actorUserId, Long targetUserId, String gmsResult) {
+        return new GameEvent(
+                GameEventType.AI_ANALYSIS,
+                round,
+                actorUserId, // 분석 시도
+                targetUserId, // 분석 당한 대상
+                null,
+                null,
+                null, null, null, null, null, null,
+                null,
+                gmsResult,
+                Instant.now()
+        );
+    }
+
 }
