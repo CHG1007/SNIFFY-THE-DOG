@@ -222,6 +222,13 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
             finishedMsg.put("version", updated.getVersion());
             finishedMsg.put("winnerTeam", holder.winnerTeam);
             finishedMsg.put("mvpUserId", null);
+            finishedMsg.put("players", updated.getPlayers().entrySet().stream()
+                    .map(e -> Map.of(
+                            "userId", e.getKey().value(),
+                            "nickname", e.getValue().getDisplayName(),
+                            "role", e.getValue().getGameRole() != null ? e.getValue().getGameRole().name() : "CITIZEN"
+                    ))
+                    .collect(Collectors.toList()));
             gameMessagePort.sendToRoom(roomCode, "GAME_FINISHED", finishedMsg);
 
             gameResultService.processGameResult(
@@ -370,16 +377,34 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
     }
 
     /**
-     * 각 플레이어에게 역할 정보 전송
+     * 각 플레이어에게 역할 정보 전송.
+     * 마피아 플레이어에게는 동료 목록(mafiaMembers)을 함께 전달하여
+     * 밤에 마피아끼리 화상 연결할 수 있도록 한다.
      */
     private void sendRoleAssignments(RoomSession room, String roomCode) {
+        // 마피아 멤버 userId 목록 추출
+        List<Long> mafiaMembers = room.getPlayers().entrySet().stream()
+                .filter(e -> e.getValue().getGameRole().name().equals("MAFIA"))
+                .map(e -> e.getKey().value())
+                .collect(Collectors.toList());
+
         room.getPlayers().forEach((userId, player) -> {
             int aiChanceRemaining = player.getGameRole().name().equals("CITIZEN") ? 2 : 0;
 
-            Map<String, Object> roleData = Map.of(
-                    "role", player.getGameRole().name(),
-                    "aiChanceRemaining", aiChanceRemaining
-            );
+            Map<String, Object> roleData;
+            if (player.getGameRole().name().equals("MAFIA")) {
+                // 마피아: 동료 목록 포함
+                roleData = Map.of(
+                        "role", player.getGameRole().name(),
+                        "aiChanceRemaining", aiChanceRemaining,
+                        "mafiaMembers", mafiaMembers
+                );
+            } else {
+                roleData = Map.of(
+                        "role", player.getGameRole().name(),
+                        "aiChanceRemaining", aiChanceRemaining
+                );
+            }
 
             gameMessagePort.sendToUser(
                     String.valueOf(userId.value()),

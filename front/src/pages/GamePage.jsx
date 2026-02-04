@@ -1,9 +1,14 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+// ***** [AI] 관련 기능 및 모달 추가 *****
+import { useAnalysis } from '../analysis/UseAnalysis';
 
 // API & Stores
 import websocketClient from '../api/websocketClient';
 import useGameStore from '../stores/useGameStore';
+
+// LiveKit
+import useLiveKit from '../hooks/useLiveKit';
 
 // Components
 import GameVideoSlot from '../components/game/GameVideoSlot';
@@ -15,7 +20,10 @@ import VoteConfirmModal from '../components/modals/VoteConfirmModal';
 import RealVote from '../components/modals/RealVoteModal';
 import GameAlertModal from '../components/modals/GameAlertModal';
 import NothingHappenModal from '../components/modals/NothingHappenModal';
+import UserSelectModal from '../components/modals/UserSelectModal';
+import AiAnalysisResultModal from '../components/modals/AiAnalysisResultModal';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
+
 
 // Refactored Modals
 import RoleAssignModal from '../components/modals/game/RoleAssignModal';
@@ -73,6 +81,9 @@ const GamePage = () => {
     setVersion, reset,
   } = useGameStore();
 
+  // LiveKit 자동 연결 (방 입장 시 즉시 연결)
+  const { tracks: liveTracks, localTrack } = useLiveKit(roomId);
+
   // 로컬 UI 상태
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -87,11 +98,22 @@ const GamePage = () => {
   // Refs
   const myInfoRef = useRef(myInfo);
   const playersRef = useRef(players);
+  const gameFinishedPlayersRef = useRef([]);
+
+  // ***** AI *****
+  const { startAnalysis, isAnalyzing } = useAnalysis();        // 분석 시작
+  const [isSelectMode, setIsSelectMode] = useState(false);     // 분석 클릭 상태
+  const [analysisResult, setAnalysisResult] = useState(null);  // 분석 결과
+  const [isGuidanceOpen, setIsGuidanceOpen] = useState(false); // 분석 알림 모달 상태
 
   useEffect(() => {
     myInfoRef.current = myInfo;
     playersRef.current = players;
   }, [myInfo, players]);
+
+  // 마피아 멤버 추적 (밤에 마피아끼리만 화상 연결용)
+  const mafiaMembersRef = useRef(new Set());
+  const [mafiaMembers, setMafiaMembers] = useState(() => new Set());
 
   const toUserId = (value) => {
     if (value && typeof value === 'object') return value.value ?? value;
@@ -131,12 +153,17 @@ const GamePage = () => {
   // 게임 종료 시 결과 페이지로 자동 이동
   useEffect(() => {
     if (gameResult) {
-      // 약간의 딜레이를 주어 사용자가 인지할 시간을 줄 수도 있음 (선택 사항)
-      // 현재는 즉시 이동 요구사항에 따름
-      navigate('/result', {
+      const winnerParam = gameResult.winnerTeam === 'MAFIA' ? 'mafia' : 'citizen';
+      const playersWithRoles = standardizedPlayers.map(p => {
+        const finished = gameFinishedPlayersRef.current.find(
+          fp => String(fp.userId) === String(p.userId)
+        );
+        return finished ? { ...p, role: finished.role } : p;
+      });
+      navigate(`/result?winner=${winnerParam}`, {
         state: {
           gameResult: gameResult,
-          players: standardizedPlayers
+          players: playersWithRoles
         }
       });
     }
@@ -181,6 +208,11 @@ const GamePage = () => {
         setShowRoleModal(true);
         if (payload.role === 'MAFIA') {
           websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
+          // 백엔드에서 마피아 멤버 목록을 보내면 활용
+          if (Array.isArray(payload.mafiaMembers)) {
+            payload.mafiaMembers.forEach(id => mafiaMembersRef.current.add(String(id)));
+            setMafiaMembers(new Set(mafiaMembersRef.current));
+          }
         }
         break;
 
@@ -285,14 +317,18 @@ const GamePage = () => {
 
       // === 게임 종료 ===
       case 'GAME_FINISHED':
+        if (payload.players) {
+          gameFinishedPlayersRef.current = payload.players;
+        }
         setGameResult(payload.winnerTeam, payload.mvpUserId);
-        // setShowGameEndModal(true); // 제거
         if (payload.version) setVersion(payload.version);
         break;
 
       // === 게임 재시작 ===
       case 'GAME_RESTARTED':
         if (payload.version) setVersion(payload.version);
+        mafiaMembersRef.current = new Set();
+        setMafiaMembers(new Set());
         navigate(`/rooms/${roomId}`, {
           state: { fromGame: true }
         });
@@ -310,7 +346,7 @@ const GamePage = () => {
     setPlayers, setMyInfo, setVersion, setMyRole, setPhase,
     updateVote1Progress, setVote1Result, updateVote2Progress, setVote2Result,
     updatePlayerStatus, setNightResult, setPoliceResult, setAiChanceResult,
-    setGameResult, openModal,
+    setGameResult, openModal, setMafiaMembers,
   ]);
 
   // 마피아 전용 메시지 핸들러
@@ -323,9 +359,16 @@ const GamePage = () => {
       case 'MAFIA_RESULT':
         setMafiaLocked(toUserId(data.targetUserId));
         break;
-      case 'MAFIA_TARGET_PROPOSED':
+      case 'MAFIA_TARGET_PROPOSED': {
+        const fromId = String(toUserId(data.fromUserId));
         setMafiaProposal(toUserId(data.fromUserId), toUserId(data.targetUserId));
+        // 제안자를 마피아 멤버로 추적
+        if (!mafiaMembersRef.current.has(fromId)) {
+          mafiaMembersRef.current.add(fromId);
+          setMafiaMembers(new Set(mafiaMembersRef.current));
+        }
         break;
+      }
 
       case 'MAFIA_TARGET_LOCKED':
         setMafiaLocked(toUserId(data.targetUserId));
@@ -334,7 +377,7 @@ const GamePage = () => {
       default:
         break;
     }
-  }, [setMafiaProposal, setMafiaLocked]);
+  }, [setMafiaProposal, setMafiaLocked, setMafiaMembers]);
 
   // WebSocket 연결
   useEffect(() => {
@@ -403,6 +446,32 @@ const GamePage = () => {
     }
   }, [myInfo.role, gamePhase, showRoleModal, openModal]);
 
+  // 마피아 멤버 추적: 내가 마피아일 때 자신 추가
+  useEffect(() => {
+    if (myInfo.role === 'MAFIA' && myInfo.userId) {
+      const strId = String(myInfo.userId);
+      if (!mafiaMembersRef.current.has(strId)) {
+        mafiaMembersRef.current.add(strId);
+        setMafiaMembers(new Set(mafiaMembersRef.current));
+      }
+    }
+  }, [myInfo.role, myInfo.userId]);
+
+  // 마피아 멤버 추적: players 배열의 role 정보 확인 (백엔드가 마피아 동료 role을 채워주는 경우)
+  useEffect(() => {
+    let changed = false;
+    players.forEach(p => {
+      if (p.role === 'MAFIA') {
+        const strId = String(p.userId);
+        if (!mafiaMembersRef.current.has(strId)) {
+          mafiaMembersRef.current.add(strId);
+          changed = true;
+        }
+      }
+    });
+    if (changed) setMafiaMembers(new Set(mafiaMembersRef.current));
+  }, [players]);
+
   // 생존자 목록
   const alivePlayers = useMemo(() =>
     standardizedPlayers.filter(p => p.isAlive),
@@ -420,6 +489,30 @@ const GamePage = () => {
     if (capacity <= 4) return 'basis-[calc(50%-1.5rem)]';
     if (capacity <= 6) return 'basis-[calc(33.33%-1.5rem)]';
     return 'basis-[calc(25%-1.5rem)]';
+  };
+
+  // === LiveKit 트랙 가시성 규칙 ===
+  // 낥 단계: 살아있는 플레이어만 표시 (본인은 항상). 죽은 플레이어는 남들을 볼 수 있나 남들에게는 안 보임.
+  // 밤 단계: 시민팀은 화면 없음. 마피아끼리만 서로를 확인.
+  const getVisibleTrack = (player) => {
+    const isMe = String(player.userId) === String(myInfo.userId);
+    const rawTrack = isMe ? localTrack : liveTracks[String(player.userId)];
+
+    if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
+      if (isMe) return rawTrack;
+      return player.isAlive ? rawTrack : null;
+    }
+
+    if (gamePhase === 'NIGHT') {
+      // 시민팀: 어떤 화면도 보지 못함
+      if (myInfo.role !== 'MAFIA') return null;
+      // 마피아: 본인 + 살아있는 마피아 동료만
+      if (isMe) return rawTrack;
+      return (player.isAlive && mafiaMembers.has(String(player.userId))) ? rawTrack : null;
+    }
+
+    // 기타 단계 (COUNTDOWN, ASSIGN_ROLE, DAY_RESULT 등): 제한 없음
+    return rawTrack;
   };
 
   // === 투표 핸들러 ===
@@ -471,12 +564,47 @@ const GamePage = () => {
     setNightTargetPlayer(targetPlayer);
   };
 
-  // === AI 찬스 핸들러 (시민만) ===
-  const handleAiChance = (targetPlayer) => {
-    if (myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0) return;
+  // ***** AI 찬스 관리 *****
+  const handleAiChance = async (targetPlayer) => {
+    // 1. 시민이 아니고 남은 찬스 없으면 못 함
+    if (myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0 || isAnalyzing) return;
 
-    websocketClient.sendAiChanceRequest(targetPlayer.userId);
-    requestAiChance(targetPlayer.userId);
+    // 2. 비디오 트랙 찾기
+    const targetId = String(targetPlayer.userId);
+    const targetPlayerObj = players.find(p => String(p.userId) === targetId);
+    // 3. LiveKit 스트림에서 비디오와 오디오 추출
+    const videoTrack = targetPlayerObj?.stream?.getVideoTracks()[0];
+    const audioTrack = targetPlayerObj?.stream?.getAudioTracks()[0];
+
+    if (!videoTrack) {
+      alert("상대방의 카메라가 꺼져 있습니다.");
+      return;
+    }
+
+    setIsSelectMode(false); // 선택 완료했으니 모드 해제
+
+    const trackBundle = {
+      video: videoTrack,
+      audio: audioTrack || null,
+      roomId: roomId,
+      round: 1 // 필요 시 현재 라운드 변수 연결
+    };
+
+    try {
+      // 💡 5초 분석 시작!
+      const result = await startAnalysis(trackBundle, targetId);
+
+      if (result) {
+        setAnalysisResult({ identity: targetId, narrative: result.narrative });
+        openModal('aiChance');
+
+        // 분석 성공 시에만 서버에 찬스 차감 알림
+        websocketClient.sendAiChanceRequest(targetId);
+        requestAiChance(targetId);
+      }
+    } catch (e) {
+      console.error("분석 실패", e);
+    }
   };
 
   // 피고인 정보 (2차 투표용)
@@ -499,6 +627,42 @@ const GamePage = () => {
         <TimeScreen timeLeft={formatTime(remainingSeconds)} gameStatus={gamePhase} />
       </div>
 
+      {/* AI 찬스 버튼 (시민, 낮에만) */}
+      {myInfo.role === 'CITIZEN' && (
+      <div className="absolute top-6 right-6 z-[100]">
+      <button
+        onClick={() => {
+          // 💡 클릭 방어: 낮이고, 살아있고, 시민이고, 찬스가 있을 때만 작동
+          if (gamePhase !== 'DAY' || !amIAlive || myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0) return;
+          
+          const newSelectMode = !isSelectMode;
+          setIsSelectMode(newSelectMode);
+          if (newSelectMode) {
+            setIsGuidanceOpen(true);
+          }
+        }}
+        // 💡 비활성화 조건: 낮이 아니거나, 죽었거나, 시민이 아니거나, 찬스가 없거나, 분석 중일 때
+        disabled={
+          isAnalyzing || 
+          gamePhase !== 'DAY' || 
+          !amIAlive || 
+          myInfo.role !== 'CITIZEN' || 
+          myInfo.aiChanceRemaining <= 0
+        }
+        className={`px-6 py-2 rounded-full text-sm font-pretendard font-black transition-all shadow-lg active:scale-95 focus:outline-none focus:ring-0
+        ${isSelectMode 
+          ? "bg-red-600 text-white animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.5)] border-none" // 🔴 선택 취소: 테두리 절대 금지!
+          : isAnalyzing
+            ? "bg-white text-[#69D6E3] border-2 border-[#69D6E3] animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.7)]" 
+            : "bg-[#69D6E3] text-white border-2 border-white/30 hover:opacity-90 shadow-[0_0_10px_rgba(105,214,227,0.4)]"
+        } 
+        ${(gamePhase !== 'DAY' || !amIAlive || myInfo.aiChanceRemaining <= 0) && !isAnalyzing && !isSelectMode ? "opacity-40 cursor-not-allowed" : ""}`}
+      >
+        {isAnalyzing ? "분석 중..." : isSelectMode ? "선택 취소" : "킁킁 찬스"}
+        </button>
+    </div>
+      )}
+
       {/* 페이즈 및 역할 정보 */}
       <div className="absolute top-6 left-6 z-[100] flex flex-col gap-2">
         <div className="bg-black/60 px-4 py-2 rounded-lg border border-white/10">
@@ -513,7 +677,7 @@ const GamePage = () => {
         )}
         {myInfo.role === 'CITIZEN' && myInfo.aiChanceRemaining > 0 && (
           <div className="bg-black/60 px-4 py-2 rounded-lg border border-white/10">
-            <span className="text-yellow-400 text-xs">AI 찬스: {myInfo.aiChanceRemaining}회</span>
+            <span className="text-[#69D6E3] text-xs">AI 찬스: {myInfo.aiChanceRemaining}회</span>
           </div>
         )}
       </div>
@@ -542,15 +706,27 @@ const GamePage = () => {
                   className={`flex-grow-0 flex-shrink-0 ${getFlexBasis(capacity)} min-w-[280px] max-w-[400px] transition-all duration-500`}
                 >
                   {player ? (
-                    <div className="w-full aspect-video relative">
+                    <div className="w-full aspect-video relative group">
                       <GameVideoSlot
                         player={player}
                         isMe={String(player.userId) === String(myInfo.userId)}
+                        track={getVisibleTrack(player)}
                         canVote={gamePhase === 'VOTE_1' && amIAlive}
                         didIVote={vote1.hasVoted}
                         onVoteRequest={() => handleVoteClick(player)}
                         size="normal"
                       />
+                      {/* AI 선택 모드일 때만 나타나는 투명 클릭 판 */}
+                      {isSelectMode && String(player.userId) !== String(myInfo.userId) && player.isAlive && (
+                      <div 
+                        onClick={() => handleAiChance(player)} 
+                        className="absolute inset-0 z-[60] bg-[#69D6E3]/10 cursor-crosshair flex items-center justify-center transition-all border-4 border-[#69D6E3] rounded-xl opacity-0 group-hover:opacity-100"
+                      >
+                        <div className="bg-[#69D6E3] text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg animate-pulse">
+                          클릭하여 분석
+                        </div>
+                      </div>
+                      )}
 
                       {/* 밤 행동 버튼 (마피아/의사/경찰) */}
                       {gamePhase === 'NIGHT' && amIAlive && player.isAlive &&
@@ -567,19 +743,6 @@ const GamePage = () => {
                               }`}
                           >
                             {myInfo.role === 'MAFIA' ? '습격' : myInfo.role === 'DOCTOR' ? '치료' : '조사'}
-                          </button>
-                        )}
-
-                      {/* AI 찬스 버튼 (시민, 낮에만) */}
-                      {gamePhase === 'DAY' && amIAlive &&
-                        myInfo.role === 'CITIZEN' && myInfo.aiChanceRemaining > 0 &&
-                        String(player.userId) !== String(myInfo.userId) && player.isAlive && (
-                          <button
-                            onClick={() => handleAiChance(player)}
-                            className="absolute bottom-3 left-3 z-50 px-3 py-1 rounded-full text-xs font-bold
-                                     bg-yellow-600 hover:bg-yellow-500 text-white transition-all"
-                          >
-                            AI 분석
                           </button>
                         )}
                     </div>
@@ -686,12 +849,17 @@ const GamePage = () => {
         onClose={() => closeModal('policeResult')}
       />
 
-      {/* AI 찬스 결과 모달 */}
-      <AiChanceResultModal
-        isOpen={modals.aiChance && !!aiChance.result}
-        targetName={standardizedPlayers.find(p => String(p.userId) === String(aiChance.result?.targetUserId))?.nickname}
-        result={aiChance.result}
-        onClose={() => closeModal('aiChance')}
+      {/* AI 분석 결과 모달 (여기에 두세요!) */}
+      <AiAnalysisResultModal 
+        isOpen={modals.aiChance}           // Zustand 상자에서 '열림' 상태 가져오기
+        result={aiChance.result}           // AI가 분석한 (identity, narrative) 데이터
+        onClose={() => closeModal('aiChance')} // 닫기 버튼 누르면 상자 닫기
+      />
+
+      {/* 안내 모달 (얼굴 클릭하라는 창) */}
+      <UserSelectModal 
+        isOpen={isGuidanceOpen} 
+        onClose={() => setIsGuidanceOpen(false)} 
       />
     </div>
   );
