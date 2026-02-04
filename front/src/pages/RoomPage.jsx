@@ -65,8 +65,8 @@ export default function RoomPage() {
       const targetRoom = candidates[0];
       
       console.log(`[QuickJoin] 입장 시도: ${targetRoom.title} (${targetRoom.currentCount}/${targetRoom.capacity}명)`);
-      
-      handleJoinRoom(targetRoom);
+
+      handleJoinRoom(targetRoom.roomId);
     } else {
       setErrorMsg("현재 입장 가능한 \n공개방이 없습니다.");
     }
@@ -97,11 +97,11 @@ export default function RoomPage() {
   }, [currentPage]);
 
   // 방 직접 입장
-  const handleJoinRoom = async (room) => {
+  const handleJoinRoom = async (roomId) => {
     try {
-      const response = await getRoomDetail(room.roomId);
+      const response = await getRoomDetail(roomId);
       if (response.success && response.data.status === "WAITING") {
-        enterRoom(room.roomId, false);
+        enterRoom(roomId, false);
       } else {
         setErrorMsg("이미 게임이 진행 중이거나 입장이 불가한 방입니다.");
         fetchRooms(currentPage);
