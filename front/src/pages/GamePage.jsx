@@ -7,6 +7,9 @@ import { useAnalysis } from '../analysis/UseAnalysis';
 import websocketClient from '../api/websocketClient';
 import useGameStore from '../stores/useGameStore';
 
+// LiveKit
+import useLiveKit from '../hooks/useLiveKit';
+
 // Components
 import GameVideoSlot from '../components/game/GameVideoSlot';
 import TimeScreen from '../components/game/TimeScreen';
@@ -78,6 +81,9 @@ const GamePage = () => {
     setVersion, reset,
   } = useGameStore();
 
+  // LiveKit 자동 연결 (방 입장 시 즉시 연결)
+  const { tracks: liveTracks, localTrack } = useLiveKit(roomId);
+
   // 로컬 UI 상태
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -104,6 +110,10 @@ const GamePage = () => {
     myInfoRef.current = myInfo;
     playersRef.current = players;
   }, [myInfo, players]);
+
+  // 마피아 멤버 추적 (밤에 마피아끼리만 화상 연결용)
+  const mafiaMembersRef = useRef(new Set());
+  const [mafiaMembers, setMafiaMembers] = useState(() => new Set());
 
   const toUserId = (value) => {
     if (value && typeof value === 'object') return value.value ?? value;
@@ -198,6 +208,11 @@ const GamePage = () => {
         setShowRoleModal(true);
         if (payload.role === 'MAFIA') {
           websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
+          // 백엔드에서 마피아 멤버 목록을 보내면 활용
+          if (Array.isArray(payload.mafiaMembers)) {
+            payload.mafiaMembers.forEach(id => mafiaMembersRef.current.add(String(id)));
+            setMafiaMembers(new Set(mafiaMembersRef.current));
+          }
         }
         break;
 
@@ -312,6 +327,8 @@ const GamePage = () => {
       // === 게임 재시작 ===
       case 'GAME_RESTARTED':
         if (payload.version) setVersion(payload.version);
+        mafiaMembersRef.current = new Set();
+        setMafiaMembers(new Set());
         navigate(`/rooms/${roomId}`, {
           state: { fromGame: true }
         });
@@ -329,7 +346,7 @@ const GamePage = () => {
     setPlayers, setMyInfo, setVersion, setMyRole, setPhase,
     updateVote1Progress, setVote1Result, updateVote2Progress, setVote2Result,
     updatePlayerStatus, setNightResult, setPoliceResult, setAiChanceResult,
-    setGameResult, openModal,
+    setGameResult, openModal, setMafiaMembers,
   ]);
 
   // 마피아 전용 메시지 핸들러
@@ -342,9 +359,16 @@ const GamePage = () => {
       case 'MAFIA_RESULT':
         setMafiaLocked(toUserId(data.targetUserId));
         break;
-      case 'MAFIA_TARGET_PROPOSED':
+      case 'MAFIA_TARGET_PROPOSED': {
+        const fromId = String(toUserId(data.fromUserId));
         setMafiaProposal(toUserId(data.fromUserId), toUserId(data.targetUserId));
+        // 제안자를 마피아 멤버로 추적
+        if (!mafiaMembersRef.current.has(fromId)) {
+          mafiaMembersRef.current.add(fromId);
+          setMafiaMembers(new Set(mafiaMembersRef.current));
+        }
         break;
+      }
 
       case 'MAFIA_TARGET_LOCKED':
         setMafiaLocked(toUserId(data.targetUserId));
@@ -353,7 +377,7 @@ const GamePage = () => {
       default:
         break;
     }
-  }, [setMafiaProposal, setMafiaLocked]);
+  }, [setMafiaProposal, setMafiaLocked, setMafiaMembers]);
 
   // WebSocket 연결
   useEffect(() => {
@@ -422,6 +446,32 @@ const GamePage = () => {
     }
   }, [myInfo.role, gamePhase, showRoleModal, openModal]);
 
+  // 마피아 멤버 추적: 내가 마피아일 때 자신 추가
+  useEffect(() => {
+    if (myInfo.role === 'MAFIA' && myInfo.userId) {
+      const strId = String(myInfo.userId);
+      if (!mafiaMembersRef.current.has(strId)) {
+        mafiaMembersRef.current.add(strId);
+        setMafiaMembers(new Set(mafiaMembersRef.current));
+      }
+    }
+  }, [myInfo.role, myInfo.userId]);
+
+  // 마피아 멤버 추적: players 배열의 role 정보 확인 (백엔드가 마피아 동료 role을 채워주는 경우)
+  useEffect(() => {
+    let changed = false;
+    players.forEach(p => {
+      if (p.role === 'MAFIA') {
+        const strId = String(p.userId);
+        if (!mafiaMembersRef.current.has(strId)) {
+          mafiaMembersRef.current.add(strId);
+          changed = true;
+        }
+      }
+    });
+    if (changed) setMafiaMembers(new Set(mafiaMembersRef.current));
+  }, [players]);
+
   // 생존자 목록
   const alivePlayers = useMemo(() =>
     standardizedPlayers.filter(p => p.isAlive),
@@ -439,6 +489,30 @@ const GamePage = () => {
     if (capacity <= 4) return 'basis-[calc(50%-1.5rem)]';
     if (capacity <= 6) return 'basis-[calc(33.33%-1.5rem)]';
     return 'basis-[calc(25%-1.5rem)]';
+  };
+
+  // === LiveKit 트랙 가시성 규칙 ===
+  // 낥 단계: 살아있는 플레이어만 표시 (본인은 항상). 죽은 플레이어는 남들을 볼 수 있나 남들에게는 안 보임.
+  // 밤 단계: 시민팀은 화면 없음. 마피아끼리만 서로를 확인.
+  const getVisibleTrack = (player) => {
+    const isMe = String(player.userId) === String(myInfo.userId);
+    const rawTrack = isMe ? localTrack : liveTracks[String(player.userId)];
+
+    if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
+      if (isMe) return rawTrack;
+      return player.isAlive ? rawTrack : null;
+    }
+
+    if (gamePhase === 'NIGHT') {
+      // 시민팀: 어떤 화면도 보지 못함
+      if (myInfo.role !== 'MAFIA') return null;
+      // 마피아: 본인 + 살아있는 마피아 동료만
+      if (isMe) return rawTrack;
+      return (player.isAlive && mafiaMembers.has(String(player.userId))) ? rawTrack : null;
+    }
+
+    // 기타 단계 (COUNTDOWN, ASSIGN_ROLE, DAY_RESULT 등): 제한 없음
+    return rawTrack;
   };
 
   // === 투표 핸들러 ===
@@ -636,6 +710,7 @@ const GamePage = () => {
                       <GameVideoSlot
                         player={player}
                         isMe={String(player.userId) === String(myInfo.userId)}
+                        track={getVisibleTrack(player)}
                         canVote={gamePhase === 'VOTE_1' && amIAlive}
                         didIVote={vote1.hasVoted}
                         onVoteRequest={() => handleVoteClick(player)}
