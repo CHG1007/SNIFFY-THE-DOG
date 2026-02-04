@@ -114,7 +114,8 @@ const GamePage = () => {
 
   // WebSocket 메시지 핸들러
   const handleSocketMessage = useCallback((msg) => {
-    const { type, data } = msg;
+    const type = msg.type;
+    const data = msg.data || msg;
 
     if (import.meta.env.DEV) console.log('[Game WS]', type, data);
 
