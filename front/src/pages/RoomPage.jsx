@@ -157,7 +157,30 @@ export default function RoomPage() {
               </div>
 
               {/* 페이지네이션 */}
-              <div className="shrink-0 mt-auto flex justify-center pt-2 pb-0">
+              <div className="relative shrink-0 mt-auto flex justify-center pt-2 pb-0">
+                <button
+                  type="button"
+                  onClick={() => fetchRooms(currentPage)}
+                  disabled={isLoading}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-2 text-xs text-white/90 transition hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  title="방 목록 새로고침"
+                  aria-label="방 목록 새로고침"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                    <polyline points="21 3 21 9 15 9" />
+                  </svg>
+                  새로고침
+                </button>
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
