@@ -14,7 +14,7 @@ const AiAnalyzeModal = ({ isOpen, onClose, data, nickname }) => {
         {/* 헤더 */}
         <div className="flex items-center gap-2 mb-8 border-b border-white/10 pb-4">
           <span className="text-2xl">🔍</span>
-          <h2 className="text-[22px] font-bold text-[#FF8A00] tracking-tight">
+          <h2 className="text-[22px] font-bold text-primary tracking-tight">
             AI 매치 분석 결과
           </h2>
         </div>
@@ -44,7 +44,7 @@ const AiAnalyzeModal = ({ isOpen, onClose, data, nickname }) => {
         {/* 하단 버튼 */}
         <button 
           onClick={onClose}
-          className="w-full py-3.5 bg-[#FF8A00] hover:bg-[#e67c00] text-black font-bold rounded-xl transition-colors"
+          className="w-full py-3.5 bg-primary hover:bg-[#e67c00] text-black font-bold rounded-xl transition-colors"
         >
           확인
         </button>

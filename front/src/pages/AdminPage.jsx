@@ -94,7 +94,7 @@ const AdminPage = () => {
         {/* Header */}
         <div className="mb-8 flex flex-col gap-2">
           <h1 className="text-4xl font-black italic tracking-tighter text-white">
-            <span className="text-[#ff8a00]">ADMIN</span> DASHBOARD
+            <span className="text-primary">ADMIN</span> DASHBOARD
           </h1>
           <p className="text-gray-400">
             관리자 대시보드에서 신고 내역과 유저 정보를 관리하세요.
@@ -107,7 +107,7 @@ const AdminPage = () => {
             onClick={() => setActiveTab('reports')}
             className={`px-4 py-2 text-sm font-bold transition-colors border-b-2 ${
               activeTab === 'reports'
-                ? 'border-[#ff8a00] text-[#ff8a00]'
+                ? 'border-primary text-primary'
                 : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
@@ -117,7 +117,7 @@ const AdminPage = () => {
             onClick={() => setActiveTab('users')}
             className={`px-4 py-2 text-sm font-bold transition-colors border-b-2 ${
               activeTab === 'users'
-                ? 'border-[#ff8a00] text-[#ff8a00]'
+                ? 'border-primary text-primary'
                 : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
@@ -129,7 +129,7 @@ const AdminPage = () => {
         <div className="w-full">
           {loading ? (
             <div className="flex justify-center items-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#ff8a00]"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-20 bg-[#1e1e1e] rounded-xl border border-gray-800">

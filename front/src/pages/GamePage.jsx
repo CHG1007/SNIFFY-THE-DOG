@@ -106,6 +106,9 @@ const GamePage = () => {
   const [analysisResult, setAnalysisResult] = useState(null);  // 분석 결과
   const [isGuidanceOpen, setIsGuidanceOpen] = useState(false); // 분석 알림 모달 상태
 
+  // 로딩 상태 관리
+  const [isAssetLoaded, setIsAssetLoaded] = useState(false);
+  
   useEffect(() => {
     myInfoRef.current = myInfo;
     playersRef.current = players;
@@ -138,6 +141,15 @@ const GamePage = () => {
     // roomCode만 설정 (initRoom은 전체 리셋하므로 사용하지 않음)
     useGameStore.setState({ roomCode: roomId });
   }, [location.state, roomId, setMyInfo, setPlayers]);
+
+  useEffect(() => {
+    const state = location.state || {};
+    if (state.myInfo) setMyInfo(state.myInfo);
+    if (state.players && state.players.length > 0) setPlayers(state.players);
+    if (state.capacity) setCapacity(state.capacity);
+    useGameStore.setState({ roomCode: roomId });
+  }, [location.state, roomId, setMyInfo, setPlayers]);
+  
 
   // 플레이어 데이터 표준화
   const standardizedPlayers = useMemo(() => players.map(p => ({
@@ -500,6 +512,7 @@ const GamePage = () => {
 
     if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
       if (isMe) return rawTrack;
+      if (!amIAlive) return rawTrack; // 죽은 사람은 모든 플레이어 관찰 가능
       return player.isAlive ? rawTrack : null;
     }
 
@@ -548,6 +561,7 @@ const GamePage = () => {
     switch (myInfo.role) {
       case 'MAFIA':
         websocketClient.sendMafiaConfirm(targetUserId);
+        setMyNightAction(targetUserId);
         break;
       case 'DOCTOR':
         websocketClient.sendDoctorSelect(targetUserId);
@@ -566,54 +580,62 @@ const GamePage = () => {
 
   // ***** AI 찬스 관리 *****
   const handleAiChance = async (targetPlayer) => {
-    // 1. 시민이 아니고 남은 찬스 없으면 못 함
-    if (myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0 || isAnalyzing) return;
-
-    // 2. 비디오 트랙 찾기 (LiveKit 전용)
-    const targetId = String(targetPlayer.userId);
-    const isMe = targetId === String(myInfo.userId);
-
-    const videoTrack = isMe ? localTrack : liveTracks[targetId];
-
-    if (!videoTrack) {
-      alert("상대방의 카메라가 꺼져 있습니다.");
+    // 1. 방어 로직: 낮이 아니거나, 죽었거나, 시민이 아니거나, 찬스가 없거나, 이미 분석 중이면 중단
+    if (gamePhase !== 'DAY' || !amIAlive || myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0 || isAnalyzing) {
       return;
     }
 
-    // 3. 오디오 트랙 추출 (LiveKit Room을 통해)
-    let audioTrack = null;
-    if (lkRoom) {
-      const participant = isMe
-        ? lkRoom.localParticipant
-        : lkRoom.getParticipantByIdentity(targetId);
+    const targetId = String(targetPlayer.userId);
+    const isMe = targetId === String(myInfo.userId);
 
-      const audioPub = participant?.getTrackPublication('microphone'); // Track.Source.Microphone
-      audioTrack = audioPub?.track;
+    // 2. 비디오/오디오 트랙 준비
+    const videoTrack = isMe ? localTrack : liveTracks[targetId];
+    const participant = isMe ? lkRoom?.localParticipant : lkRoom?.getParticipantByIdentity(targetId);
+    const audioTrack = participant?.getTrackPublication('microphone')?.track;
+
+    if (!videoTrack) {
+      setIsSelectMode(false);
+      return;
     }
-
-    setIsSelectMode(false); // 선택 완료했으니 모드 해제
 
     const trackBundle = {
       video: videoTrack,
       audio: audioTrack || null,
       roomId: roomId,
-      round: 1 // 필요 시 현재 라운드 변수 연결
+      round: 1 // 필요시 현재 라운드 변수 사용
     };
 
+    setIsSelectMode(false); // 선택 모드 해제
+
     try {
-      // 💡 5초 분석 시작!
+      // 3. 💡 분석 시작 (딱 한 번만 실행!)
       const result = await startAnalysis(trackBundle, targetId);
 
-      if (result) {
-        setAnalysisResult({ identity: targetId, narrative: result.narrative });
-        openModal('aiChance');
+      if (result && result.narrative) {
+        // 4. 스토어 업데이트 (targetUserId를 포함해서 예쁘게!)
+        const finalData = {
+          targetUserId: targetId,
+          targetNickname: targetPlayer.nickname,
+          narrative: result.narrative,
+          analyzedAt: result.analyzedAt || Date.now()
+        };
 
-        // 분석 성공 시에만 서버에 찬스 차감 알림
+        // Zustand 상자에 저장
+        setAiChanceResult(finalData); 
+
+        // 5. 모달 열기 (이름표: 'aiChance')
+        openModal('aiChance'); 
+
+        // 6. 서버 및 로컬 찬스 차감
         websocketClient.sendAiChanceRequest(targetId);
         requestAiChance(targetId);
+
+      } else {
+        alert("분석 결과를 불러오지 못했습니다.");
       }
     } catch (e) {
-      console.error("분석 실패", e);
+      console.error("분석 과정 중 에러 발생:", e);
+      alert("분석 중 오류가 발생했습니다.");
     }
   };
 
@@ -629,6 +651,37 @@ const GamePage = () => {
     return standardizedPlayers.find(p => String(p.userId) === String(nightResult.killedUserId));
   }, [nightResult, standardizedPlayers]);
 
+  
+  // 리소스 프리로딩 
+  useEffect(() => {
+    // 게임 필수 이미지 로드 체크 (대기실에서 캐싱했지만 확실히 한 번 더!)
+    const gameAssets = [
+      "/assets/images/gamepage/death.png",
+      // 추가적인 게임 리소스가 있다면 여기에 추가
+    ];
+
+    const loadImages = gameAssets.map(src => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = resolve;
+        img.onerror = resolve; // 에러가 나도 게임 진행을 위해 resolve
+      });
+    });
+
+    // 모든 에셋 로딩이 끝나면 상태 변경
+    Promise.all(loadImages).then(() => {
+      // 0.5초 정도 부드러운 전환을 위해 여유를 둡니다.
+      setTimeout(() => setIsAssetLoaded(true), 500);
+    });
+  }, []);
+
+
+  // 준비가 안 되어 있을 시 로딩 페이지
+  if (!isAssetLoaded || players.length === 0 || !myInfo || !localTrack) {
+    return <LoadingPage message="게임 월드에 접속 중입니다..." />;
+  }
+
   // === 렌더링 ===
   return (
     <div className="h-screen w-full bg-[#0a0a0f] flex flex-col relative overflow-hidden">
@@ -639,7 +692,17 @@ const GamePage = () => {
 
       {/* AI 찬스 버튼 (시민, 낮에만) */}
       {myInfo.role === 'CITIZEN' && (
-        <div className="absolute top-6 right-6 z-[100]">
+        <div className="absolute top-6 right-6 z-[100] group">
+          {/* 💡 마우스 호버 시 나타날 툴팁 설명창 */}
+          <div className="absolute bottom-[-45px] right-0 translate-x-0 
+                          opacity-0 group-hover:opacity-100 transition-opacity duration-300 
+                          pointer-events-none whitespace-nowrap">
+            <div className="bg-black/80 text-white text-[11px] px-3 py-1.5 rounded-lg border border-white/10 shadow-xl">
+              이 버튼을 누르면 감정 분석을 할 수 있어요 킁킁! 🐶
+            </div>
+            {/* 말풍선 꼬리표 */}
+            <div className="absolute -top-1 right-8 w-2 h-2 bg-black/80 rotate-45 border-l border-t border-white/10"></div>
+          </div>
           <button
             onClick={() => {
               // 💡 클릭 방어: 낮이고, 살아있고, 시민이고, 찬스가 있을 때만 작동
@@ -701,6 +764,8 @@ const GamePage = () => {
                 gameState: { trial: { accusedUserId: accusedPlayer.userId } },
                 players: standardizedPlayers
               }}
+              getTrack={getVisibleTrack}
+              myUserId={myInfo.userId}
               onTimeout={() => { }}
             />
           </div>
@@ -831,7 +896,7 @@ const GamePage = () => {
           targetPlayer={accusedPlayer}
           message={vote2.result?.approved
             ? "처형되었습니다."
-            : "생존했습니다."
+            : "생존했습니다."   
           }
           onTimeout={() => setShowVote2ResultModal(false)}
         />
