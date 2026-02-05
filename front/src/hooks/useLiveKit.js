@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { Room, RoomEvent, VideoPresets, Track, createLocalTracks } from 'livekit-client';
 import apiClient from '../api/apiClient';
+import useLiveKitStore from '../stores/useLiveKitStore';
 
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL ||
   (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
@@ -9,29 +10,47 @@ const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL ||
   '/livekit';
 
 /**
- * LiveKit 자동 연결 훅
+ * LiveKit 자동 연결 훅 (전역 스토어 사용)
  * roomId가 주어지면 마운트 시 즉시 토큰 요청 → 연결 → 로컬 트랙 발행
- *
- * @param {string} roomId - 게임 방 코드 (토큰 요청 및 LiveKit Room ID로 사용)
- * @returns {{ tracks: Record<string, import('livekit-client').VideoTrack>, localTrack: import('livekit-client').VideoTrack | null, roomRef: React.MutableRefObject }}
- *   tracks  - 원격 참가자 identity -> VideoTrack 맵
- *   localTrack - 본인의 로컬 VideoTrack
- *   roomRef - LiveKit Room 인스턴스 (AI 분석 등에서 오디오 트랙 접근 시 사용 가능)
+ * roomId가 동일하면 기존 연결을 유지함
  */
 export default function useLiveKit(roomId) {
-  const [tracks, setTracks] = useState({}); // { [identity: string]: VideoTrack }
-  const [localTrack, setLocalTrack] = useState(null);
-  const roomRef = useRef(null);
-  const localTracksRef = useRef([]); // 클린업용 참조
+  const {
+    room, setRoom,
+    tracks, setTracks, updateTrack, removeTrack,
+    localTrack, setLocalTrack,
+    localTracks, setLocalTracks,
+    roomId: storedRoomId, setRoomId
+  } = useLiveKitStore();
+
+  const connectingRef = useRef(false);
 
   useEffect(() => {
     if (!roomId) return;
+
+    // 이미 다른 방에 연결되어 있으면 리셋 (새 방 연결용)
+    if (storedRoomId && storedRoomId !== roomId) {
+      if (room) room.disconnect();
+      localTracks.forEach(t => t.stop());
+      setTracks({});
+      setLocalTrack(null);
+      setLocalTracks([]);
+      setRoom(null);
+    }
+
+    // 이미 이 방에 연결되어 있으면 아무것도 하지 않음
+    if (room && storedRoomId === roomId) {
+      return;
+    }
+
+    if (connectingRef.current) return;
+    connectingRef.current = true;
 
     let cancelled = false;
 
     const connect = async () => {
       try {
-        // 1. 로컬 미디어 트랙 생성 (카메라 권한 거부 시 영상 없이 연결 진행)
+        // 1. 로컬 미디어 트랙 생성
         let createdTracks = [];
         try {
           createdTracks = await createLocalTracks({
@@ -40,7 +59,7 @@ export default function useLiveKit(roomId) {
           });
           if (cancelled) { createdTracks.forEach(t => t.stop()); return; }
 
-          localTracksRef.current = createdTracks;
+          setLocalTracks(createdTracks);
           const videoTrack = createdTracks.find(t => t.kind === Track.Kind.Video);
           if (videoTrack) setLocalTrack(videoTrack);
         } catch (mediaErr) {
@@ -57,83 +76,91 @@ export default function useLiveKit(roomId) {
         }
 
         // 3. Room 생성 및 이벤트 등록
-        const room = new Room({ adaptiveStream: true, dynacast: true });
-        roomRef.current = room;
+        const newRoom = new Room({ adaptiveStream: true, dynacast: true });
 
-        room.on(RoomEvent.Connected, () => {
+        newRoom.on(RoomEvent.Connected, () => {
           if (import.meta.env.DEV) console.log('[LiveKit] 연결 성공');
-          // 기존 원격 참가자의 트랙 처리
-          room.remoteParticipants.forEach(p => {
+          newRoom.remoteParticipants.forEach(p => {
             p.videoTrackPublications.forEach(pub => {
               if (pub.track) {
-                setTracks(prev => ({ ...prev, [p.identity]: pub.track }));
+                updateTrack(p.identity, pub.track);
               }
             });
           });
         });
 
-        room.on(RoomEvent.Disconnected, () => {
+        newRoom.on(RoomEvent.Disconnected, () => {
           if (import.meta.env.DEV) console.log('[LiveKit] 연결 해제');
           setTracks({});
         });
 
-        room.on(RoomEvent.ParticipantDisconnected, (p) => {
+        newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
           if (import.meta.env.DEV) console.log('[LiveKit] 참가자 퇴장:', p.identity);
-          setTracks(prev => {
-            const next = { ...prev };
-            delete next[p.identity];
-            return next;
-          });
+          removeTrack(p.identity);
         });
 
-        room.on(RoomEvent.TrackSubscribed, (track, _pub, p) => {
+        newRoom.on(RoomEvent.TrackSubscribed, (track, _pub, p) => {
           if (track.kind === Track.Kind.Video) {
             if (import.meta.env.DEV) console.log('[LiveKit] 원격 비디오 구독:', p.identity);
-            setTracks(prev => ({ ...prev, [p.identity]: track }));
+            updateTrack(p.identity, track);
           }
         });
 
-        room.on(RoomEvent.TrackUnsubscribed, (track, _pub, p) => {
+        newRoom.on(RoomEvent.TrackUnsubscribed, (track, _pub, p) => {
           if (track.kind === Track.Kind.Video) {
-            setTracks(prev => {
-              const next = { ...prev };
-              delete next[p.identity];
-              return next;
-            });
+            removeTrack(p.identity);
           }
         });
 
         // 4. 서버 연결
-        await room.connect(LIVEKIT_URL, token);
-        if (cancelled) { room.disconnect(); return; }
+        await newRoom.connect(LIVEKIT_URL, token);
+        if (cancelled) { newRoom.disconnect(); return; }
 
         // 5. 로컬 트랙 발행
         if (createdTracks.length > 0) {
-          await Promise.all(createdTracks.map(t => room.localParticipant.publishTrack(t)));
+          await Promise.all(createdTracks.map(t => newRoom.localParticipant.publishTrack(t)));
+          if (cancelled) { newRoom.disconnect(); return; }
           if (import.meta.env.DEV) {
-            console.log('[LiveKit] 로컬 트랙 발행 완료. 본인 identity:', room.localParticipant.identity);
+            console.log('[LiveKit] 로컬 트랙 발행 완료. 본인 identity:', newRoom.localParticipant.identity);
           }
         }
+
+        // 6. 모든 await 완료 후 스토어 업데이트
+        // setRoom/setRoomId는 effect 의존 배열에 포함되어 있으므로,
+        // async 중간에 호출하면 effect cleanup이 실행되어 cancelled가 true로 되어 연결이 중단됨.
+        // 따라서 모든 비동기 작업이 끝난 후에만 호출한다.
+        setRoom(newRoom);
+        setRoomId(roomId);
       } catch (err) {
         console.error('[LiveKit] 연결 실패:', err);
+      } finally {
+        connectingRef.current = false;
       }
     };
 
     connect();
 
-    // 클린업: 컴포넌트 unmount 시 연결 종료 및 트랙 정지
+    // 더 이상 hook 수준에서 disconnect를 자동으로 호출하지 않음.
+    // 사용자가 방을 완전히 나갈 때 (Lobby 등으로 갈 때) 별도의 reset을 호출해야 함.
     return () => {
       cancelled = true;
-      if (roomRef.current) {
-        roomRef.current.disconnect();
-        roomRef.current = null;
-      }
-      localTracksRef.current.forEach(t => t.stop());
-      localTracksRef.current = [];
-      setLocalTrack(null);
-      setTracks({});
     };
-  }, [roomId]);
+  }, [roomId, room, storedRoomId]);
 
-  return { tracks, localTrack, roomRef };
+  const toggleMic = async () => {
+    if (room?.localParticipant) {
+      const isEnabled = room.localParticipant.isMicrophoneEnabled;
+      await room.localParticipant.setMicrophoneEnabled(!isEnabled);
+    }
+  };
+
+  const toggleVideo = async () => {
+    if (room?.localParticipant) {
+      const isEnabled = room.localParticipant.isCameraEnabled;
+      await room.localParticipant.setCameraEnabled(!isEnabled);
+    }
+  };
+
+  return { tracks, localTrack, room, toggleMic, toggleVideo };
 }
+
