@@ -99,7 +99,6 @@ const GamePage = () => {
   const myInfoRef = useRef(myInfo);
   const playersRef = useRef(players);
   const gameFinishedPlayersRef = useRef([]);
-  const lastShownVote1VersionRef = useRef(-1);
 
   // ***** AI *****
   const { startAnalysis, isAnalyzing } = useAnalysis();        // 분석 시작
@@ -304,10 +303,6 @@ const GamePage = () => {
 
       case 'VOTE1_RESULT':
         setVote1Result(payload.accusedUserId, payload.isTie);
-        // 이미 해당 버전의 결과를 보여줬다면 중복 실행 방지
-        if (payload.version && lastShownVote1VersionRef.current === payload.version) break;
-        if (payload.version) lastShownVote1VersionRef.current = payload.version;
-
         setShowVote1ResultModal(true);
         if (payload.version) setVersion(payload.version);
         break;

@@ -60,19 +60,11 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     });
             // 방입장 성공 개인 응답
             RoomState roomState = RoomState.from(updatedRoom);
-
-            List<Long> mafiaMembers = null;
             PlayerState me = updatedRoom.getPlayer(gameUserId);
-            if (updatedRoom.getStatus() == RoomStatus.PLAYING && me.getGameRole() == GameRole.MAFIA) {
-                mafiaMembers = updatedRoom.getPlayers().entrySet().stream()
-                        .filter(e -> e.getValue().getGameRole() == GameRole.MAFIA)
-                        .map(e -> e.getKey().value())
-                        .collect(Collectors.toList());
-            }
 
             Map<String, Object> ackData = Map.of(
                     "roomState", roomState,
-                    "my", MyInfo.from(me, mafiaMembers));
+                    "my", MyInfo.from(me));
             gameMessagePort.sendToUser(String.valueOf(userId),
                     roomCode,
                     requestId,
