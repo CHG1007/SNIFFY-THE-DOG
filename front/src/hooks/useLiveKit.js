@@ -27,7 +27,6 @@ export default function useLiveKit(roomId) {
   } = useLiveKitStore();
 
   const connectingRef = useRef(false);
-  const audioElementsRef = useRef({}); // { [identity: string]: HTMLAudioElement }
 
   useEffect(() => {
     if (!roomId) return;
@@ -41,11 +40,6 @@ export default function useLiveKit(roomId) {
       setLocalAudioTrack(null);
       setLocalTracks([]);
       setRoom(null);
-      // 기존 오디오 엘리먼트 정리
-      Object.keys(audioElementsRef.current).forEach(id => {
-        audioElementsRef.current[id].remove();
-      });
-      audioElementsRef.current = {};
     }
 
     // 이미 이 방에 연결되어 있으면 아무것도 하지 않음
@@ -98,14 +92,7 @@ export default function useLiveKit(roomId) {
               if (pub.isMuted) setMutedState(p.identity, 'video', true);
             });
             p.audioTrackPublications.forEach(pub => {
-              if (pub.track) {
-                updateAudioTrack(p.identity, pub.track);
-                const audioEl = document.createElement('audio');
-                audioEl.autoplay = true;
-                pub.track.attach(audioEl);
-                document.body.appendChild(audioEl);
-                audioElementsRef.current[p.identity] = audioEl;
-              }
+              if (pub.track) updateAudioTrack(p.identity, pub.track);
               if (pub.isMuted) setMutedState(p.identity, 'audio', true);
             });
           });
@@ -114,21 +101,12 @@ export default function useLiveKit(roomId) {
         newRoom.on(RoomEvent.Disconnected, () => {
           if (import.meta.env.DEV) console.log('[LiveKit] 연결 해제');
           setTracks({});
-          Object.keys(audioElementsRef.current).forEach(id => {
-            audioElementsRef.current[id].remove();
-          });
-          audioElementsRef.current = {};
         });
 
         newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
           if (import.meta.env.DEV) console.log('[LiveKit] 참가자 퇴장:', p.identity);
           removeTrack(p.identity);
           removeAudioTrack(p.identity);
-          const audioEl = audioElementsRef.current[p.identity];
-          if (audioEl) {
-            audioEl.remove();
-            delete audioElementsRef.current[p.identity];
-          }
         });
 
         newRoom.on(RoomEvent.TrackSubscribed, (track, pub, p) => {
@@ -139,11 +117,6 @@ export default function useLiveKit(roomId) {
           } else if (track.kind === Track.Kind.Audio) {
             if (import.meta.env.DEV) console.log('[LiveKit] 원격 오디오 구독:', p.identity);
             updateAudioTrack(p.identity, track);
-            const audioEl = document.createElement('audio');
-            audioEl.autoplay = true;
-            track.attach(audioEl);
-            document.body.appendChild(audioEl);
-            audioElementsRef.current[p.identity] = audioEl;
             if (pub.isMuted) setMutedState(p.identity, 'audio', true);
           }
         });
@@ -153,12 +126,6 @@ export default function useLiveKit(roomId) {
             removeTrack(p.identity);
           } else if (track.kind === Track.Kind.Audio) {
             removeAudioTrack(p.identity);
-            const audioEl = audioElementsRef.current[p.identity];
-            if (audioEl) {
-              track.detach(audioEl);
-              audioEl.remove();
-              delete audioElementsRef.current[p.identity];
-            }
           }
         });
 
@@ -191,10 +158,6 @@ export default function useLiveKit(roomId) {
           }
         }
 
-        // 6. 모든 await 완료 후 스토어 업데이트
-        // setRoom/setRoomId는 effect 의존 배열에 포함되어 있으므로,
-        // async 중간에 호출하면 effect cleanup이 실행되어 cancelled가 true로 되어 연결이 중단됨.
-        // 따라서 모든 비동기 작업이 끝난 후에만 호출한다.
         setRoom(newRoom);
         setRoomId(roomId);
       } catch (err) {
@@ -206,8 +169,6 @@ export default function useLiveKit(roomId) {
 
     connect();
 
-    // 더 이상 hook 수준에서 disconnect를 자동으로 호출하지 않음.
-    // 사용자가 방을 완전히 나갈 때 (Lobby 등으로 갈 때) 별도의 reset을 호출해야 함.
     return () => {
       cancelled = true;
     };
@@ -227,12 +188,7 @@ export default function useLiveKit(roomId) {
     }
   };
 
-  // 특정 참가자의 숨겨진 <audio> 엘리먼트를 mute/unmute (페이즈별 오디오 분리용)
-  const setAudioMuted = (identity, muted) => {
-    const el = audioElementsRef.current[identity];
-    if (el) el.muted = muted;
-  };
-
-  return { tracks, localTrack, room, toggleMic, toggleVideo, mutedParticipants, audioTracks, localAudioTrack, setAudioMuted };
+  return { tracks, localTrack, room, toggleMic, toggleVideo, mutedParticipants, audioTracks, localAudioTrack };
 }
+
 

@@ -50,7 +50,7 @@ const WaitingRoomPage = () => {
   const navigatingToGameRef = useRef(false);
 
   // LiveKit 연결
-  const { tracks: liveTracks, localTrack, toggleMic: lkToggleMic, toggleVideo: lkToggleVideo, mutedParticipants } = useLiveKit(roomId);
+  const { tracks: liveTracks, audioTracks, localTrack, localAudioTrack, toggleMic: lkToggleMic, toggleVideo: lkToggleVideo, mutedParticipants } = useLiveKit(roomId);
   const lkReset = useLiveKitStore(state => state.reset);
 
   // ✅ [초기화] 방 생성 직후라면 location state 정보를 우선 사용
@@ -81,12 +81,12 @@ const WaitingRoomPage = () => {
     const waitingBg = new Image();
     waitingBg.src = "/assets/images/waitingroom/bg_main.png";
     waitingBg.onload = () => {
-      setIsAssetLoaded(true); 
+      setIsAssetLoaded(true);
     };
 
     // 대기하는 동안 게임 페이지(GamePage) 이미지를 미리 받아둠 (캐싱)
     const gameAssets = [
-      "/assets/images/gamepage/death.png", 
+      "/assets/images/gamepage/death.png",
     ];
 
     gameAssets.forEach(src => {
@@ -321,6 +321,7 @@ const WaitingRoomPage = () => {
       isVideoOn: isMe ? isVideoOn : !mutedParticipants[String(p.userId)]?.video,
       photo: p.profileImage,
       track: isMe ? localTrack : liveTracks[String(p.userId)],
+      audioTrack: isMe ? localAudioTrack : audioTracks[String(p.userId)],
     };
   });
 

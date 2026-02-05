@@ -82,7 +82,7 @@ const GamePage = () => {
   } = useGameStore();
 
   // LiveKit 자동 연결 (방 입장 시 즉시 연결)
-  const { tracks: liveTracks, localTrack, room: lkRoom, audioTracks, localAudioTrack, setAudioMuted } = useLiveKit(roomId);
+  const { tracks: liveTracks, audioTracks, localTrack, localAudioTrack, room: lkRoom } = useLiveKit(roomId);
 
   // 로컬 UI 상태
   const [remainingSeconds, setRemainingSeconds] = useState(0);
@@ -109,7 +109,7 @@ const GamePage = () => {
 
   // 로딩 상태 관리
   const [isAssetLoaded, setIsAssetLoaded] = useState(false);
-  
+
   useEffect(() => {
     myInfoRef.current = myInfo;
     playersRef.current = players;
@@ -119,10 +119,17 @@ const GamePage = () => {
   const mafiaMembersRef = useRef(new Set());
   const [mafiaMembers, setMafiaMembers] = useState(() => new Set());
 
-  const toUserId = (value) => {
-    if (value && typeof value === 'object') return value.value ?? value;
-    return value;
-  };
+  const toUserId = useCallback((value) => {
+    if (!value) return value;
+    let id = value;
+    if (typeof value === 'object') id = value.value ?? value;
+    if (typeof id === 'string') {
+      // "UserId[value=123]" 또는 "RoomId[value=abc]" 포맷 파싱
+      const match = id.match(/\[value=(.*?)\]/);
+      if (match) id = match[1];
+    }
+    return String(id);
+  }, []);
 
   // 초기 데이터 설정 (WaitingRoomPage에서 넘어온 경우)
   useEffect(() => {
@@ -150,18 +157,19 @@ const GamePage = () => {
     if (state.capacity) setCapacity(state.capacity);
     useGameStore.setState({ roomCode: roomId });
   }, [location.state, roomId, setMyInfo, setPlayers]);
-  
+
 
   // 플레이어 데이터 표준화
   const standardizedPlayers = useMemo(() => players.map(p => ({
     userId: p.userId,
+    strId: toUserId(p.userId),
     nickname: p.nickname || p.displayName || p.name,
     isHost: p.isHost || false,
     isAlive: p.isAlive ?? true,
     photo: p.profileImage || p.photo || '',
     stream: p.stream || null,
     role: p.role, // 결과 페이지 전달용
-  })), [players]);
+  })), [players, toUserId]);
 
   // 게임 종료 시 결과 페이지로 자동 이동
   useEffect(() => {
@@ -223,7 +231,7 @@ const GamePage = () => {
           websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
           // 백엔드에서 마피아 멤버 목록을 보내면 활용
           if (Array.isArray(payload.mafiaMembers)) {
-            payload.mafiaMembers.forEach(id => mafiaMembersRef.current.add(String(id)));
+            payload.mafiaMembers.forEach(id => mafiaMembersRef.current.add(toUserId(id)));
             setMafiaMembers(new Set(mafiaMembersRef.current));
           }
         }
@@ -251,12 +259,6 @@ const GamePage = () => {
 
       // === 페이즈 변경 ===
       case 'PHASE_CHANGED':
-        if (pendingVote1ResultRef.current) {
-          pendingVote1ResultRef.current = false;
-          setShowVote1ResultModal(true);
-        } else {
-          setShowVote1ResultModal(false);
-        }
         setPhase(payload.phase, payload.phaseEndsAt);
         if (payload.version) setVersion(payload.version);
         setShowVote2ResultModal(false);
@@ -290,7 +292,7 @@ const GamePage = () => {
 
       case 'VOTE1_RESULT':
         setVote1Result(payload.accusedUserId, payload.isTie);
-        pendingVote1ResultRef.current = true;
+        setShowVote1ResultModal(true);
         if (payload.version) setVersion(payload.version);
         break;
 
@@ -473,20 +475,20 @@ const GamePage = () => {
   // 마피아 멤버 추적: 내가 마피아일 때 자신 추가
   useEffect(() => {
     if (myInfo.role === 'MAFIA' && myInfo.userId) {
-      const strId = String(myInfo.userId);
+      const strId = toUserId(myInfo.userId);
       if (!mafiaMembersRef.current.has(strId)) {
         mafiaMembersRef.current.add(strId);
         setMafiaMembers(new Set(mafiaMembersRef.current));
       }
     }
-  }, [myInfo.role, myInfo.userId]);
+  }, [myInfo.role, myInfo.userId, toUserId]);
 
   // 마피아 멤버 추적: players 배열의 role 정보 확인 (백엔드가 마피아 동료 role을 채워주는 경우)
   useEffect(() => {
     let changed = false;
     players.forEach(p => {
       if (p.role === 'MAFIA') {
-        const strId = String(p.userId);
+        const strId = toUserId(p.userId);
         if (!mafiaMembersRef.current.has(strId)) {
           mafiaMembersRef.current.add(strId);
           changed = true;
@@ -494,7 +496,7 @@ const GamePage = () => {
       }
     });
     if (changed) setMafiaMembers(new Set(mafiaMembersRef.current));
-  }, [players]);
+  }, [players, toUserId]);
 
   // 생존자 목록
   const alivePlayers = useMemo(() =>
@@ -519,8 +521,10 @@ const GamePage = () => {
   // 낥 단계: 살아있는 플레이어만 표시 (본인은 항상). 죽은 플레이어는 남들을 볼 수 있나 남들에게는 안 보임.
   // 밤 단계: 시민팀은 화면 없음. 마피아끼리만 서로를 확인.
   const getVisibleTrack = (player) => {
-    const isMe = String(player.userId) === String(myInfo.userId);
-    const rawTrack = isMe ? localTrack : liveTracks[String(player.userId)];
+    const pStrId = toUserId(player.userId);
+    const mStrId = toUserId(myInfo.userId);
+    const isMe = pStrId === mStrId;
+    const rawTrack = isMe ? localTrack : liveTracks[pStrId];
 
     if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
       if (isMe) return rawTrack;
@@ -533,33 +537,35 @@ const GamePage = () => {
       if (myInfo.role !== 'MAFIA') return null;
       // 마피아: 본인 + 살아있는 마피아 동료만
       if (isMe) return rawTrack;
-      return (player.isAlive && mafiaMembers.has(String(player.userId))) ? rawTrack : null;
+      return (player.isAlive && mafiaMembers.has(pStrId)) ? rawTrack : null;
     }
 
     // 기타 단계 (COUNTDOWN, ASSIGN_ROLE, DAY_RESULT 등): 제한 없음
     return rawTrack;
   };
 
-  // === 오디오 재생 규칙 (비디오와 동일한 페이즈별 기준) ===
-  useEffect(() => {
-    standardizedPlayers.forEach(player => {
-      const isMe = String(player.userId) === String(myInfo.userId);
-      if (isMe) return;
+  const getVisibleAudioTrack = (player) => {
+    const pStrId = toUserId(player.userId);
+    const mStrId = toUserId(myInfo.userId);
+    const isMe = pStrId === mStrId;
+    const rawTrack = isMe ? localAudioTrack : audioTracks[pStrId];
 
-      let audible = true;
-      if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
-        if (amIAlive) audible = player.isAlive;
-      } else if (gamePhase === 'NIGHT') {
-        if (myInfo.role !== 'MAFIA') {
-          audible = false;
-        } else {
-          audible = player.isAlive && mafiaMembers.has(String(player.userId));
-        }
-      }
+    if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
+      if (isMe) return null; // 본인 목소리는 직접 듣지 않음
+      if (!amIAlive) return rawTrack; // 죽은 사람은 모든 오디오 청취 가능
+      return player.isAlive ? rawTrack : null;
+    }
 
-      setAudioMuted(String(player.userId), !audible);
-    });
-  }, [gamePhase, standardizedPlayers, myInfo.userId, myInfo.role, amIAlive, mafiaMembers, setAudioMuted]);
+    if (gamePhase === 'NIGHT') {
+      if (isMe) return null;
+      if (!amIAlive) return rawTrack; // 죽은 사람은 모든 오디오 청취 가능
+      if (myInfo.role !== 'MAFIA') return null;
+      return (player.isAlive && mafiaMembers.has(pStrId)) ? rawTrack : null;
+    }
+
+    return isMe ? null : rawTrack;
+  };
+
 
   // === 투표 핸들러 ===
   const handleVoteClick = (player) => {
@@ -654,10 +660,10 @@ const GamePage = () => {
         };
 
         // Zustand 상자에 저장
-        setAiChanceResult(finalData); 
+        setAiChanceResult(finalData);
 
         // 5. 모달 열기 (이름표: 'aiChance')
-        openModal('aiChance'); 
+        openModal('aiChance');
 
         // 6. 서버 및 로컬 찬스 차감
         websocketClient.sendAiChanceRequest(targetId);
@@ -684,7 +690,7 @@ const GamePage = () => {
     return standardizedPlayers.find(p => String(p.userId) === String(nightResult.killedUserId));
   }, [nightResult, standardizedPlayers]);
 
-  
+
   // 리소스 프리로딩 
   useEffect(() => {
     // 게임 필수 이미지 로드 체크 (대기실에서 캐싱했지만 확실히 한 번 더!)
@@ -819,7 +825,7 @@ const GamePage = () => {
                         player={player}
                         isMe={String(player.userId) === String(myInfo.userId)}
                         track={getVisibleTrack(player)}
-                        audioTrack={getVisibleTrack(player) ? (String(player.userId) === String(myInfo.userId) ? localAudioTrack : audioTracks[String(player.userId)]) : null}
+                        audioTrack={getVisibleAudioTrack(player)}
                         canVote={gamePhase === 'VOTE_1' && amIAlive}
                         didIVote={vote1.hasVoted}
                         onVoteRequest={() => handleVoteClick(player)}
@@ -930,7 +936,7 @@ const GamePage = () => {
           targetPlayer={accusedPlayer}
           message={vote2.result?.approved
             ? "처형되었습니다."
-            : "생존했습니다."   
+            : "생존했습니다."
           }
           onTimeout={() => setShowVote2ResultModal(false)}
         />
