@@ -18,7 +18,9 @@ export default function useLiveKit(roomId) {
   const {
     room, setRoom,
     tracks, setTracks, updateTrack, removeTrack,
+    audioTracks, updateAudioTrack, removeAudioTrack,
     localTrack, setLocalTrack,
+    localAudioTrack, setLocalAudioTrack,
     localTracks, setLocalTracks,
     roomId: storedRoomId, setRoomId,
     mutedParticipants, setMutedState,
@@ -36,6 +38,7 @@ export default function useLiveKit(roomId) {
       localTracks.forEach(t => t.stop());
       setTracks({});
       setLocalTrack(null);
+      setLocalAudioTrack(null);
       setLocalTracks([]);
       setRoom(null);
       // 기존 오디오 엘리먼트 정리
@@ -69,6 +72,8 @@ export default function useLiveKit(roomId) {
           setLocalTracks(createdTracks);
           const videoTrack = createdTracks.find(t => t.kind === Track.Kind.Video);
           if (videoTrack) setLocalTrack(videoTrack);
+          const audioTrackLocal = createdTracks.find(t => t.kind === Track.Kind.Audio);
+          if (audioTrackLocal) setLocalAudioTrack(audioTrackLocal);
         } catch (mediaErr) {
           console.warn('[LiveKit] 미디어 권한 실패, 영상 없이 연결 시도:', mediaErr.message);
         }
@@ -94,6 +99,7 @@ export default function useLiveKit(roomId) {
             });
             p.audioTrackPublications.forEach(pub => {
               if (pub.track) {
+                updateAudioTrack(p.identity, pub.track);
                 const audioEl = document.createElement('audio');
                 audioEl.autoplay = true;
                 pub.track.attach(audioEl);
@@ -117,6 +123,7 @@ export default function useLiveKit(roomId) {
         newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
           if (import.meta.env.DEV) console.log('[LiveKit] 참가자 퇴장:', p.identity);
           removeTrack(p.identity);
+          removeAudioTrack(p.identity);
           const audioEl = audioElementsRef.current[p.identity];
           if (audioEl) {
             audioEl.remove();
@@ -131,6 +138,7 @@ export default function useLiveKit(roomId) {
             if (pub.isMuted) setMutedState(p.identity, 'video', true);
           } else if (track.kind === Track.Kind.Audio) {
             if (import.meta.env.DEV) console.log('[LiveKit] 원격 오디오 구독:', p.identity);
+            updateAudioTrack(p.identity, track);
             const audioEl = document.createElement('audio');
             audioEl.autoplay = true;
             track.attach(audioEl);
@@ -144,6 +152,7 @@ export default function useLiveKit(roomId) {
           if (track.kind === Track.Kind.Video) {
             removeTrack(p.identity);
           } else if (track.kind === Track.Kind.Audio) {
+            removeAudioTrack(p.identity);
             const audioEl = audioElementsRef.current[p.identity];
             if (audioEl) {
               track.detach(audioEl);
@@ -218,6 +227,12 @@ export default function useLiveKit(roomId) {
     }
   };
 
-  return { tracks, localTrack, room, toggleMic, toggleVideo, mutedParticipants };
+  // 특정 참가자의 숨겨진 <audio> 엘리먼트를 mute/unmute (페이즈별 오디오 분리용)
+  const setAudioMuted = (identity, muted) => {
+    const el = audioElementsRef.current[identity];
+    if (el) el.muted = muted;
+  };
+
+  return { tracks, localTrack, room, toggleMic, toggleVideo, mutedParticipants, audioTracks, localAudioTrack, setAudioMuted };
 }
 

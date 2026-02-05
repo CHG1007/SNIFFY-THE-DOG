@@ -1,6 +1,5 @@
 export default function LobbyLayout({
   backgroundUrl,
-  onVideoTest,
   topMenus,
   leftPanel,
   mainPanel,
@@ -15,9 +14,6 @@ export default function LobbyLayout({
 
       {/* 컨텐츠 */}
       <div className="relative flex-1 flex flex-col px-8 pt-4 min-h-0">
-        {/* 화상 테스트 버튼 */}
-        <button onClick={onVideoTest} className="absolute top-2 right-8 px-4 py-2 ... z-50">화상 테스트</button>
-
         {/* 상단 메뉴 */}
         <div className="h-[15%] min-h-[100px] flex gap-8 items-center">
           {/* 왼쪽 패널 너비(320px)만큼 빈 공간을 주어 TopMenu를 오른쪽(메인 위)으로 밀어줍니다 */}

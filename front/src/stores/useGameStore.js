@@ -151,6 +151,9 @@ const useGameStore = create((set, get) => ({
     return newState;
   }),
 
+  // phaseEndsAt만 갱신 (타이머 스킵용 — 투표 등 기타 상태 초기화 없음)
+  updatePhaseEndsAt: (phaseEndsAt) => set({ phaseEndsAt }),
+
   // Phase End 전송 플래그 설정
   setPhaseEndSent: (sent) => set({ phaseEndSent: sent }),
 
