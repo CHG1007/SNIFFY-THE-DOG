@@ -166,20 +166,20 @@ export default function ResultPage() {
             <div className="relative grid grid-cols-1 gap-x-10 gap-y-8 place-items-center py-6 sm:grid-cols-2 lg:grid-cols-3">
               {players.map((p) => (
                 <div key={p.userId || p.id} className="flex flex-col items-center">
+                  {(() => {
+                    const label = ROLE_LABEL[p.role || p.roleLabel] || ROLE_LABEL.CITIZEN;
+                    return (
+                      <span className={`mb-2 px-3 py-0.5 rounded-full text-xs font-bold border ${label.bg} ${label.border} ${label.color}`}>
+                        {label.name}
+                      </span>
+                    );
+                  })()}
+
                   <img
                     src={getRoleImage(p.role || p.roleLabel)}
                     alt={`${p.nickname || p.name} avatar`}
                     className="h-[100px] w-auto object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.55)]"
                   />
-
-                  {(() => {
-                    const label = ROLE_LABEL[p.role || p.roleLabel] || ROLE_LABEL.CITIZEN;
-                    return (
-                      <span className={`mt-2 px-3 py-0.5 rounded-full text-xs font-bold border ${label.bg} ${label.border} ${label.color}`}>
-                        {label.name}
-                      </span>
-                    );
-                  })()}
 
                   <div className="mt-2 flex items-center gap-3">
                     <div

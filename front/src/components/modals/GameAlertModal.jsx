@@ -29,7 +29,7 @@ const GameAlertModal = ({ title, message, targetPlayer, onTimeout }) => {
             <span className="text-gray-200 mt-2 block text-3xl">아무도 지목되지 않았습니다.</span>
           ) : (
             <>
-              <span className="text-[#ff8a00]">{targetPlayer?.nickname}</span>
+              <span className="text-primary">{targetPlayer?.nickname}</span>
               <span className="text-white">님이</span><br/>
               <span className="text-gray-200 mt-2 block text-3xl">{message}</span>
             </>

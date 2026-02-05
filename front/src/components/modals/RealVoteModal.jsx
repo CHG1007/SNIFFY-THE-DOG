@@ -24,17 +24,18 @@ const RealVote = ({ accusedPlayer, onVoteComplete, onVote }) => {
         <h1 className="text-6xl font-black text-red-600 mb-12 tracking-widest drop-shadow-lg">
           FINAL VOTE
         </h1>
-        {/* 피고인 정보 (2-2 PlayerState 활용) */}
+         피고인 정보 (2-2 PlayerState 활용)
         <div className="mb-10">
-          <div className="w-48 h-48 mx-auto rounded-full border-4 border-[#ff8a00] overflow-hidden mb-6 shadow-[0_0_30px_rgba(255,138,0,0.3)]">
-            <img 
-              src={accusedPlayer?.photo || "/assets/dog_character.png"} 
-              className="w-full h-full object-cover"
-              alt="accused" 
-            />
-          </div>
+          // 임시 이미지 삭제
+          {/*<div className="w-48 h-48 mx-auto rounded-full border-4 border-[#ff8a00] overflow-hidden mb-6 shadow-[0_0_30px_rgba(255,138,0,0.3)]">*/}
+          {/*  <img */}
+          {/*    src={accusedPlayer?.photo || "/assets/dog_character.png"} */}
+          {/*    className="w-full h-full object-cover"*/}
+          {/*    alt="accused" */}
+          {/*  />*/}
+          {/*</div>*/}
           <h2 className="text-4xl text-white font-bold leading-tight">
-            <span className="text-[#ff8a00]">{accusedPlayer?.nickname}</span>님을 <br/>
+            <span className="text-primary">{accusedPlayer?.nickname}</span>님을 <br/>
             <span className="text-3xl text-gray-300">처형하시겠습니까?</span>
           </h2>
         </div>
