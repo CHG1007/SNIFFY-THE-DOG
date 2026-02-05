@@ -2,16 +2,31 @@ import { useState } from "react";
 import ModalWrapper from "./ModalWrapper";
 import ConfirmBtn from "../common/ConfirmBtn";
 
-const ComplaintModal = ({ isOpen, onClose, targetName = "OO" }) => {
+const ComplaintModal = ({
+  isOpen,
+  onClose,
+  targetName = "OO",
+  onSubmit,
+  submitting = false,
+  submitError = "",
+}) => {
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const maxLength = 255;
 
-  const handleReport = () => {
+  const handleReport = async () => {
     if (reason.trim() === "") {
       setError("신고 이유를 작성해주세요.");
     } else {
       setError("");
+      if (onSubmit) {
+        try {
+          await onSubmit(reason);
+        } catch (err) {
+          setError("Report failed. Please try again.");
+        }
+        return;
+      }
       console.log(`${targetName}님 신고 사유:`, reason);
       // 서버 통신 로직 후 성공 시 onClose()
       onClose();
@@ -36,7 +51,7 @@ const ComplaintModal = ({ isOpen, onClose, targetName = "OO" }) => {
               }
             }}
             placeholder="신고 이유를 작성해 주세요."
-            className="w-full h-40 bg-[#1a1a1a] border-2 border-[#ff8a00] rounded-xl p-4 text-white text-lg outline-none focus:ring-2 focus:ring-[#ff8a00]/50 transition-all placeholder:text-gray-600 resize-none"
+            className="w-full h-40 bg-[#1a1a1a] border-2 border-primary rounded-xl p-4 text-white text-lg outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-gray-600 resize-none"
           />
           {/* 글자 수 표시 (우측 하단) */}
           <span className="absolute bottom-4 right-4 text-gray-500 text-sm">
@@ -45,8 +60,12 @@ const ComplaintModal = ({ isOpen, onClose, targetName = "OO" }) => {
         </div>
 
         {/* 3. 에러 메시지 영역 (공간 고정) */}
-        <div className="h-6 w-full flex items-center px-2 mb-6">
-          {error && <span className="text-red-600 text-sm font-bold">{error}</span>}
+        <div className="min-h-[24px] w-full flex items-center px-2 mb-6">
+          {(error || submitError) && (
+            <span className="text-red-600 text-sm font-bold">
+              {submitError || error}
+            </span>
+          )}
         </div>
 
         {/* 4. 하단 버튼 영역 (게임 생성과 동일한 위치) */}
@@ -55,12 +74,14 @@ const ComplaintModal = ({ isOpen, onClose, targetName = "OO" }) => {
             text="신고" 
             className="flex-1 text-xl py-3" 
             onClick={handleReport} 
+            disabled={submitting}
           />
           <ConfirmBtn 
             text="취소" 
             variant="secondary" 
             className="flex-1 text-xl py-3" 
             onClick={onClose} 
+            disabled={submitting}
           />
         </div>
       </div>

@@ -1,6 +1,6 @@
 const ReportResultBtn = ({ result }) => {
   // 결과에 따라 테두리 색상을 결정합니다.
-  const borderColor = result === "승리" ? "border-[#00ffcc]" : "border-[#ff8a00]";
+  const borderColor = result === "승리" ? "border-[#00ffcc]" : "border-primary";
 
   const handleClick = () => {
     // 나중에 모달창을 띄우는 로직이 들어갈 자리입니다.

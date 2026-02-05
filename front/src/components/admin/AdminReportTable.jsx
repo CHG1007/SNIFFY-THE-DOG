@@ -65,7 +65,7 @@ const AdminReportTable = ({ reports, pageInfo, onPageChange }) => {
                   <td className="px-6 py-4 text-white font-bold">
                     {report.reporter?.nickname || '알 수 없음'}
                   </td>
-                  <td className="px-6 py-4 text-[#ff8a00] font-bold">
+                  <td className="px-6 py-4 text-primary font-bold">
                     {report.reportedUser?.nickname || '알 수 없음'}
                   </td>
                   <td className="px-6 py-4 text-gray-400 truncate max-w-[200px]">

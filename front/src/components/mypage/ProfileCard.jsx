@@ -52,7 +52,7 @@ const ProfileCard = ({
               <>
                 <input
                   autoFocus
-                  className="bg-[#1a1a1a] text-white text-3xl font-black border-b-2 border-[#ff8a00] outline-none px-2 w-[250px]"
+                  className="bg-[#1a1a1a] text-white text-3xl font-black border-b-2 border-primary outline-none px-2 w-[250px]"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   onKeyDown={(e) => {
@@ -69,7 +69,7 @@ const ProfileCard = ({
                   </button>
                   <button 
                     onClick={onSave}
-                    className="px-4 py-2 bg-[#ff8a00] hover:bg-[#e67e00] text-black font-bold rounded-lg transition-colors text-sm shadow-lg"
+                    className="px-4 py-2 bg-primary hover:bg-[#e67e00] text-black font-bold rounded-lg transition-colors text-sm shadow-lg"
                   >
                     저장
                   </button>
@@ -82,7 +82,7 @@ const ProfileCard = ({
                   onClick={onEditClick}
                   className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white/80 hover:text-white rounded-lg transition-all ml-2 group"
                 >
-                  <Pencil size={14} className="group-hover:text-[#ff8a00] transition-colors" />
+                  <Pencil size={14} className="group-hover:text-primary transition-colors" />
                   <span className="text-sm font-bold">닉네임 수정</span>
                 </button>
               </>

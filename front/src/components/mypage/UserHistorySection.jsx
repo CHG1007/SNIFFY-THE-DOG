@@ -39,8 +39,8 @@ const UserHistorySection = ({ games, onReport }) => {
           <GameHistoryTable games={games} onReport={onReport} />
         ) : (
           /* 전적이 없을 때 표시할 Empty State */
-          <div className="w-full min-h-[400px] bg-[#FFC19A]/30 backdrop-blur-xl rounded-[10px] p-8 shadow-2xl border border-white/5 flex items-center justify-center">
-            <div className="flex flex-col justify-center items-center h-[400px] gap-4">
+          <div className="w-full min-h-[250px] bg-[#FFC19A]/30 backdrop-blur-xl rounded-[10px] p-8 shadow-2xl border border-white/5 flex items-center justify-center">
+            <div className="flex flex-col justify-center items-center h-[250px] gap-4">
               <div className="w-[180px] h-[180px] opacity-70">
                 {emptyAnim && <Lottie animationData={emptyAnim} loop autoplay />}
               </div>

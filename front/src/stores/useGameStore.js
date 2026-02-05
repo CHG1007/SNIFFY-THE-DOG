@@ -211,7 +211,7 @@ const useGameStore = create((set, get) => ({
 
   // 마피아 타겟 확정
   setMafiaLocked: (targetUserId) => set((state) => ({
-    nightAction: { ...state.nightAction, mafiaTarget: targetUserId, mafiaLocked: true },
+    nightAction: { ...state.nightAction, mafiaTarget: targetUserId, mafiaLocked: true, hasActed: true },
   })),
 
   // 내 밤 행동 완료

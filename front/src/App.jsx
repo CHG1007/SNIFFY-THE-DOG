@@ -15,6 +15,7 @@ import GamePage from './pages/GamePage';
 // Components
 import Header from './components/common/Header';
 import WithHeaderLayout from './components/common/WithHeaderLayout';
+import BGM from './components/common/BGM';
 
 // 1. 애니메이션 래퍼 
 const PageWrapper = ({ children }) => (
@@ -73,6 +74,7 @@ function App() {
     <BrowserRouter>
       {/* 배경을 검은색으로 고정하여 애니메이션 효과 극대화 */}
       <div className="min-h-screen overflow-x-hidden bg-black">
+        {/* <BGM /> */}
         <AnimatedRoutes />
       </div>
     </BrowserRouter>
