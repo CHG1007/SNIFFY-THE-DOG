@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -38,6 +39,9 @@ public class GameResultService {
     private final GameLogGmsPort gameLogGmsPort; // AI 분석
     private final RedisRoomPort redisRoomPort; // Redis 방 삭제
     private final StringRedisTemplate redisTemplate;    //동시성 제어
+
+    // 자기가 자기 자신을 대리인(Proxy)으로 부르기 위한 도구입니다.
+    private final ObjectProvider<GameResultService> selfProvider;
 
     @Async // 비동기로 백그라운드에서 실행합니다.
     public void processGameResult(String roomId, Winner winner, Instant startAt, Instant endAt) {
@@ -126,11 +130,11 @@ public class GameResultService {
         gameLogPort.save(gameLog);
 
         // 비동기로 AI 분석 진행
-        performAiAnalysis(gameLog);
+        selfProvider.getIfAvailable().performAiAnalysis(gameLog);
     }
 
     @Async
-    protected void performAiAnalysis(GameLog gameLog) {
+    public void performAiAnalysis(GameLog gameLog) {
         // AI 분석 재료 준비
         List<String> playerInfos = gameLog.getPlayers().stream()
                 .map(p -> p.odUserId() + ":" + p.odNickname() + ":" + p.role().name())
@@ -170,11 +174,7 @@ public class GameResultService {
         String totalSummary = gameLog.getTotalSummary();
 
         // 3. 참여자 중 '나'를 찾아서 내 리포트만 가져오기
-        String myReport = gameLog.getPlayers().stream()
-                .filter(p -> p.odUserId().equals(userId))
-                .map(p -> gameLog.getAiReports().getOrDefault(p.odUserId(), "분석 결과가 없습니다."))
-                .findFirst()
-                .orElse("데이터를 분석 중이거나 결과가 없습니다.");
+        String myReport = gameLog.getAiReports().getOrDefault(userId, "데이터를 분석 중이거나 결과가 없습니다.");
 
         return new MyGameLogResult(totalSummary, myReport);
     }

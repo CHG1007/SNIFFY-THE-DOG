@@ -20,6 +20,12 @@ public class GameLogController {
     public ApiResponse<MyGameLogResult> viewMyAnalysis(
             @PathVariable Long gameHistoryId,
             @AuthenticationPrincipal AuthenticatedUser user) {
+
+        System.out.println("----------------------------------------");
+        System.out.println("🔍 [검사 시작] 게임 ID: " + gameHistoryId);
+        System.out.println("🆔 [검사 시작] 나의 유저 ID: " + user.userId());
+        System.out.println("----------------------------------------");
+
         MyGameLogResult analysisResult = gameResultService.getMyAnalysis(gameHistoryId, user.userId());
         return ApiResponse.success(analysisResult);
     }

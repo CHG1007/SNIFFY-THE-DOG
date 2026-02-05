@@ -77,6 +77,8 @@ public class GameLogMapper {
             });
         }
 
+        gameLog.updateTotalSummary(doc.getTotalSummary());
+
         return gameLog;
     }
 

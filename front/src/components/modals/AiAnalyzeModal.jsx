@@ -4,9 +4,9 @@ const AiAnalyzeModal = ({ isOpen, onClose, data, nickname }) => {
   // 데이터가 없으면 렌더링하지 않음
   if (!data) return null;
 
-  const { totalSummary, playerReports } = data;
+  const { totalSummary, myReport } = data;
   // 내 닉네임에 해당하는 리포트 추출 (데이터가 없으면 기본 문구)
-  const myReport = playerReports && nickname ? playerReports[nickname] : "분석 데이터를 찾을 수 없습니다.";
+  const displayReport = myReport || "분석 데이터를 찾을 수 없습니다.";
 
   return (
     <ModalWrapper isOpen={isOpen} onClose={onClose}>
@@ -36,8 +36,8 @@ const AiAnalyzeModal = ({ isOpen, onClose, data, nickname }) => {
             <span className="text-[13px] text-gray-400 font-medium tracking-wider">나의 플레이 분석</span>
             <div className="flex-1 h-[1px] bg-white/10"></div>
           </div>
-          <div className="bg-white/5 rounded-xl p-4 text-[15px] leading-relaxed border-l-4 border-primary whitespace-pre-wrap">
-            {myReport}
+          <div className="bg-white/5 rounded-xl p-4 text-[15px] leading-relaxed border-l-4 border-[#FF8A00] whitespace-pre-wrap">
+            {displayReport}
           </div>
         </div>
 

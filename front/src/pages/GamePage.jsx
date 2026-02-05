@@ -14,6 +14,7 @@ import useLiveKit from '../hooks/useLiveKit';
 import GameVideoSlot from '../components/game/GameVideoSlot';
 import TimeScreen from '../components/game/TimeScreen';
 import DiscussionPage from './DiscussionPage';
+import LoadingPage from './LoadingPage';
 
 // Modals
 import VoteConfirmModal from '../components/modals/VoteConfirmModal';
@@ -28,7 +29,6 @@ import LastBeggingModal from '../components/modals/LastBeggingModal';
 // Refactored Modals
 import RoleAssignModal from '../components/modals/game/RoleAssignModal';
 import PoliceResultModal from '../components/modals/game/PoliceResultModal';
-import AiChanceResultModal from '../components/modals/game/AiChanceResultModal';
 
 // 시간 포맷 유틸리티
 const formatTime = (seconds) => {
