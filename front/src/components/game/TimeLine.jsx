@@ -36,7 +36,7 @@ const TimeLine = ({ duration, onTimeout }) => {
       </div>
       <div className="relative w-full h-2.5 bg-gray-800 rounded-full overflow-hidden border border-white/10">
         <div 
-          className="h-full bg-gradient-to-r from-[#ff8a00] to-[#ff5f00] transition-all duration-75 ease-linear shadow-[0_0_20px_rgba(255,138,0,0.6)]"
+          className="h-full bg-gradient-to-r from-primary to-[#ff5f00] transition-all duration-75 ease-linear shadow-[0_0_20px_rgba(255,138,0,0.6)]"
           style={{ width: `${progress}%` }} 
         />
       </div>

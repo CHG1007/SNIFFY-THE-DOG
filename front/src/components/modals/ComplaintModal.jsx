@@ -51,7 +51,7 @@ const ComplaintModal = ({
               }
             }}
             placeholder="신고 이유를 작성해 주세요."
-            className="w-full h-40 bg-[#1a1a1a] border-2 border-[#ff8a00] rounded-xl p-4 text-white text-lg outline-none focus:ring-2 focus:ring-[#ff8a00]/50 transition-all placeholder:text-gray-600 resize-none"
+            className="w-full h-40 bg-[#1a1a1a] border-2 border-primary rounded-xl p-4 text-white text-lg outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-gray-600 resize-none"
           />
           {/* 글자 수 표시 (우측 하단) */}
           <span className="absolute bottom-4 right-4 text-gray-500 text-sm">

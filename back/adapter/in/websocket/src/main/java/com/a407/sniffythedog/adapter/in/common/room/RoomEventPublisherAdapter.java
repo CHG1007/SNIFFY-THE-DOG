@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -65,7 +67,15 @@ public class RoomEventPublisherAdapter implements RoomEventPort {
     }
 
     @Override
-    public void publishGameFinished(String roomCode, long version, String winnerTeam, Long mvpUserId) {
+    public void publishGameFinished(String roomCode, long version, String winnerTeam, Long mvpUserId, List<RoomEventPort.PlayerRoleInfo> players) {
+        List<GameFinishedMessage.PlayerRoleInfo> playerRoleInfos = players.stream()
+                .map(p -> GameFinishedMessage.PlayerRoleInfo.builder()
+                        .userId(p.userId())
+                        .nickname(p.nickname())
+                        .role(p.role())
+                        .build())
+                .collect(Collectors.toList());
+
         GameFinishedMessage payload = GameFinishedMessage.builder()
                 .type("GAME_FINISHED")
                 .roomCode(roomCode)
@@ -74,6 +84,7 @@ public class RoomEventPublisherAdapter implements RoomEventPort {
                 .data(GameFinishedMessage.Data.builder()
                         .winnerTeam(winnerTeam)
                         .mvpUserId(mvpUserId)
+                        .players(playerRoleInfos)
                         .build())
                 .build();
 

@@ -50,7 +50,7 @@ const Header = () => {
       {/* 1. 로고: 클릭 시 무조건 /rooms로 이동 */}
       <div className="flex items-center">
         <Link to="/rooms" className="text-2xl font-black tracking-tighter">
-          <span className="text-[#ff8a00]">SNIFFY</span> <span className="text-white">the DOG</span>
+          <span className="text-primary">SNIFFY</span> <span className="text-white">the DOG</span>
         </Link>
       </div> 
 

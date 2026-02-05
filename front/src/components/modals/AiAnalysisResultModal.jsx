@@ -1,30 +1,42 @@
-// 분석 결과를 보여주는 모달창
-const AiAnalysisResultModal = ({ result, onClose }) => {
-  if (!result) return null;
+import ModalWrapper from './ModalWrapper';
+import ConfirmBtn from '../common/ConfirmBtn';
+
+const AiAnalysisResultModal = ({ isOpen, result, onClose }) => {
+  if (!isOpen || !result) return null;
+
+  const displayName = result.targetNickname || result.identity || "알 수 없는 유저";
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#1e1e1e] border border-white/20 p-6 rounded-2xl max-w-md w-full shadow-2xl">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-yellow-400">🔍 AI 분석 리포트</h2>
-          <button onClick={onClose} className="text-white/50 hover:text-white text-2xl">&times;</button>
-        </div>
+    <ModalWrapper isOpen={isOpen} onClose={onClose} className="min-h-[320px] max-w-lg">
+      <div className="flex flex-col items-center justify-center w-full h-full py-4">
         
-        <div className="bg-white/5 p-4 rounded-lg mb-6 min-h-[100px] flex flex-col justify-center">
-          <p className="text-sm text-white/40 mb-2 font-semibold uppercase tracking-wider">대상: {result.identity}</p>
-          <p className="text-lg leading-relaxed text-white/90">
-            {result.narrative || "분석 데이터를 가져오지 못했습니다."}
+        {/* 헤더 부분: LastBeggingModal의 텍스트 스타일 반영 */}
+        <h1 className="text-3xl font-black text-primary mb-2 tracking-tighter">
+          AI 분석 결과
+        </h1>
+        
+        <p className="text-xl font-bold text-white mb-6">
+          {displayName}님에 대한 분석
+        </p>
+
+        {/* 결과 박스: LastBeggingModal의 subMessage 박스 스타일 반영 */}
+        <div className="w-full bg-black/20 p-8 rounded-2xl border border-white/5 mb-8 shadow-inner">
+          <p className="text-lg text-white leading-relaxed text-center whitespace-pre-wrap break-keep font-medium">
+            {result.narrative}
           </p>
         </div>
-
-        <button 
-          onClick={onClose}
-          className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl font-bold transition-all"
-        >
-          확인
-        </button>
+        
+        {/* 버튼 부분: ConfirmBtn 사용 */}
+        <div className="flex w-full justify-center px-4">
+          <ConfirmBtn 
+            text="확인" 
+            variant="primary"
+            className="w-48 py-3 text-xl font-bold" 
+            onClick={onClose} 
+          />
+        </div>
       </div>
-    </div>
+    </ModalWrapper>
   );
 };
 

@@ -1,14 +1,29 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
-
 import { useLocation, useNavigate } from "react-router-dom";
-
-import LastBeggingModal from "../components/modals/LastBeggingModal";
+import LastBeggingModal from '../components/modals/LastBeggingModal';
 import FutureReportModal from "../components/modals/FutureReportModal";
+import useGameStore from "../stores/useGameStore";
+import useLiveKitStore from "../stores/useLiveKitStore";
 import ComplaintModal from "../components/modals/ComplaintModal";
 import ModalWrapper from "../components/modals/ModalWrapper";
 import ConfirmBtn from "../components/common/ConfirmBtn";
-import useGameStore from "../stores/useGameStore";
 import apiClient from "../api/apiClient";
+
+const getRoleImage = (role) => {
+  switch (role) {
+    case 'MAFIA': return "/assets/images/resultpage/mafia.png";
+    case 'POLICE': return "/assets/images/resultpage/police.png";
+    case 'DOCTOR': return "/assets/images/resultpage/doctor.png";
+    default: return "/assets/images/resultpage/citizen.png";
+  }
+};
+
+const ROLE_LABEL = {
+  MAFIA: { name: '마피아', color: 'text-red-400', bg: 'bg-red-900/40', border: 'border-red-500/60' },
+  POLICE: { name: '경찰', color: 'text-blue-400', bg: 'bg-blue-900/40', border: 'border-blue-500/60' },
+  DOCTOR: { name: '의사', color: 'text-yellow-400', bg: 'bg-yellow-900/40', border: 'border-yellow-500/60' },
+  CITIZEN: { name: '시민', color: 'text-green-400', bg: 'bg-green-900/40', border: 'border-green-500/60' },
+};
 
 export default function ResultPage() {
   const location = useLocation();
@@ -52,12 +67,12 @@ export default function ResultPage() {
 
   const handleCloseFirstModal = () => {
     setIsModalOpen(false);
-    navigate("/rooms");
   };
 
   const handleConfirm = () => {
     setIsModalOpen(false);
     const myRole = myInfo.role; // MAFIA, CITIZEN, POLICE, DOCTOR
+
     const winnerTeam =
       gameResult?.winnerTeam || (winner === "mafia" ? "MAFIA" : "CITIZEN");
 
@@ -87,7 +102,6 @@ export default function ResultPage() {
   // 두 번째 모달(미래 보고서)에서 '확인'을 눌렀을 때 실행
   const handleFinalClose = () => {
     setShowFutureReport(false);
-    navigate("/rooms"); // 즉시 이동
   };
 
   const scheduleFirstModal = () => {
@@ -175,6 +189,20 @@ export default function ResultPage() {
 
       <div className={`absolute inset-0 ${config.overlay}`} />
 
+      {/* 로비로 돌아가기 버튼 (하단 중앙) */}
+      <div className="absolute bottom-18 left-1/2 -translate-x-1/2 z-50">
+        <button
+          onClick={() => {
+            useLiveKitStore.getState().reset();
+            navigate("/rooms");
+          }}
+          className="px-6 py-2 rounded-lg border-2 border-white/30 bg-white/10 text-white font-semibold backdrop-blur-md hover:bg-white/20 transition-all active:scale-95"
+          style={{ fontFamily: "Pretendard" }}
+        >
+          로비로 돌아가기
+        </button>
+      </div>
+
       <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10">
         <h1
           style={{
@@ -207,19 +235,28 @@ export default function ResultPage() {
 
             <div className="relative grid grid-cols-1 gap-x-10 gap-y-8 place-items-center py-6 sm:grid-cols-2 lg:grid-cols-3">
               {players.map((p) => (
-                <div key={p.id} className="flex flex-col items-center">
+                <div key={p.userId || p.id} className="flex flex-col items-center">
+                  {(() => {
+                    const label = ROLE_LABEL[p.role || p.roleLabel] || ROLE_LABEL.CITIZEN;
+                    return (
+                      <span className={`mb-2 px-3 py-0.5 rounded-full text-xs font-bold border ${label.bg} ${label.border} ${label.color}`}>
+                        {label.name}
+                      </span>
+                    );
+                  })()}
+
                   <img
-                    src={p.avatarSrc}
-                    alt={`${p.name} avatar`}
+                    src={getRoleImage(p.role || p.roleLabel)}
+                    alt={`${p.nickname || p.name} avatar`}
                     className="h-[100px] w-auto object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.55)]"
                   />
 
-                  <div className="mt-4 flex items-center gap-3">
+                  <div className="mt-2 flex items-center gap-3">
                     <div
                       className="text-white text-[23px] leading-none"
                       style={{ fontFamily: "Pretendard", fontWeight: "500" }}
                     >
-                      {p.name}
+                      {p.nickname || p.name}
                     </div>
 
                     <button
@@ -250,7 +287,6 @@ export default function ResultPage() {
                           <path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z" />
                         </svg>
                       </span>
-
                       <span
                         className="text-[20px] text-primary"
                         style={{ fontFamily: "Pretendard", fontWeight: "600" }}
@@ -288,12 +324,12 @@ export default function ResultPage() {
         submitError={reportSubmitError}
       />
 
-      <LastBeggingModal         
+      <LastBeggingModal
         isOpen={reportResultOpen}
         onClose={() => setReportResultOpen(false)}
         message={reportResultMessage}
         showOnlyConfirm={true}
-        />
+      />
     </div>
   );
 }
@@ -318,3 +354,13 @@ function getResultConfig(winner) {
     primaryBtn: "bg-primary text-black hover:brightness-105 active:brightness-95",
   };
 }
+
+/** 더미 데이터 */
+const defaultPlayers = [
+  { id: 1, name: "조채연", roleLabel: "POLICE", avatarSrc: "/assets/images/resultpage/police.png" },
+  { id: 2, name: "최지희", roleLabel: "CITIZEN", avatarSrc: "/assets/images/resultpage/citizen.png" },
+  { id: 3, name: "변지영", roleLabel: "MAFIA", avatarSrc: "/assets/images/resultpage/mafia.png" },
+  { id: 4, name: "길태환", roleLabel: "DOCTOR", avatarSrc: "/assets/images/resultpage/doctor.png" },
+  { id: 5, name: "박연준", roleLabel: "CITIZEN", avatarSrc: "/assets/images/resultpage/citizen.png" },
+  { id: 6, name: "최홍권", roleLabel: "MAFIA", avatarSrc: "/assets/images/resultpage/mafia.png" },
+];

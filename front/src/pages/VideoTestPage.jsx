@@ -305,7 +305,7 @@ const [roomId, setRoomId] = useState(() => {
         <button
           onClick={connectToLiveKit}
           disabled={isConnected}
-          className="px-6 py-3 bg-[#ff8a00] rounded-lg font-medium hover:bg-[#ffaa44] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-3 bg-primary rounded-lg font-medium hover:bg-[#ffaa44] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           2. LiveKit 연결
         </button>

@@ -1,7 +1,7 @@
 import TimeLine from '../components/game/TimeLine';
 import GameVideoSlot from '../components/game/GameVideoSlot'
 
-const DiscussionPage = ({ roomSession, onTimeout }) => {
+const DiscussionPage = ({ roomSession, getTrack, myUserId, onTimeout }) => {
   // 1. 백엔드 설계(2-3-3)의 TrialState에서 피고인 정보 추출
   const { accusedUserId, finalVote } = roomSession.gameState?.trial || {};
 
@@ -22,12 +22,15 @@ const DiscussionPage = ({ roomSession, onTimeout }) => {
       <div className="flex-1 w-full max-w-5xl flex flex-col items-center justify-center min-h-0 px-4">
         {accusedPlayer ? (
           <div className="w-full h-full flex flex-col items-center justify-center gap-6">
-            <div className="relative w-full aspect-video max-h-[55vh] rounded-2xl overflow-hidden border-2 border-[#ff8a00]/50">
-              <GameVideoSlot 
-                player={accusedPlayer} 
-                isMe={false} 
-                canVote={false} 
-                size="big" 
+
+            <div className="relative w-full aspect-video max-h-[55vh] rounded-2xl overflow-hidden border-2 border-primary/50">
+              <GameVideoSlot
+                player={accusedPlayer}
+                isMe={String(accusedPlayer.userId) === String(myUserId)}
+                track={getTrack ? getTrack(accusedPlayer) : undefined}
+                canVote={false}
+                size="big"
+
               />
             </div>
           </div>
@@ -43,11 +46,12 @@ const DiscussionPage = ({ roomSession, onTimeout }) => {
         <div className="flex gap-4 w-full justify-center overflow-hidden">
           {otherPlayers.map(player => (
             <div key={player.userId} className="w-40 aspect-video flex-shrink-0 transition-all hover:scale-105 duration-300">
-              <GameVideoSlot 
-                player={player} 
-                isMe={false} 
-                canVote={false} 
-                size="small" 
+              <GameVideoSlot
+                player={player}
+                isMe={String(player.userId) === String(myUserId)}
+                track={getTrack ? getTrack(player) : undefined}
+                canVote={false}
+                size="small"
               />
             </div>
           ))}

@@ -2,6 +2,7 @@ package com.a407.sniffythedog.application.night;
 
 import com.a407.sniffythedog.application.common.exception.ApplicationException;
 import com.a407.sniffythedog.application.common.exception.ExceptionType;
+import com.a407.sniffythedog.application.gamelog.GameResultService;
 import com.a407.sniffythedog.application.gamelog.out.GameLogRedisPort;
 import com.a407.sniffythedog.application.night.in.*;
 import com.a407.sniffythedog.application.night.out.NightEventPort;
@@ -10,6 +11,7 @@ import com.a407.sniffythedog.application.vote.out.RoomEventPort;
 import com.a407.sniffythedog.domain.game.entity.*;
 import com.a407.sniffythedog.domain.game.enums.GameRole;
 import com.a407.sniffythedog.domain.game.enums.Phase;
+import com.a407.sniffythedog.domain.game.enums.Winner;
 import com.a407.sniffythedog.domain.game.vo.GameUserId;
 import com.a407.sniffythedog.domain.game.vo.RoomId;
 import com.a407.sniffythedog.domain.gamelog.vo.GameEvent;
@@ -17,6 +19,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class NightActionService implements
@@ -26,14 +30,16 @@ public class NightActionService implements
     private final NightEventPort eventPort;
     private final RoomEventPort roomEventPort;
     private final GameLogRedisPort gameLogRedisPort;
+    private final GameResultService gameResultService;
 
     private final NightResolver resolver = new NightResolver();
 
-    public NightActionService(RedisRoomPort redisRoomPort, NightEventPort eventPort, RoomEventPort roomEventPort, GameLogRedisPort gameLogRedisPort) {
+    public NightActionService(RedisRoomPort redisRoomPort, NightEventPort eventPort, RoomEventPort roomEventPort, GameLogRedisPort gameLogRedisPort, GameResultService gameResultService) {
         this.redisRoomPort = redisRoomPort;
         this.eventPort = eventPort;
         this.roomEventPort = roomEventPort;
         this.gameLogRedisPort = gameLogRedisPort;
+        this.gameResultService = gameResultService;
     }
 
     private int currentRound(RoomSession room) {
@@ -61,6 +67,15 @@ public class NightActionService implements
             if (!mafia.isMafia()) throw ApplicationException.of(ExceptionType.BAD_REQUEST);
 
             requireAlive(room, targetId);
+
+            // 2. [선착순 체크] 이미 타겟이 설정되어 있는지 확인
+            GameUserId currentTarget = room.getGameState().night().mafiaTargetUserId();
+            
+            if (currentTarget != null) {
+                // 먼저 눌렸다면 후속 요청은 모두 거절
+                throw ApplicationException.of(ExceptionType.ALREADY_VOTED, "이미 타겟이 확정되었습니다.");
+            }
+
             room.setMafiaTarget(targetId);
 
             holder.shouldLog = true;
@@ -214,13 +229,28 @@ public class NightActionService implements
             eventPort.phaseChanged(roomCode, null, version, holder.phase, holder.phaseEndsAt);
         }
 
+        // 로그 저장 (processGameResult가 Redis에서 읽으므로, 반드시 먼저 완료해야 함)
+        saveLogs(roomCode, holder);
+
         // 4. 게임 종료
         if (holder.finished) {
-            roomEventPort.publishGameFinished(roomCode, version, holder.winnerTeam, null);
-        }
+            List<RoomEventPort.PlayerRoleInfo> playerRoles = updated.getPlayers().entrySet().stream()
+                    .map(e -> new RoomEventPort.PlayerRoleInfo(
+                            e.getKey().value(),
+                            e.getValue().getDisplayName(),
+                            e.getValue().getGameRole() != null ? e.getValue().getGameRole().name() : "CITIZEN"
+                    ))
+                    .collect(Collectors.toList());
 
-        // 로그 저장 (기존과 동일)
-        saveLogs(roomCode, holder);
+            roomEventPort.publishGameFinished(roomCode, version, holder.winnerTeam, null, playerRoles);
+
+            gameResultService.processGameResult(
+                    roomCode,
+                    Winner.valueOf(holder.winnerTeam),
+                    updated.getStartedAt(),
+                    updated.getEndedAt() != null ? updated.getEndedAt() : Instant.now()
+            );
+        }
     }
 
     private void saveLogs(String roomCode, ResolveHolder holder) {

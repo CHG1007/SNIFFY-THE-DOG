@@ -60,7 +60,7 @@ const AdminLoginModal = ({ isOpen, onClose }) => {
               value={pw}
               onChange={(e) => setPw(e.target.value)}
               placeholder="비밀번호"
-              className="w-full bg-[#1a1a1a] border-1 border-[#ff8a00] rounded-xl px-4 py-4 text-white text-center text-xl outline-none focus:ring-2 focus:ring-[#ff8a00]/50 transition-all placeholder:text-gray-600 font-bold"
+              className="w-full bg-[#1a1a1a] border-1 border-primary rounded-xl px-4 py-4 text-white text-center text-xl outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-gray-600 font-bold"
             />
             
             {/* 에러 메시지 표시 영역 */}
@@ -74,7 +74,7 @@ const AdminLoginModal = ({ isOpen, onClose }) => {
 
         <button 
           onClick={handleLogin}
-          className="w-full bg-[#ff8a00] text-black font-black text-xl py-4 rounded-xl hover:bg-[#e67e00] transition-colors mt-2"
+          className="w-full bg-primary text-black font-black text-xl py-4 rounded-xl hover:bg-[#e67e00] transition-colors mt-2"
         >
           로그인
         </button>
