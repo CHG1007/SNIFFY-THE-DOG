@@ -5,27 +5,15 @@ import FutureReportModal from "../components/modals/FutureReportModal";
 import useGameStore from "../stores/useGameStore";
 import useLiveKitStore from "../stores/useLiveKitStore";
 import ComplaintModal from "../components/modals/ComplaintModal";
+
+import useResultStore from "../stores/useResultStore";
 import ModalWrapper from "../components/modals/ModalWrapper";
 import ConfirmBtn from "../components/common/ConfirmBtn";
 import apiClient from "../api/apiClient";
 
-const getRoleImage = (role) => {
-  switch (role) {
-    case 'MAFIA': return "/assets/images/resultpage/mafia.png";
-    case 'POLICE': return "/assets/images/resultpage/police.png";
-    case 'DOCTOR': return "/assets/images/resultpage/doctor.png";
-    default: return "/assets/images/resultpage/citizen.png";
-  }
-};
-
-const ROLE_LABEL = {
-  MAFIA: { name: '마피아', color: 'text-red-400', bg: 'bg-red-900/40', border: 'border-red-500/60' },
-  POLICE: { name: '경찰', color: 'text-blue-400', bg: 'bg-blue-900/40', border: 'border-blue-500/60' },
-  DOCTOR: { name: '의사', color: 'text-yellow-400', bg: 'bg-yellow-900/40', border: 'border-yellow-500/60' },
-  CITIZEN: { name: '시민', color: 'text-green-400', bg: 'bg-green-900/40', border: 'border-green-500/60' },
-};
-
 export default function ResultPage() {
+  const { getFutureReport, ROLE_LABELS, getRoleImage } = useResultStore();
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -82,18 +70,7 @@ export default function ResultPage() {
       (myRole === "MAFIA" && winnerTeam === "MAFIA") ||
       (myRole !== "MAFIA" && winnerTeam === "CITIZEN");
 
-    let report;
-
-    if (myRole === "MAFIA") {
-      report = isWin ? reportData.MAFIA.win : reportData.MAFIA.lose;
-    } else if (myRole === "POLICE") {
-      report = isWin ? reportData.POLICE.win : reportData.POLICE.lose;
-    } else if (myRole === "DOCTOR") {
-      report = isWin ? reportData.DOCTOR.win : reportData.DOCTOR.lose;
-    } else {
-      const citizenJobs = reportData.CITIZEN;
-      report = citizenJobs[Math.floor(Math.random() * citizenJobs.length)];
-    }
+   const report = getFutureReport(myRole, isWin);
 
     setSelectedReport(report);
     setShowFutureReport(true);
@@ -237,7 +214,7 @@ export default function ResultPage() {
               {players.map((p) => (
                 <div key={p.userId || p.id} className="flex flex-col items-center">
                   {(() => {
-                    const label = ROLE_LABEL[p.role || p.roleLabel] || ROLE_LABEL.CITIZEN;
+                    const label = ROLE_LABELS[p.role || p.roleLabel] || ROLE_LABELS.CITIZEN;
                     return (
                       <span className={`mb-2 px-3 py-0.5 rounded-full text-xs font-bold border ${label.bg} ${label.border} ${label.color}`}>
                         {label.name}
@@ -251,7 +228,7 @@ export default function ResultPage() {
                     className="h-[100px] w-auto object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.55)]"
                   />
 
-                  <div className="mt-2 flex items-center gap-3">
+                    <div className="mt-2 flex items-center gap-3">
                     <div
                       className="text-white text-[23px] leading-none"
                       style={{ fontFamily: "Pretendard", fontWeight: "500" }}
