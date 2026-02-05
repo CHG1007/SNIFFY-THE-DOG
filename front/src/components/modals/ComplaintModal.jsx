@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ModalWrapper from "./ModalWrapper";
 import ConfirmBtn from "../common/ConfirmBtn";
 
@@ -13,6 +13,13 @@ const ComplaintModal = ({
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const maxLength = 255;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // Reset input when opening or switching target
+    setReason("");
+    setError("");
+  }, [isOpen, targetName]);
 
   const handleReport = async () => {
     if (reason.trim() === "") {

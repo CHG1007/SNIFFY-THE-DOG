@@ -98,16 +98,16 @@ const FutureReportModal = ({ isOpen, onClose, data }) => {
             {/* 2. 스탯 */}
             {data.stats && data.stats.map((stat, idx) => (
               <div key={idx} className="mb-20 text-center w-full">
-                <p className="text-[#8b6b4d] text-xs font-bold uppercase tracking-wider">{stat.label}</p>
+                <p className="text-[#8b6b4d] text-2xl font-bold uppercase tracking-wider">{stat.label}</p>
                 <p className="text-4xl font-bold my-2 tracking-tighter">{stat.value}</p>
-                <p className="text-[#6b4f31] text-sm italic opacity-80">{stat.desc}</p>
+                <p className="text-[#6b4f31] text-xl italic opacity-80">{stat.desc}</p>
               </div>
             ))}
 
             {/* 3. 메인 메시지 */}
             <div className="text-center px-2 w-full">
               <div className="w-16 h-[1px] bg-[#6b4f31] mx-auto mb-8 opacity-30" />
-              <p className="text-xl leading-[1.8] break-keep font-medium mb-12" style={{ fontFamily: "Pretendard" }}>
+              <p className="text-xl leading-[1.8] break-keep font-large mb-12" style={{ fontFamily: "Pretendard" }}>
                 {mainText.split('\n').map((line, i) => (
                   <span key={i} className="block mb-2">{line}</span>
                 ))}
