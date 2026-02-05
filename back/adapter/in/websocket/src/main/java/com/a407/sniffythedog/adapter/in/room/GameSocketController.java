@@ -25,6 +25,7 @@ public class GameSocketController {
     private final KickUserUseCase kickUserUseCase;
     private final RestartGameUseCase restartGameUseCase;
     private final PhaseEndUseCase phaseEndUseCase;
+    private final SkipTimerUseCase skipTimerUseCase;
 
     @MessageMapping("/rooms/{roomCode}/join")
     public void joinRoom(@DestinationVariable String roomCode,
@@ -145,4 +146,27 @@ public class GameSocketController {
     }
 
     public record PhaseEndRequest(String phase, String requestId) {}
+
+    /**
+     * 타이머 스킵 — 현재 페이즈 종료 시각을 지금+3초로 갱신 (테스트용)
+     */
+    @MessageMapping("/rooms/{roomCode}/timer/skip")
+    public void skipTimer(
+            @DestinationVariable String roomCode,
+            @Payload SkipTimerRequest request,
+            Principal principal
+    ) {
+        Long userId = Long.valueOf(principal.getName());
+
+        SkipTimerCommand command = new SkipTimerCommand(
+                roomCode,
+                userId,
+                request.phase(),
+                request.requestId()
+        );
+
+        skipTimerUseCase.execute(command);
+    }
+
+    public record SkipTimerRequest(String phase, String requestId) {}
 }

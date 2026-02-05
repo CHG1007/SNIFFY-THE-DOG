@@ -121,7 +121,6 @@ export default function RoomPage() {
     <div className="w-full h-screen overflow-hidden flex flex-col">
       <LobbyLayout
         backgroundUrl="/assets/images/roompage/background.png"
-        onVideoTest={() => navigate("/video-test")}
         topMenus={
           <>
             <TopMenu label="게임찾기" onClick={() => setIsFindGameOpen(true)} />

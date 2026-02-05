@@ -304,6 +304,14 @@ class WebSocketClient {
       requestId: `phase-end-${Date.now()}`,
     });
   }
+
+  // 타이머 스킵 — 현재 페이즈 종료 시각을 지금+3초로 갱신 (테스트용)
+  sendTimerSkip(phase) {
+    this.publish('timer/skip', {
+      phase,
+      requestId: `timer-skip-${Date.now()}`,
+    });
+  }
 }
 
 // 싱글톤으로 내보내기
