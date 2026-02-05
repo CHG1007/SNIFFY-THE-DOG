@@ -7,22 +7,22 @@ import ModalWrapper from './ModalWrapper';
 import ConfirmBtn from '../common/ConfirmBtn';
 import TextInput from '../common/TextInput';
 
-const CreateGameModal = ({ 
-  isOpen, 
-  onClose, 
-  initialData, 
-  isEdit = false, 
-  onSave, 
-  isHost = true, 
-  inviteCode 
+const CreateGameModal = ({
+  isOpen,
+  onClose,
+  initialData,
+  isEdit = false,
+  onSave,
+  isHost = true,
+  inviteCode
 }) => {
   const { enterRoom } = useRoomEntry();
   const userNickname = useAuthStore((state) => state.nickname || state.user?.nickname || "익명 유저");
 
   const [title, setTitle] = useState(initialData?.title || '');
-  const [capacity, setCapacity] = useState(initialData?.capacity || 6); 
+  const [capacity, setCapacity] = useState(initialData?.capacity || 6);
   const [isPrivate, setIsPrivate] = useState(initialData?.isPrivate || false);
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isCopied, setIsCopied] = useState(false);
@@ -58,13 +58,13 @@ const CreateGameModal = ({
           capacity: capacity,
           timeLimit: 60,
           isPrivate: isPrivate, // boolean 값 전송
-          developerMode: false, 
+          developerMode: false,
           clientType: "WEB",
           hostDisplayName: userNickname
         };
 
         const response = await createRoom(payload);
-        
+
         // ✅ [수정] 응답에서 roomId와 inviteCode 추출
         const roomId = response.data?.roomId || response.data?.id;
         const receivedInviteCode = response.data?.inviteCode; // 백엔드가 보내준 초대 코드
@@ -117,36 +117,37 @@ const CreateGameModal = ({
     <ModalWrapper isOpen={isOpen} onClose={onClose}>
       <div className="flex flex-col items-center w-full h-full pt-4 text-white">
         <div className="flex justify-between items-center w-full mb-6">
-           <h2 className="text-3xl font-black tracking-widest text-center flex-1 ml-8">
-             {isEdit ? "ROOM INFO" : "GAME CREATE"}
-           </h2>
+          <h2 className="text-3xl font-black tracking-widest text-center flex-1 ml-8">
+            {isEdit ? "ROOM INFO" : "GAME CREATE"}
+          </h2>
         </div>
 
         {/* 초대 코드 표시 (수정 모드 + 비공개 방일 때) */}
         {isEdit && isPrivate && inviteCode && (
           <div className="w-full flex items-center gap-4 mb-6">
-             <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-primary">CODE</span>
-             <div className="flex-1 flex items-center justify-between bg-black/30 rounded-lg px-4 py-2 border border-white/10">
-                <span className="text-xl font-mono tracking-widest text-orange-400 font-bold">{inviteCode}</span>
-                <button 
-                  onClick={handleCopyCode}
-                  className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 group"
-                >
-                  {isCopied ? <Check size={20} className="text-green-500" /> : <Copy size={20} className="text-gray-400 group-hover:text-white" />}
-                </button>
-             </div>
+            <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-primary">CODE</span>
+            <div className="flex-1 flex items-center justify-between bg-black/30 rounded-lg px-4 py-2 border border-white/10">
+              <span className="text-xl font-mono tracking-widest text-orange-400 font-bold">{inviteCode}</span>
+              <button
+                onClick={handleCopyCode}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center gap-2 group"
+              >
+                {isCopied ? <Check size={20} className="text-green-500" /> : <Copy size={20} className="text-gray-400 group-hover:text-white" />}
+              </button>
+            </div>
           </div>
         )}
 
         {/* 1. 방 제목 */}
         <div className="w-full flex items-center gap-4 mb-4">
           <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-primary">TITLE</span>
-          <TextInput 
+          <TextInput
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="방 제목"
             errorMsg={error}
             disabled={isReadOnly}
+            containerClassName="flex-1"
             className={isReadOnly ? "opacity-70 cursor-not-allowed" : ""}
           />
         </div>
@@ -169,7 +170,7 @@ const CreateGameModal = ({
         {/* 3. 비공개 여부 */}
         <div className="w-full flex items-center gap-4 mb-8">
           <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-primary">PRIVATE</span>
-          <button 
+          <button
             onClick={() => !isReadOnly && setIsPrivate(!isPrivate)}
             disabled={isReadOnly}
             className={`w-14 h-7 rounded-full relative transition-colors p-1 ${!isReadOnly ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} ${isPrivate ? 'bg-primary' : 'bg-[#333333]'}`}
@@ -185,26 +186,26 @@ const CreateGameModal = ({
         <div className="flex w-full gap-4 mt-auto mb-4">
           {isHost ? (
             <>
-              <ConfirmBtn 
-                text={isLoading ? "처리 중..." : (isEdit ? "SAVE" : "CREATE")} 
-                className="flex-1 text-xl py-4 bg-primary hover:bg-[#ffaa44]" 
-                onClick={handleAction} 
+              <ConfirmBtn
+                text={isLoading ? "처리 중..." : (isEdit ? "SAVE" : "CREATE")}
+                className="flex-1 text-xl py-4 bg-primary hover:bg-[#ffaa44]"
+                onClick={handleAction}
                 disabled={isLoading}
               />
-              <ConfirmBtn 
-                text="CANCEL" 
-                variant="secondary" 
-                className="flex-1 text-xl py-4" 
-                onClick={onClose} 
+              <ConfirmBtn
+                text="CANCEL"
+                variant="secondary"
+                className="flex-1 text-xl py-4"
+                onClick={onClose}
                 disabled={isLoading}
               />
             </>
           ) : (
-            <ConfirmBtn 
-              text="CLOSE" 
-              variant="secondary" 
-              className="w-full text-xl py-4" 
-              onClick={onClose} 
+            <ConfirmBtn
+              text="CLOSE"
+              variant="secondary"
+              className="w-full text-xl py-4"
+              onClick={onClose}
             />
           )}
         </div>

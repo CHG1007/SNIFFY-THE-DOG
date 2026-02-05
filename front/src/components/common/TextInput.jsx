@@ -1,12 +1,14 @@
-const TextInput = ({ value, onChange, placeholder, errorMsg, ...rest }) => {
+const TextInput = ({ value, onChange, placeholder, errorMsg, className = "", containerClassName = "w-full", ...rest }) => {
+  const baseClasses = "w-full bg-[#1a1a1a] border-1 border-primary rounded-xl px-4 py-4 text-white text-center text-xl outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-gray-600 font-bold";
+
   return (
-    <div className="w-full flex flex-col items-center gap-2">
+    <div className={`flex flex-col items-center gap-2 ${containerClassName}`}>
       <input
         type="text"
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full bg-[#1a1a1a] border-1 border-primary rounded-xl px-4 py-4 text-white text-center text-xl outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-gray-600 font-bold"
+        className={`${baseClasses} ${className}`}
         {...rest}
       />
       {/* 에러 메시지가 있을 때만 노출 (닉네임이 별로입니다 등) */}
