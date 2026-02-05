@@ -36,7 +36,7 @@ const WaitingGrid = ({ players, myId, isHost, onKick, capacity = 6 }) => {
             ) : (
               // Empty Slot (Simplified - Rolled back to Prompt 15)
               <div className="w-full aspect-video bg-[#1a1a1a]/30 rounded-xl border-2 border-dashed border-white/5 flex items-center justify-center group">
-                 <span className="text-white/10 text-sm font-bold group-hover:text-[#ff8a00]/30 transition-colors tracking-widest">
+                 <span className="text-white/10 text-sm font-bold group-hover:text-primary/30 transition-colors tracking-widest">
                    WAITING...
                  </span>
               </div>

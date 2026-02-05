@@ -11,7 +11,7 @@ const RoleAssignModal = ({ isOpen, role, roleInfo, onClose }) => {
         <p className="text-xl text-gray-300 mb-12">{roleInfo.description}</p>
         <button
           onClick={onClose}
-          className="px-8 py-3 bg-[#ff8a00] text-white font-bold rounded-full hover:bg-orange-500 transition-all"
+          className="px-8 py-3 bg-primary text-white font-bold rounded-full hover:bg-orange-500 transition-all"
         >
           확인
         </button>

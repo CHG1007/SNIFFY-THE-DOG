@@ -15,7 +15,7 @@ const GameEndModal = ({ isOpen, winnerTeam, mvpName, onResultClick }) => {
         )}
         <button
           onClick={onResultClick}
-          className="px-8 py-4 bg-[#ff8a00] text-white text-xl font-bold rounded-full hover:bg-orange-500 transition-all"
+          className="px-8 py-4 bg-primary text-white text-xl font-bold rounded-full hover:bg-orange-500 transition-all"
         >
           결과 화면 보기
         </button>
