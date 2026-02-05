@@ -19,7 +19,7 @@ const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteRequest, size = 
 
   return (
     <div className={`relative w-full h-full bg-[#1a1a1a] rounded-xl overflow-hidden border-2 transition-all duration-500
-      ${player.isAlive ? (isBig ? 'border-[#ff8a00] border-4 shadow-[0_0_50px_rgba(255,138,0,0.3)]' : 'border-white/5') : 'border-red-900/50 grayscale opacity-60'} 
+      ${player.isAlive ? (isBig ? 'border-primary border-4 shadow-[0_0_50px_rgba(255,138,0,0.3)]' : 'border-white/5') : 'border-red-900/50 grayscale opacity-60'} 
       group`}>
       {/* 비디오 캔버스 */}
       <div className="w-full h-full">
@@ -36,10 +36,10 @@ const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteRequest, size = 
               ${isSmall ? 'w-8 h-8' : 'w-12 h-12'}
               ${didIVote 
                 ? "bg-gray-800/80 border-gray-600 cursor-not-allowed" 
-                : "bg-black/60 border-[#ff8a00] hover:scale-110 active:scale-95 shadow-[0_0_15px_rgba(255,138,0,0.3)]"
+                : "bg-black/60 border-primary hover:scale-110 active:scale-95 shadow-[0_0_15px_rgba(255,138,0,0.3)]"
               }`}
           >
-            <span className={`font-black italic ${isSmall ? 'text-[8px]' : 'text-[10px]'} ${didIVote ? "text-gray-400" : "text-[#ff8a00]"}`}>
+            <span className={`font-black italic ${isSmall ? 'text-[8px]' : 'text-[10px]'} ${didIVote ? "text-gray-400" : "text-primary"}`}>
               {didIVote ? "DONE" : "VOTE"} 
             </span>
           </button>
@@ -59,7 +59,7 @@ const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteRequest, size = 
           {[1, 2, 3, 4, 5].map((i) => (
             <div
               key={i}
-              className="w-1 bg-[#ff8a00] transition-all duration-150"
+              className="w-1 bg-primary transition-all duration-150"
               style={{ height: `${Math.max(10, audioLevel * (i * 0.2))}%` }}
             />
           ))}

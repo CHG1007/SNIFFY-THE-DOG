@@ -89,7 +89,7 @@ const AdminUserTable = ({ users = [] }) => {
                   <td className="px-6 py-4 text-gray-400">
                     {user.socialProvider}
                   </td>
-                  <td className="px-6 py-4 text-[#ff8a00] font-medium">
+                  <td className="px-6 py-4 text-primary font-medium">
                     {user.role}
                   </td>
                   <td className="px-6 py-4">{getStatusBadge(user.status)}</td>

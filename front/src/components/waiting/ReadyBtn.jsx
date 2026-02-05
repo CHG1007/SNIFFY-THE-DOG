@@ -12,7 +12,7 @@ const ReadyBtn = ({ isReady, isMe, onClick }) => {
       className={`
         w-full py-3 rounded-xl font-black text-2xl transition-all shadow-md
         ${isReady 
-          ? 'bg-[#ff8a00] text-white'           // 준비 완료: 주황색
+          ? 'bg-primary text-white'           // 준비 완료: 주황색
           : 'bg-[#1a1a1a] text-white/40 border border-white/10' // 준비 전: 어두운 회색
         }
         ${isMe 
