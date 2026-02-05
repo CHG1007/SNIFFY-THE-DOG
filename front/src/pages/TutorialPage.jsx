@@ -5,10 +5,10 @@ import { ChevronLeft, ChevronRight, Trophy, ArrowLeft } from 'lucide-react';
 // 1. 이미지 경로 설정 (Public 폴더 사용)
 const bgMain = '/assets/images/tutorial/bg_main.png';
 const roleIntro = '/assets/images/tutorial/role_intro.png';
-const roleMafia = '/assets/images/tutorial/role_mafia.png';
-const rolePolice = '/assets/images/tutorial/role_police.png';
-const roleDoctor = '/assets/images/tutorial/role_doctor.png';
-const roleCitizen = '/assets/images/tutorial/role_citizen.png';
+const roleMafia = '/assets/images/mypage/profile/profile1.png';
+const rolePolice = '/assets/images/mypage/profile/profile2.png';
+const roleDoctor = '/assets/images/mypage/profile/profile4.png';
+const roleCitizen = '/assets/images/mypage/profile/profile3.png';
 
 const TutorialPage = () => {
   const navigate = useNavigate();

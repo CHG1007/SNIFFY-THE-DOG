@@ -106,6 +106,9 @@ const GamePage = () => {
   const [analysisResult, setAnalysisResult] = useState(null);  // 분석 결과
   const [isGuidanceOpen, setIsGuidanceOpen] = useState(false); // 분석 알림 모달 상태
 
+  // 로딩 상태 관리
+  const [isAssetLoaded, setIsAssetLoaded] = useState(false);
+  
   useEffect(() => {
     myInfoRef.current = myInfo;
     playersRef.current = players;
@@ -138,6 +141,15 @@ const GamePage = () => {
     // roomCode만 설정 (initRoom은 전체 리셋하므로 사용하지 않음)
     useGameStore.setState({ roomCode: roomId });
   }, [location.state, roomId, setMyInfo, setPlayers]);
+
+  useEffect(() => {
+    const state = location.state || {};
+    if (state.myInfo) setMyInfo(state.myInfo);
+    if (state.players && state.players.length > 0) setPlayers(state.players);
+    if (state.capacity) setCapacity(state.capacity);
+    useGameStore.setState({ roomCode: roomId });
+  }, [location.state, roomId, setMyInfo, setPlayers]);
+  
 
   // 플레이어 데이터 표준화
   const standardizedPlayers = useMemo(() => players.map(p => ({
@@ -618,6 +630,37 @@ const GamePage = () => {
     if (!nightResult?.killedUserId) return null;
     return standardizedPlayers.find(p => String(p.userId) === String(nightResult.killedUserId));
   }, [nightResult, standardizedPlayers]);
+
+  
+  // 리소스 프리로딩 
+  useEffect(() => {
+    // 게임 필수 이미지 로드 체크 (대기실에서 캐싱했지만 확실히 한 번 더!)
+    const gameAssets = [
+      "/assets/images/gamepage/death.png",
+      // 추가적인 게임 리소스가 있다면 여기에 추가
+    ];
+
+    const loadImages = gameAssets.map(src => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = resolve;
+        img.onerror = resolve; // 에러가 나도 게임 진행을 위해 resolve
+      });
+    });
+
+    // 모든 에셋 로딩이 끝나면 상태 변경
+    Promise.all(loadImages).then(() => {
+      // 0.5초 정도 부드러운 전환을 위해 여유를 둡니다.
+      setTimeout(() => setIsAssetLoaded(true), 500);
+    });
+  }, []);
+
+
+  // 준비가 안 되어 있을 시 로딩 페이지
+  if (!isAssetLoaded || players.length === 0 || !myInfo || !localTrack) {
+    return <LoadingPage message="게임 월드에 접속 중입니다..." />;
+  }
 
   // === 렌더링 ===
   return (

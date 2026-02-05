@@ -4,51 +4,11 @@ import LastBeggingModal from '../components/modals/LastBeggingModal';
 import FutureReportModal from "../components/modals/FutureReportModal";
 import useGameStore from "../stores/useGameStore"
 import ComplaintModal from "../components/modals/ComplaintModal";
-
-const reportData = {
-  MAFIA: {
-    win: { jobTitle: "전설의 고독한 미식가", stats: [], message: "밤의 미식회가 승리로 끝났습니다. 이제 당신은 누구의 눈치도 보지 않고 최고급 만찬을 즐길 수 있습니다." },
-    lose: { jobTitle: "은퇴한 뒷골목 대장", stats: [], message: "계획은 완벽했으나 운이 없었군요. 이제 뒷골목을 떠나 조용히 요양하며 지난날을 회상할 시간입니다." }
-  },
-  POLICE: {
-    win: { jobTitle: "전설의 수사반장", stats: [], message: "모든 범죄를 소탕했습니다! 당신은 이제 정의의 상징으로 역사에 기록될 것이며, 평생 연금을 받으며 평화로운 노후를 보낼 것입니다." },
-    lose: { jobTitle: "좌천된 파출소 순경", stats: [], message: "범인을 눈앞에서 놓친 충격으로 명예퇴직을 선택했습니다. 조용한 시골에서 낚시나 하며 여생을 보내게 될 것입니다." }
-  },
-  DOCTOR: {
-    win: { jobTitle: "신의 손을 가진 명의", stats: [], message: "당신이 살려낸 생명들이 마을을 평화롭게 만들었습니다. 이제 메스를 내려놓고 당신의 건강을 돌보며 행복하게 사세요." },
-    lose: { jobTitle: "면허 정지 위기의 돌팔이", stats: [], message: "치료법이 조금 독특했을 뿐인데... 결국 의사 가운을 벗게 되었습니다. 이제 약초나 캐러 산으로 떠날 준비를 하세요." }
-  },
-  CITIZEN: [
-    {
-      jobTitle: "영양사",
-      stats: [
-        { label: "갱생시킨 편식쟁이 학생", value: "2,500명", desc: "(피망까지 다 먹게 만듦)" },
-        { label: "뒤집개로 때려잡은 마피아", value: "48명", desc: "(스테이크 굽듯이 노릇하게 구워줌)" },
-        { label: "급식실 위생 점수", value: "100만 점", desc: "(바이러스가 미끄러져서 못 들어옴)" },
-      ],
-      message: "드디어 뒤집개를 내려놓을 시간입니다. 누구의 입맛도 맞출 필요 없는 오직 당신만을 위한 만찬을 즐기며 평생을 행복하게 살 것입니다."
-    }
-    // ... 시민 직업 50개 추가 지점
-  ]
-};
-
-const getRoleImage = (role) => {
-  switch (role) {
-    case 'MAFIA': return "/assets/images/resultpage/mafia.png";
-    case 'POLICE': return "/assets/images/resultpage/police.png";
-    case 'DOCTOR': return "/assets/images/resultpage/doctor.png";
-    default: return "/assets/images/resultpage/citizen.png";
-  }
-};
-
-const ROLE_LABEL = {
-  MAFIA:   { name: '마피아', color: 'text-red-400',   bg: 'bg-red-900/40',   border: 'border-red-500/60' },
-  POLICE:  { name: '경찰',   color: 'text-blue-400',  bg: 'bg-blue-900/40',  border: 'border-blue-500/60' },
-  DOCTOR:  { name: '의사',   color: 'text-yellow-400', bg: 'bg-yellow-900/40', border: 'border-yellow-500/60' },
-  CITIZEN: { name: '시민',   color: 'text-green-400', bg: 'bg-green-900/40',  border: 'border-green-500/60' },
-};
+import useResultStore from "../stores/useResultStore";
 
 export default function ResultPage() {
+  const { getFutureReport, ROLE_LABELS, getRoleImage } = useResultStore();
+
   const location = useLocation();
   const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
@@ -91,18 +51,7 @@ export default function ResultPage() {
     const isWin = (myRole === 'MAFIA' && winnerTeam === 'MAFIA') || 
                   (myRole !== 'MAFIA' && winnerTeam === 'CITIZEN');
 
-    let report;
-    if (myRole === 'MAFIA') {
-      report = isWin ? reportData.MAFIA.win : reportData.MAFIA.lose;
-    } else if (myRole === 'POLICE') {
-      report = isWin ? reportData.POLICE.win : reportData.POLICE.lose;
-    } else if (myRole === 'DOCTOR') {
-      report = isWin ? reportData.DOCTOR.win : reportData.DOCTOR.lose;
-    } else {
-      // 시민은 승패 상관없이 랜덤 혹은 승패에 따른 랜덤을 원하시면 로직 추가 가능
-      const citizenJobs = reportData.CITIZEN;
-      report = citizenJobs[Math.floor(Math.random() * citizenJobs.length)];
-    }
+   const report = getFutureReport(myRole, isWin);
 
     setSelectedReport(report);
     setShowFutureReport(true);
@@ -169,7 +118,7 @@ export default function ResultPage() {
                     />
 
                     {(() => {
-                      const label = ROLE_LABEL[p.role || p.roleLabel] || ROLE_LABEL.CITIZEN;
+                      const label = ROLE_LABELS[p.role || p.roleLabel] || ROLE_LABELS.CITIZEN;
                       return (
                         <span className={`mt-2 px-3 py-0.5 rounded-full text-xs font-bold border ${label.bg} ${label.border} ${label.color}`}>
                           {label.name}
