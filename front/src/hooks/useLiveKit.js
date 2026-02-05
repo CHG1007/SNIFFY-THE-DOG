@@ -50,8 +50,6 @@ export default function useLiveKit(roomId) {
 
     const connect = async () => {
       try {
-        setRoomId(roomId);
-
         // 1. 로컬 미디어 트랙 생성
         let createdTracks = [];
         try {
@@ -79,7 +77,6 @@ export default function useLiveKit(roomId) {
 
         // 3. Room 생성 및 이벤트 등록
         const newRoom = new Room({ adaptiveStream: true, dynacast: true });
-        setRoom(newRoom);
 
         newRoom.on(RoomEvent.Connected, () => {
           if (import.meta.env.DEV) console.log('[LiveKit] 연결 성공');
@@ -122,10 +119,18 @@ export default function useLiveKit(roomId) {
         // 5. 로컬 트랙 발행
         if (createdTracks.length > 0) {
           await Promise.all(createdTracks.map(t => newRoom.localParticipant.publishTrack(t)));
+          if (cancelled) { newRoom.disconnect(); return; }
           if (import.meta.env.DEV) {
             console.log('[LiveKit] 로컬 트랙 발행 완료. 본인 identity:', newRoom.localParticipant.identity);
           }
         }
+
+        // 6. 모든 await 완료 후 스토어 업데이트
+        // setRoom/setRoomId는 effect 의존 배열에 포함되어 있으므로,
+        // async 중간에 호출하면 effect cleanup이 실행되어 cancelled가 true로 되어 연결이 중단됨.
+        // 따라서 모든 비동기 작업이 끝난 후에만 호출한다.
+        setRoom(newRoom);
+        setRoomId(roomId);
       } catch (err) {
         console.error('[LiveKit] 연결 실패:', err);
       } finally {
