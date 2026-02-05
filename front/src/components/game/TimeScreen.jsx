@@ -28,8 +28,8 @@ const TimeScreen = ({ timeLeft, gameStatus, onSkipTimer }) => {
       <span className="text-white font-mono text-3xl font-black tracking-widest min-w-[80px] text-center">
         {timeLeft}
       </span>
-      {/* DEV 모드 전용 테스트 버튼 — 현재 페이즈를 3초 남은 상태로 스킵 */}
-      {import.meta.env.DEV && onSkipTimer && (
+      {/* 타이머 스킵 버튼 — 현재 페이즈를 3초 남은 상태로 스킵 */}
+      {onSkipTimer && (
         <button
           onClick={onSkipTimer}
           className="ml-2 text-xs bg-orange-600/80 hover:bg-orange-500 text-white px-2 py-0.5 rounded cursor-pointer"
