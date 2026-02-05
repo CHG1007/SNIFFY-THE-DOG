@@ -500,6 +500,7 @@ const GamePage = () => {
 
     if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
       if (isMe) return rawTrack;
+      if (!amIAlive) return rawTrack; // 죽은 사람은 모든 플레이어 관찰 가능
       return player.isAlive ? rawTrack : null;
     }
 
@@ -548,6 +549,7 @@ const GamePage = () => {
     switch (myInfo.role) {
       case 'MAFIA':
         websocketClient.sendMafiaConfirm(targetUserId);
+        setMyNightAction(targetUserId);
         break;
       case 'DOCTOR':
         websocketClient.sendDoctorSelect(targetUserId);
@@ -701,6 +703,8 @@ const GamePage = () => {
                 gameState: { trial: { accusedUserId: accusedPlayer.userId } },
                 players: standardizedPlayers
               }}
+              getTrack={getVisibleTrack}
+              myUserId={myInfo.userId}
               onTimeout={() => { }}
             />
           </div>
