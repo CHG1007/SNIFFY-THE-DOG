@@ -434,6 +434,15 @@ const GamePage = () => {
     return () => clearInterval(timer);
   }, [phaseEndsAt]);
 
+  useEffect(() => {
+    // 💡 낮(DAY)이나 최후 발언(FINAL_SPEECH)이 아니게 되면 
+    // 선택 모드와 안내창을 자동으로 꺼줍니다.
+    if (gamePhase !== 'DAY' && gamePhase !== 'FINAL_SPEECH') {
+      setIsSelectMode(false); // 선택 모드 해제
+      setIsGuidanceOpen(false); // 안내 문구 닫기
+    }
+  }, [gamePhase]);
+
   // Phase End 방식
   useEffect(() => {
     const timedPhases = ['COUNTDOWN', 'ASSIGN_ROLE', 'DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'NIGHT', 'DAY_RESULT'];
@@ -614,7 +623,8 @@ const GamePage = () => {
   // ***** AI 찬스 관리 *****
   const handleAiChance = async (targetPlayer) => {
     // 1. 방어 로직: 낮이 아니거나, 죽었거나, 시민이 아니거나, 찬스가 없거나, 이미 분석 중이면 중단
-    if (gamePhase !== 'DAY' || !amIAlive || myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0 || isAnalyzing) {
+    const isCorrectPhase = gamePhase === 'DAY' || gamePhase === 'DEFENSE';
+    if (!isCorrectPhase || !amIAlive || myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0 || isAnalyzing) {
       return;
     }
 
@@ -739,18 +749,22 @@ const GamePage = () => {
           <button
             onClick={() => {
               // 💡 클릭 방어: 낮이고, 살아있고, 시민이고, 찬스가 있을 때만 작동
-              if (gamePhase !== 'DAY' || !amIAlive || myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0) return;
+              const canUseChance = (gamePhase === 'DAY' || gamePhase === 'DEFENSE') && amIAlive && myInfo.aiChanceRemaining > 0;
+              if (!canUseChance || isAnalyzing) return;
 
-              const newSelectMode = !isSelectMode;
-              setIsSelectMode(newSelectMode);
-              if (newSelectMode) {
-                setIsGuidanceOpen(true);
+              if (!isSelectMode) {
+                // 💡 1. 아직 분석 모드가 아닐 때는 안내창만 띄웁니다
+                setIsGuidanceOpen(true); 
+              } else {
+                // 💡 2. 이미 네모네모가 켜져 있을 때 버튼을 누르면 취소합니다.
+                setIsSelectMode(false);
+                setIsGuidanceOpen(false);
               }
             }}
             // 💡 비활성화 조건: 낮이 아니거나, 죽었거나, 시민이 아니거나, 찬스가 없거나, 분석 중일 때
             disabled={
               isAnalyzing ||
-              gamePhase !== 'DAY' ||
+              !(gamePhase === 'DAY' || gamePhase === 'DEFENSE') ||
               !amIAlive ||
               myInfo.role !== 'CITIZEN' ||
               myInfo.aiChanceRemaining <= 0
@@ -762,7 +776,9 @@ const GamePage = () => {
                   ? "bg-white text-[#69D6E3] border-2 border-[#69D6E3] animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.7)]"
                   : "bg-[#69D6E3] text-white border-2 border-white/30 hover:opacity-90 shadow-[0_0_10px_rgba(105,214,227,0.4)]"
               } 
-        ${(gamePhase !== 'DAY' || !amIAlive || myInfo.aiChanceRemaining <= 0) && !isAnalyzing && !isSelectMode ? "opacity-40 cursor-not-allowed" : ""}`}
+        ${(!(gamePhase === 'DAY' || gamePhase === 'DEFENSE') || !amIAlive || myInfo.aiChanceRemaining <= 0) && !isAnalyzing && !isSelectMode 
+          ? "opacity-40 cursor-not-allowed" 
+          : ""}`}
           >
             {isAnalyzing ? "분석 중..." : isSelectMode ? "선택 취소" : "킁킁 찬스"}
           </button>
@@ -800,6 +816,9 @@ const GamePage = () => {
               getTrack={getVisibleTrack}
               myUserId={myInfo.userId}
               onTimeout={() => { }}
+              onAiAnalyze={handleAiChance} 
+              isSelectMode={isSelectMode}
+              isGuidanceOpen={isGuidanceOpen}
             />
           </div>
         ) : (
@@ -811,7 +830,7 @@ const GamePage = () => {
               return (
                 <div
                   key={player ? player.userId : `empty-${index}`}
-                  className={`flex-grow-0 flex-shrink-0 ${getFlexBasis(capacity)} min-w-[280px] max-w-[400px] transition-all duration-500`}
+                  className={`flex-grow-0 flex-shrink-0 ${getFlexBasis(capacity)} min-w-[280px] max-w-[400px] transition-all duration-500 ${isSelectMode ? "z-[70]" : "z-10"}`}
                 >
                   {player ? (
                     <div className="w-full aspect-video relative group">
@@ -828,7 +847,7 @@ const GamePage = () => {
                       {/* AI 선택 모드일 때만 나타나는 투명 클릭 판 */}
                       {isSelectMode && String(player.userId) !== String(myInfo.userId) && player.isAlive && (
                         <div
-                          onClick={() => handleAiChance(player)}
+                          onClick={(e) => {e.stopPropagation(); handleAiChance(player)}}
                           className="absolute inset-0 z-[60] bg-[#69D6E3]/10 cursor-crosshair flex items-center justify-center transition-all border-4 border-[#69D6E3] rounded-xl opacity-0 group-hover:opacity-100"
                         >
                           <div className="bg-[#69D6E3] text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg animate-pulse">
@@ -968,7 +987,10 @@ const GamePage = () => {
       {/* 안내 모달 (얼굴 클릭하라는 창) */}
       <UserSelectModal
         isOpen={isGuidanceOpen}
-        onClose={() => setIsGuidanceOpen(false)}
+        onClose={() => {
+          setIsGuidanceOpen(false);
+          setIsSelectMode(true);
+        }}
       />
     </div>
   );

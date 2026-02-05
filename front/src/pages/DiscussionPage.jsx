@@ -1,7 +1,7 @@
 import TimeLine from '../components/game/TimeLine';
 import GameVideoSlot from '../components/game/GameVideoSlot'
 
-const DiscussionPage = ({ roomSession, getTrack, myUserId, onTimeout }) => {
+const DiscussionPage = ({ roomSession, getTrack, myUserId, onTimeout, onAiAnalyze, isSelectMode, isGuidanceOpen }) => {
   // 1. 백엔드 설계(2-3-3)의 TrialState에서 피고인 정보 추출
   const { accusedUserId, finalVote } = roomSession.gameState?.trial || {};
 
@@ -22,7 +22,7 @@ const DiscussionPage = ({ roomSession, getTrack, myUserId, onTimeout }) => {
       <div className="flex-1 w-full max-w-5xl flex flex-col items-center justify-center min-h-0 px-4">
         {accusedPlayer ? (
           <div className="w-full h-full flex flex-col items-center justify-center gap-6">
-            <div className="relative w-full aspect-video max-h-[55vh] rounded-2xl overflow-hidden border-2 border-[#ff8a00]/50">
+            <div className="relative w-full aspect-video max-h-[55vh] rounded-2xl overflow-hidden border-2 border-[#ff8a00]/50 group z-[100]">
               <GameVideoSlot
                 player={accusedPlayer}
                 isMe={String(accusedPlayer.userId) === String(myUserId)}
@@ -30,6 +30,22 @@ const DiscussionPage = ({ roomSession, getTrack, myUserId, onTimeout }) => {
                 canVote={false}
                 size="big"
               />
+              {isSelectMode && !isGuidanceOpen && String(accusedPlayer.userId) !== String(myUserId) && (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation(); // 영상 슬롯의 다른 클릭 방해 금지
+                    onAiAnalyze(accusedPlayer);
+                  }}
+                  className="absolute inset-0 z-[200] bg-[#69D6E3]/30 cursor-crosshair 
+                    flex items-center justify-center border-4 border-[#69D6E3] rounded-2xl 
+                    opacity-0 group-hover:opacity-100 transition-opacity duration-300
+                    pointer-events-auto"
+                >
+                  <div className="bg-[#69D6E3] text-white text-sm font-bold px-4 py-2 rounded-lg shadow-xl animate-pulse">
+                    피고인 감정 분석
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
