@@ -401,6 +401,14 @@ public class RoomSession {
         }
     }
 
+    /**
+     * phaseEndsAt만 갱신 (타이머 스킵용 — 페이즈 전환 없이 종료 시각만 변경)
+     */
+    public void updatePhaseEndsAt(Instant newEndsAt) {
+        this.gameState = gameState.withPhaseEndsAt(newEndsAt);
+        touch();
+    }
+
     public void transitionToPhase(Phase newPhase, Instant phaseEndsAt) {
         this.gameState = gameState.toPhase(newPhase, phaseEndsAt);
         touch();

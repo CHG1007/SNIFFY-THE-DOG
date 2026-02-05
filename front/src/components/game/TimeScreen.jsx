@@ -12,7 +12,7 @@ const PHASE_NAMES = {
   GAME_END: '게임 종료',
 };
 
-const TimeScreen = ({ timeLeft, gameStatus }) => {
+const TimeScreen = ({ timeLeft, gameStatus, onSkipTimer }) => {
   // 낮/밤 상태에 따른 아이콘 및 스타일 결정
   const isDayPhases = ["COUNTDOWN", "ASSIGN_ROLE", "DAY", "VOTE_1", "DEFENSE", "VOTE_2", "DAY_RESULT", "GAME_END"].includes(gameStatus);
   const phaseName = PHASE_NAMES[gameStatus] || gameStatus;
@@ -28,6 +28,15 @@ const TimeScreen = ({ timeLeft, gameStatus }) => {
       <span className="text-white font-mono text-3xl font-black tracking-widest min-w-[80px] text-center">
         {timeLeft}
       </span>
+      {/* DEV 모드 전용 테스트 버튼 — 현재 페이즈를 3초 남은 상태로 스킵 */}
+      {import.meta.env.DEV && onSkipTimer && (
+        <button
+          onClick={onSkipTimer}
+          className="ml-2 text-xs bg-orange-600/80 hover:bg-orange-500 text-white px-2 py-0.5 rounded cursor-pointer"
+        >
+          3초 남기기
+        </button>
+      )}
     </div>
   );
 };
