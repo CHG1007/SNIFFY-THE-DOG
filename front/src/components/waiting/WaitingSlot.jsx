@@ -51,7 +51,7 @@ const WaitingSlot = ({ player, isMe, isHost, onKickRequest }) => {
           track={player.track}
           stream={player.stream}
           isMuted={isMe || !player.isMicOn}
-          isLocal={isMe}
+          isLocal={true}
         />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.8)_100%)] pointer-events-none" />
       </div>

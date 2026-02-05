@@ -32,6 +32,10 @@ public class Participant {
         return new Participant(id, userId, gameId, job, result, isAlive);
     }
 
+    public static Participant create(UserId userId, GameHistoryId gameId, GameRole job, GameResult result, boolean isAlive) {
+        return new Participant(null, userId, gameId, job, result, isAlive);
+    }
+
     public ParticipantId getId() {
         return id;
     }

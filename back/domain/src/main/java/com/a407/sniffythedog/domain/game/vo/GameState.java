@@ -74,6 +74,13 @@ public record GameState(
         return new GameState(round, phase, phaseEndsAt, phaseEnded, dayVote, trial, newNight);
     }
 
+    /**
+     * phaseEndsAt만 교체 (타이머 스킵용 — phase/vote 상태 유지)
+     */
+    public GameState withPhaseEndsAt(Instant newEndsAt) {
+        return new GameState(round, phase, newEndsAt, phaseEnded, dayVote, trial, night);
+    }
+
     public boolean isPhaseExpired() {
         return Instant.now().isAfter(phaseEndsAt);
     }

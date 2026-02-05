@@ -14,6 +14,7 @@ import useLiveKit from '../hooks/useLiveKit';
 import GameVideoSlot from '../components/game/GameVideoSlot';
 import TimeScreen from '../components/game/TimeScreen';
 import DiscussionPage from './DiscussionPage';
+import LoadingPage from './LoadingPage';
 
 // Modals
 import VoteConfirmModal from '../components/modals/VoteConfirmModal';
@@ -28,7 +29,6 @@ import LastBeggingModal from '../components/modals/LastBeggingModal';
 // Refactored Modals
 import RoleAssignModal from '../components/modals/game/RoleAssignModal';
 import PoliceResultModal from '../components/modals/game/PoliceResultModal';
-import AiChanceResultModal from '../components/modals/game/AiChanceResultModal';
 
 // 시간 포맷 유틸리티
 const formatTime = (seconds) => {
@@ -69,7 +69,7 @@ const GamePage = () => {
   const {
     players, setPlayers, updatePlayerStatus,
     myInfo, setMyInfo, setMyRole,
-    gamePhase, setPhase, phaseEndsAt,
+    gamePhase, setPhase, phaseEndsAt, updatePhaseEndsAt,
     phaseEndSent, setPhaseEndSent,
     vote1, setVote1, setVote1Result, updateVote1Progress,
     vote2, setVote2, setVote2Result, updateVote2Progress,
@@ -82,7 +82,7 @@ const GamePage = () => {
   } = useGameStore();
 
   // LiveKit 자동 연결 (방 입장 시 즉시 연결)
-  const { tracks: liveTracks, localTrack, room: lkRoom } = useLiveKit(roomId);
+  const { tracks: liveTracks, localTrack, room: lkRoom, audioTracks, localAudioTrack, setAudioMuted } = useLiveKit(roomId);
 
   // 로컬 UI 상태
   const [remainingSeconds, setRemainingSeconds] = useState(0);
@@ -99,6 +99,7 @@ const GamePage = () => {
   const myInfoRef = useRef(myInfo);
   const playersRef = useRef(players);
   const gameFinishedPlayersRef = useRef([]);
+  const pendingVote1ResultRef = useRef(false);
 
   // ***** AI *****
   const { startAnalysis, isAnalyzing } = useAnalysis();        // 분석 시작
@@ -106,6 +107,9 @@ const GamePage = () => {
   const [analysisResult, setAnalysisResult] = useState(null);  // 분석 결과
   const [isGuidanceOpen, setIsGuidanceOpen] = useState(false); // 분석 알림 모달 상태
 
+  // 로딩 상태 관리
+  const [isAssetLoaded, setIsAssetLoaded] = useState(false);
+  
   useEffect(() => {
     myInfoRef.current = myInfo;
     playersRef.current = players;
@@ -138,6 +142,15 @@ const GamePage = () => {
     // roomCode만 설정 (initRoom은 전체 리셋하므로 사용하지 않음)
     useGameStore.setState({ roomCode: roomId });
   }, [location.state, roomId, setMyInfo, setPlayers]);
+
+  useEffect(() => {
+    const state = location.state || {};
+    if (state.myInfo) setMyInfo(state.myInfo);
+    if (state.players && state.players.length > 0) setPlayers(state.players);
+    if (state.capacity) setCapacity(state.capacity);
+    useGameStore.setState({ roomCode: roomId });
+  }, [location.state, roomId, setMyInfo, setPlayers]);
+  
 
   // 플레이어 데이터 표준화
   const standardizedPlayers = useMemo(() => players.map(p => ({
@@ -238,9 +251,14 @@ const GamePage = () => {
 
       // === 페이즈 변경 ===
       case 'PHASE_CHANGED':
+        if (pendingVote1ResultRef.current) {
+          pendingVote1ResultRef.current = false;
+          setShowVote1ResultModal(true);
+        } else {
+          setShowVote1ResultModal(false);
+        }
         setPhase(payload.phase, payload.phaseEndsAt);
         if (payload.version) setVersion(payload.version);
-        setShowVote1ResultModal(false);
         setShowVote2ResultModal(false);
         if (payload.role && !myInfoRef.current?.role) {
           setMyRole(payload.role, payload.aiChanceRemaining || 0);
@@ -258,6 +276,12 @@ const GamePage = () => {
         }
         break;
 
+      // === 타이머 스킵 ===
+      case 'TIMER_UPDATED':
+        // phaseEndsAt만 갱신 — 페이즈 전환이 아니므로 투표 등 기타 상태를 초기화하지 않음
+        updatePhaseEndsAt(payload.phaseEndsAt);
+        break;
+
       // === 1차 투표 ===
       case 'VOTE1_UPDATE':
         updateVote1Progress(payload.userId, payload.hasVoted);
@@ -266,7 +290,7 @@ const GamePage = () => {
 
       case 'VOTE1_RESULT':
         setVote1Result(payload.accusedUserId, payload.isTie);
-        setShowVote1ResultModal(true);
+        pendingVote1ResultRef.current = true;
         if (payload.version) setVersion(payload.version);
         break;
 
@@ -500,6 +524,7 @@ const GamePage = () => {
 
     if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
       if (isMe) return rawTrack;
+      if (!amIAlive) return rawTrack; // 죽은 사람은 모든 플레이어 관찰 가능
       return player.isAlive ? rawTrack : null;
     }
 
@@ -514,6 +539,27 @@ const GamePage = () => {
     // 기타 단계 (COUNTDOWN, ASSIGN_ROLE, DAY_RESULT 등): 제한 없음
     return rawTrack;
   };
+
+  // === 오디오 재생 규칙 (비디오와 동일한 페이즈별 기준) ===
+  useEffect(() => {
+    standardizedPlayers.forEach(player => {
+      const isMe = String(player.userId) === String(myInfo.userId);
+      if (isMe) return;
+
+      let audible = true;
+      if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
+        if (amIAlive) audible = player.isAlive;
+      } else if (gamePhase === 'NIGHT') {
+        if (myInfo.role !== 'MAFIA') {
+          audible = false;
+        } else {
+          audible = player.isAlive && mafiaMembers.has(String(player.userId));
+        }
+      }
+
+      setAudioMuted(String(player.userId), !audible);
+    });
+  }, [gamePhase, standardizedPlayers, myInfo.userId, myInfo.role, amIAlive, mafiaMembers, setAudioMuted]);
 
   // === 투표 핸들러 ===
   const handleVoteClick = (player) => {
@@ -548,6 +594,7 @@ const GamePage = () => {
     switch (myInfo.role) {
       case 'MAFIA':
         websocketClient.sendMafiaConfirm(targetUserId);
+        setMyNightAction(targetUserId);
         break;
       case 'DOCTOR':
         websocketClient.sendDoctorSelect(targetUserId);
@@ -637,12 +684,43 @@ const GamePage = () => {
     return standardizedPlayers.find(p => String(p.userId) === String(nightResult.killedUserId));
   }, [nightResult, standardizedPlayers]);
 
+  
+  // 리소스 프리로딩 
+  useEffect(() => {
+    // 게임 필수 이미지 로드 체크 (대기실에서 캐싱했지만 확실히 한 번 더!)
+    const gameAssets = [
+      "/assets/images/gamepage/death.png",
+      // 추가적인 게임 리소스가 있다면 여기에 추가
+    ];
+
+    const loadImages = gameAssets.map(src => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = resolve;
+        img.onerror = resolve; // 에러가 나도 게임 진행을 위해 resolve
+      });
+    });
+
+    // 모든 에셋 로딩이 끝나면 상태 변경
+    Promise.all(loadImages).then(() => {
+      // 0.5초 정도 부드러운 전환을 위해 여유를 둡니다.
+      setTimeout(() => setIsAssetLoaded(true), 500);
+    });
+  }, []);
+
+
+  // 준비가 안 되어 있을 시 로딩 페이지
+  if (!isAssetLoaded || players.length === 0 || !myInfo || !localTrack) {
+    return <LoadingPage message="게임 월드에 접속 중입니다..." />;
+  }
+
   // === 렌더링 ===
   return (
     <div className="h-screen w-full bg-[#0a0a0f] flex flex-col relative overflow-hidden">
       {/* 상단 시간 표시 */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[100]">
-        <TimeScreen timeLeft={formatTime(remainingSeconds)} gameStatus={gamePhase} />
+        <TimeScreen timeLeft={formatTime(remainingSeconds)} gameStatus={gamePhase} onSkipTimer={() => websocketClient.sendTimerSkip(gamePhase)} />
       </div>
 
       {/* AI 찬스 버튼 (시민, 낮에만) */}
@@ -719,6 +797,8 @@ const GamePage = () => {
                 gameState: { trial: { accusedUserId: accusedPlayer.userId } },
                 players: standardizedPlayers
               }}
+              getTrack={getVisibleTrack}
+              myUserId={myInfo.userId}
               onTimeout={() => { }}
             />
           </div>
@@ -739,6 +819,7 @@ const GamePage = () => {
                         player={player}
                         isMe={String(player.userId) === String(myInfo.userId)}
                         track={getVisibleTrack(player)}
+                        audioTrack={getVisibleTrack(player) ? (String(player.userId) === String(myInfo.userId) ? localAudioTrack : audioTracks[String(player.userId)]) : null}
                         canVote={gamePhase === 'VOTE_1' && amIAlive}
                         didIVote={vote1.hasVoted}
                         onVoteRequest={() => handleVoteClick(player)}
@@ -849,7 +930,7 @@ const GamePage = () => {
           targetPlayer={accusedPlayer}
           message={vote2.result?.approved
             ? "처형되었습니다."
-            : "생존했습니다."
+            : "생존했습니다."   
           }
           onTimeout={() => setShowVote2ResultModal(false)}
         />

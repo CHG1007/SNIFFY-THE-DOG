@@ -78,7 +78,7 @@ const handleJoin = async () => {
         <button
           onClick={handleJoin}
           disabled={isLoading}
-          className="w-full py-3 bg-[#ff8a00] hover:bg-[#ffaa44] disabled:bg-gray-600 text-white text-2xl font-black rounded-xl transition-all shadow-lg active:scale-95 mt-2 cursor-pointer"
+          className="w-full py-3 bg-primary hover:bg-[#ffaa44] disabled:bg-gray-600 text-white text-2xl font-black rounded-xl transition-all shadow-lg active:scale-95 mt-2 cursor-pointer"
         >
           {isLoading ? "입장 중..." : "입장 하기"}
         </button>

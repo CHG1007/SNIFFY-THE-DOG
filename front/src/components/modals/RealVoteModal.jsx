@@ -35,7 +35,7 @@ const RealVote = ({ accusedPlayer, onVoteComplete, onVote }) => {
           {/*  />*/}
           {/*</div>*/}
           <h2 className="text-4xl text-white font-bold leading-tight">
-            <span className="text-[#ff8a00]">{accusedPlayer?.nickname}</span>님을 <br/>
+            <span className="text-primary">{accusedPlayer?.nickname}</span>님을 <br/>
             <span className="text-3xl text-gray-300">처형하시겠습니까?</span>
           </h2>
         </div>

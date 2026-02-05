@@ -30,7 +30,7 @@ const UserSelectModal = ({ isOpen, onClose }) => {
           <div className="text-center mb-2">
             <p className="text-lg text-gray-300 leading-relaxed">
               분석할 사용자의 <br />
-              <span className="text-[#ff8a00] font-semibold">화면을 클릭</span>해주세요.
+              <span className="text-primary font-semibold">화면을 클릭</span>해주세요.
             </p>
           </div>
 

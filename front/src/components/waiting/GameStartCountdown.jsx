@@ -18,7 +18,7 @@ const GameStartCountdown = ({ onComplete }) => {
         <span className="text-white text-xl font-bold mb-4 tracking-widest animate-pulse">
           PREPARING GAME...
         </span>
-        <h1 className="text-[#ff8a00] text-[12rem] font-black italic drop-shadow-[0_0_30px_rgba(255,138,0,0.5)] leading-none">
+        <h1 className="text-primary text-[12rem] font-black italic drop-shadow-[0_0_30px_rgba(255,138,0,0.5)] leading-none">
           {count > 0 ? count : "GO!"}
         </h1>
       </div>

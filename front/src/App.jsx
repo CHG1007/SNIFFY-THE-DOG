@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import OnboardingPage from './pages/OnboardingPage';
 import TutorialPage from './pages/TutorialPage';
 import RoomPage from './pages/RoomPage';
-import VideoTestPage from './pages/VideoTestPage';
 import MyPage from './pages/MyPage';
 import AdminPage from './pages/AdminPage';
 import WaitingRoomPage from './pages/WaitingRoomPage';
@@ -15,6 +14,7 @@ import GamePage from './pages/GamePage';
 // Components
 import Header from './components/common/Header';
 import WithHeaderLayout from './components/common/WithHeaderLayout';
+import BGM from './components/common/BGM';
 
 // 1. 애니메이션 래퍼 
 const PageWrapper = ({ children }) => (
@@ -60,8 +60,7 @@ const AnimatedRoutes = () => {
         {/* 5. 게임 진행 페이지 */}
         <Route path="/game/:roomId" element={<PageWrapper><GamePage /></PageWrapper>} />
 
-        {/* 6. 테스트 페이지 */}
-        <Route path="/video-test" element={<PageWrapper><VideoTestPage /></PageWrapper>} />
+        {/* 6. 결과 페이지 */}
         <Route path="/result" element= {<PageWrapper><ResultPage /></PageWrapper>} />
       </Routes>
     </AnimatePresence>
@@ -73,6 +72,7 @@ function App() {
     <BrowserRouter>
       {/* 배경을 검은색으로 고정하여 애니메이션 효과 극대화 */}
       <div className="min-h-screen overflow-x-hidden bg-black">
+        {/* <BGM /> */}
         <AnimatedRoutes />
       </div>
     </BrowserRouter>

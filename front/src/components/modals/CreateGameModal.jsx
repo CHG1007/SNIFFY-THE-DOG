@@ -125,7 +125,7 @@ const CreateGameModal = ({
         {/* 초대 코드 표시 (수정 모드 + 비공개 방일 때) */}
         {isEdit && isPrivate && inviteCode && (
           <div className="w-full flex items-center gap-4 mb-6">
-             <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-[#ff8a00]">CODE</span>
+             <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-primary">CODE</span>
              <div className="flex-1 flex items-center justify-between bg-black/30 rounded-lg px-4 py-2 border border-white/10">
                 <span className="text-xl font-mono tracking-widest text-orange-400 font-bold">{inviteCode}</span>
                 <button 
@@ -140,7 +140,7 @@ const CreateGameModal = ({
 
         {/* 1. 방 제목 */}
         <div className="w-full flex items-center gap-4 mb-4">
-          <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-[#ff8a00]">TITLE</span>
+          <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-primary">TITLE</span>
           <TextInput 
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -153,7 +153,7 @@ const CreateGameModal = ({
 
         {/* 2. 인원 수 */}
         <div className="w-full flex items-center gap-4 mb-6">
-          <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-[#ff8a00]">MAX</span>
+          <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-primary">MAX</span>
           <div className={`flex items-center gap-4 bg-[#1a1a1a] p-1 rounded-xl border border-white/10 ${isReadOnly ? 'opacity-50' : ''}`}>
             {!isReadOnly && (
               <button onClick={() => changeCapacity(-1)} className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] rounded-lg text-2xl hover:bg-[#3a3a3a]">-</button>
@@ -168,11 +168,11 @@ const CreateGameModal = ({
 
         {/* 3. 비공개 여부 */}
         <div className="w-full flex items-center gap-4 mb-8">
-          <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-[#ff8a00]">PRIVATE</span>
+          <span className="text-xl font-bold w-20 flex-shrink-0 text-left text-primary">PRIVATE</span>
           <button 
             onClick={() => !isReadOnly && setIsPrivate(!isPrivate)}
             disabled={isReadOnly}
-            className={`w-14 h-7 rounded-full relative transition-colors p-1 ${!isReadOnly ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} ${isPrivate ? 'bg-[#ff8a00]' : 'bg-[#333333]'}`}
+            className={`w-14 h-7 rounded-full relative transition-colors p-1 ${!isReadOnly ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} ${isPrivate ? 'bg-primary' : 'bg-[#333333]'}`}
           >
             <div className={`bg-white w-5 h-5 rounded-full shadow-md transition-transform transform ${isPrivate ? 'translate-x-7' : 'translate-x-0'}`} />
           </button>
@@ -187,7 +187,7 @@ const CreateGameModal = ({
             <>
               <ConfirmBtn 
                 text={isLoading ? "처리 중..." : (isEdit ? "SAVE" : "CREATE")} 
-                className="flex-1 text-xl py-4 bg-[#ff8a00] hover:bg-[#ffaa44]" 
+                className="flex-1 text-xl py-4 bg-primary hover:bg-[#ffaa44]" 
                 onClick={handleAction} 
                 disabled={isLoading}
               />

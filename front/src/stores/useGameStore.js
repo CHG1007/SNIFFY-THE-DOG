@@ -151,6 +151,9 @@ const useGameStore = create((set, get) => ({
     return newState;
   }),
 
+  // phaseEndsAt만 갱신 (타이머 스킵용 — 투표 등 기타 상태 초기화 없음)
+  updatePhaseEndsAt: (phaseEndsAt) => set({ phaseEndsAt }),
+
   // Phase End 전송 플래그 설정
   setPhaseEndSent: (sent) => set({ phaseEndSent: sent }),
 
@@ -211,7 +214,7 @@ const useGameStore = create((set, get) => ({
 
   // 마피아 타겟 확정
   setMafiaLocked: (targetUserId) => set((state) => ({
-    nightAction: { ...state.nightAction, mafiaTarget: targetUserId, mafiaLocked: true },
+    nightAction: { ...state.nightAction, mafiaTarget: targetUserId, mafiaLocked: true, hasActed: true },
   })),
 
   // 내 밤 행동 완료

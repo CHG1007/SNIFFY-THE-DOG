@@ -37,6 +37,7 @@ const WaitingRoomPage = () => {
   const [targetKickPlayer, setTargetKickPlayer] = useState(null);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isVideoOn, setIsVideoOn] = useState(true);
+  const [isAssetLoaded, setIsAssetLoaded] = useState(false);
 
   // --- 방 나가기 상태 ---
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
@@ -49,7 +50,7 @@ const WaitingRoomPage = () => {
   const navigatingToGameRef = useRef(false);
 
   // LiveKit 연결
-  const { tracks: liveTracks, localTrack, toggleMic: lkToggleMic, toggleVideo: lkToggleVideo } = useLiveKit(roomId);
+  const { tracks: liveTracks, localTrack, toggleMic: lkToggleMic, toggleVideo: lkToggleVideo, mutedParticipants } = useLiveKit(roomId);
   const lkReset = useLiveKitStore(state => state.reset);
 
   // ✅ [초기화] 방 생성 직후라면 location state 정보를 우선 사용
@@ -73,6 +74,26 @@ const WaitingRoomPage = () => {
     myInfoRef.current = myInfo;
     locationRef.current = location;
   }, [myInfo, location]);
+
+  // ✅ 여기에 추가: 대기실 이미지 + 게임 이미지를 미리 다운로드-
+  useEffect(() => {
+    // 대기실 배경 먼저 로드 (이게 끝나야 로딩창이 사라짐)
+    const waitingBg = new Image();
+    waitingBg.src = "/assets/images/waitingroom/bg_main.png";
+    waitingBg.onload = () => {
+      setIsAssetLoaded(true); 
+    };
+
+    // 대기하는 동안 게임 페이지(GamePage) 이미지를 미리 받아둠 (캐싱)
+    const gameAssets = [
+      "/assets/images/gamepage/death.png", 
+    ];
+
+    gameAssets.forEach(src => {
+      const img = new Image();
+      img.src = src;
+    });
+  }, []);
 
   // --- 소켓 메시지 핸들러 ---
   const handleSocketMessage = useCallback((msg) => {
@@ -280,7 +301,10 @@ const WaitingRoomPage = () => {
   };
 
   // --- 렌더링 ---
-  if (!roomInfo || !myInfo) return <LoadingPage message="대기방에 입장 중입니다..." />;
+  // ✅ 삭제했던 자리에 이 짧은 코드를 넣으세요
+  if (!roomInfo || !myInfo || !isAssetLoaded) {
+    return <LoadingPage message="리소스 및 방 정보를 불러오는 중입니다..." />;
+  }
 
   const amIHost = myInfo.userId === roomInfo.hostUserId;
   const amIReady = myInfo.ready === true;
@@ -293,8 +317,8 @@ const WaitingRoomPage = () => {
       displayName: p.nickname || p.displayName,
       isHost: p.userId === roomInfo.hostUserId,
       ready: p.ready,
-      isMicOn: isMe ? isMicOn : true, // 상대방은 일단 켜져있다고 가정하거나 별도 싱크 필요
-      isVideoOn: isMe ? isVideoOn : true,
+      isMicOn: isMe ? isMicOn : !mutedParticipants[String(p.userId)]?.audio,
+      isVideoOn: isMe ? isVideoOn : !mutedParticipants[String(p.userId)]?.video,
       photo: p.profileImage,
       track: isMe ? localTrack : liveTracks[String(p.userId)],
     };

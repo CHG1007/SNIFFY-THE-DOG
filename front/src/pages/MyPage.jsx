@@ -5,7 +5,7 @@ import { getMyProfile, getUserBadges, getUserGameHistory, updateNickname } from 
 import useAuthStore from '../stores/useAuthStore';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
 import AiAnalyzeModal from '../components/modals/AiAnalyzeModal';
-
+import { getAiAnalysis, requestAiAnalysis } from '../api/gameApi';
 
 const MyPage = () => {
   const { user, setUser } = useAuthStore();
@@ -28,11 +28,12 @@ const MyPage = () => {
       try {
         const [profileRes, badgesRes, gamesRes] = await Promise.all([
           getMyProfile(),
-          getUserBadges(),
+          getUserBadges().catch(err => ({ success: false, data: { badges: [] } })),
           getUserGameHistory(0, 20) // Load first 20 games
         ]);
 
         if (profileRes.success) {
+          console.log("🆔 나의 진짜 userId는 바로 이거야!! ->", profileRes.data.userId);
           setProfile(profileRes.data);
           setEditNickname(profileRes.data.nickname);
         }
@@ -43,6 +44,7 @@ const MyPage = () => {
         }
 
         if (gamesRes.success) {
+          console.log("📦 서버에서 온 전적 데이터 원본:", gamesRes.data);
           const mappedGames = (gamesRes.data.content || []).map(item => ({
             gameId: item.gameId,
             date: item.startAt ? new Date(item.startAt).toISOString().split('T')[0].replace(/-/g, '.') : '',
@@ -125,22 +127,28 @@ const MyPage = () => {
   };
 
   // 분석 버튼 클릭 시 실행할 핸들러 추가
-  const handleOpenAnalysis = async (gameId) => {
-    try {
-      // TODO: 실제 API 연결 (예: const res = await getGameAnalysis(gameId);)
-      // 현재는 테스트용 더미 데이터 세팅
-      const dummyData = {
-        totalSummary: "전체 게임 요약 3줄이 들어가는 공간입니다.\n두 번째 줄입니다.\n세 번째 줄입니다.",
-        playerReports: {
-          [profile?.nickname]: "나의 개인 활약상 2줄이 들어가는 공간입니다.\n두 번째 줄입니다."
-        }
-      };
-      setSelectedAnalysis(dummyData);
+  // MyPage.jsx의 handleOpenAnalysis 수정
+const handleOpenAnalysis = async (gameId) => {
+  try {
+    const res = await getAiAnalysis(gameId); 
+
+    // 💡 단순히 success만 보지 말고, 진짜 '내용(totalSummary)'이 있는지 확인하세요!
+    if (res.success && res.data && res.data.totalSummary && res.data.totalSummary !== "분석 데이터가 없습니다.") {
+      setSelectedAnalysis(res.data);
       setIsAiModalOpen(true);
-    } catch (error) {
-      console.error("분석 데이터를 가져오지 못했습니다.", error);
+    } else {
+      // 💡 데이터가 없거나 비어있으면 강제로 분석 요청(POST)을 보냅니다!
+      console.log("🚀 분석 데이터가 없어서 POST 요청을 보냅니다!");
+      await requestAiAnalysis(gameId); 
+      setErrorMsg("AI 분석을 시작했습니다.");
+      setSubMsg("잠시 후 다시 확인해주세요!");
     }
-  };
+  } catch (error) {
+    // 에러가 났을 때도 분석 요청 시도
+    await requestAiAnalysis(gameId);
+    setErrorMsg("리포트가 없어 분석을 요청했습니다.");
+  }
+};
 
   // Profile Image Logic: (userId % 4) + 1
   const profileImgIndex = profile ? (profile.userId % 4) + 1 : 1;
@@ -166,7 +174,7 @@ const MyPage = () => {
         </section>
 
         <section className="w-full flex-1 min-h-0 overflow-hidden">
-          <UserHistorySection games={games} onReport={handleReport}/>
+          <UserHistorySection games={games} onReport={handleOpenAnalysis}/>
         </section>
       </div>
       <AiAnalyzeModal 
