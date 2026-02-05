@@ -81,18 +81,6 @@ export default function ResultPage() {
     setShowFutureReport(false);
   };
 
-  const scheduleFirstModal = () => {
-    if (isModalOpen) return;
-
-    if (firstModalTimerRef.current) {
-      clearTimeout(firstModalTimerRef.current);
-    }
-
-    firstModalTimerRef.current = setTimeout(() => {
-      setIsModalOpen(true);
-    }, 5000);
-  };
-
   const getPlayerId = (player) => player?.userId ?? player?.id;
   const getPlayerName = (player) =>
     player?.nickname ?? player?.name ?? "Unknown";
@@ -101,7 +89,6 @@ export default function ResultPage() {
     setReportTarget(player);
     setReportSubmitError("");
     setReportModalOpen(true);
-    scheduleFirstModal();
   };
 
   const handleCloseReport = () => {
