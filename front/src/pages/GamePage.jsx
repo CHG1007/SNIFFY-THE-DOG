@@ -566,54 +566,63 @@ const GamePage = () => {
 
   // ***** AI 찬스 관리 *****
   const handleAiChance = async (targetPlayer) => {
-    // 1. 시민이 아니고 남은 찬스 없으면 못 함
-    if (myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0 || isAnalyzing) return;
-
-    // 2. 비디오 트랙 찾기 (LiveKit 전용)
-    const targetId = String(targetPlayer.userId);
-    const isMe = targetId === String(myInfo.userId);
-
-    const videoTrack = isMe ? localTrack : liveTracks[targetId];
-
-    if (!videoTrack) {
-      alert("상대방의 카메라가 꺼져 있습니다.");
+    // 1. 방어 로직: 낮이 아니거나, 죽었거나, 시민이 아니거나, 찬스가 없거나, 이미 분석 중이면 중단
+    if (gamePhase !== 'DAY' || !amIAlive || myInfo.role !== 'CITIZEN' || myInfo.aiChanceRemaining <= 0 || isAnalyzing) {
       return;
     }
 
-    // 3. 오디오 트랙 추출 (LiveKit Room을 통해)
-    let audioTrack = null;
-    if (lkRoom) {
-      const participant = isMe
-        ? lkRoom.localParticipant
-        : lkRoom.getParticipantByIdentity(targetId);
+    const targetId = String(targetPlayer.userId);
+    const isMe = targetId === String(myInfo.userId);
 
-      const audioPub = participant?.getTrackPublication('microphone'); // Track.Source.Microphone
-      audioTrack = audioPub?.track;
+    // 2. 비디오/오디오 트랙 준비
+    const videoTrack = isMe ? localTrack : liveTracks[targetId];
+    const participant = isMe ? lkRoom?.localParticipant : lkRoom?.getParticipantByIdentity(targetId);
+    const audioTrack = participant?.getTrackPublication('microphone')?.track;
+
+    if (!videoTrack) {
+      setIsSelectMode(false);
+      return;
     }
-
-    setIsSelectMode(false); // 선택 완료했으니 모드 해제
 
     const trackBundle = {
       video: videoTrack,
       audio: audioTrack || null,
       roomId: roomId,
-      round: 1 // 필요 시 현재 라운드 변수 연결
+      round: 1 // 필요시 현재 라운드 변수 사용
     };
 
+    setIsSelectMode(false); // 선택 모드 해제
+
     try {
-      // 💡 5초 분석 시작!
+      // 3. 💡 분석 시작 (딱 한 번만 실행!)
       const result = await startAnalysis(trackBundle, targetId);
+      console.log("분석 완료! 결과:", result);
 
-      if (result) {
-        setAnalysisResult({ identity: targetId, narrative: result.narrative });
-        openModal('aiChance');
+      if (result && result.narrative) {
+        // 4. 스토어 업데이트 (targetUserId를 포함해서 예쁘게!)
+        const finalData = {
+          targetUserId: targetId,
+          targetNickname: targetPlayer.nickname,
+          narrative: result.narrative,
+          analyzedAt: result.analyzedAt || Date.now()
+        };
 
-        // 분석 성공 시에만 서버에 찬스 차감 알림
+        // Zustand 상자에 저장
+        setAiChanceResult(finalData); 
+
+        // 5. 모달 열기 (이름표: 'aiChance')
+        openModal('aiChance'); 
+
+        // 6. 서버 및 로컬 찬스 차감
         websocketClient.sendAiChanceRequest(targetId);
         requestAiChance(targetId);
+
+      } else {
+        alert("분석 결과를 불러오지 못했습니다.");
       }
     } catch (e) {
-      console.error("분석 실패", e);
+      console.error("분석 과정 중 에러 발생:", e);
+      alert("분석 중 오류가 발생했습니다.");
     }
   };
 
@@ -639,7 +648,17 @@ const GamePage = () => {
 
       {/* AI 찬스 버튼 (시민, 낮에만) */}
       {myInfo.role === 'CITIZEN' && (
-        <div className="absolute top-6 right-6 z-[100]">
+        <div className="absolute top-6 right-6 z-[100] group">
+          {/* 💡 마우스 호버 시 나타날 툴팁 설명창 */}
+          <div className="absolute bottom-[-45px] right-0 translate-x-0 
+                          opacity-0 group-hover:opacity-100 transition-opacity duration-300 
+                          pointer-events-none whitespace-nowrap">
+            <div className="bg-black/80 text-white text-[11px] px-3 py-1.5 rounded-lg border border-white/10 shadow-xl">
+              이 버튼을 누르면 감정 분석을 할 수 있어요 킁킁! 🐶
+            </div>
+            {/* 말풍선 꼬리표 */}
+            <div className="absolute -top-1 right-8 w-2 h-2 bg-black/80 rotate-45 border-l border-t border-white/10"></div>
+          </div>
           <button
             onClick={() => {
               // 💡 클릭 방어: 낮이고, 살아있고, 시민이고, 찬스가 있을 때만 작동
