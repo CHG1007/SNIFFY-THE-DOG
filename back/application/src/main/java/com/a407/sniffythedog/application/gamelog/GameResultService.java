@@ -8,18 +8,24 @@ import com.a407.sniffythedog.application.gamelog.out.GameLogPort;
 import com.a407.sniffythedog.application.gamelog.out.TempGameLogData;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.GameHistory;
+import com.a407.sniffythedog.domain.game.entity.Participant;
+import com.a407.sniffythedog.domain.game.enums.GameResult;
+import com.a407.sniffythedog.domain.game.enums.GameRole;
 import com.a407.sniffythedog.domain.game.enums.Winner;
 import com.a407.sniffythedog.domain.gamelog.entity.GameLog;
+import com.a407.sniffythedog.domain.user.vo.UserId;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -31,9 +37,20 @@ public class GameResultService {
     private final ObjectMapper objectMapper; // JSON 해석
     private final GameLogGmsPort gameLogGmsPort; // AI 분석
     private final RedisRoomPort redisRoomPort; // Redis 방 삭제
+    private final StringRedisTemplate redisTemplate;    //동시성 제어
 
     @Async // 비동기로 백그라운드에서 실행합니다.
     public void processGameResult(String roomId, Winner winner, Instant startAt, Instant endAt) {
+
+        String lockKey = "game:result:lock:" + roomId;
+        Boolean isLocked = redisTemplate.opsForValue().setIfAbsent(lockKey, "processing", 1, TimeUnit.MINUTES);
+
+        // 이미 락이 걸려있다면(다른 스레드가 처리 중이라면) 중단
+        if (Boolean.FALSE.equals(isLocked)) {
+            log.warn("[GameResult] 이미 처리 중인 게임입니다. roomId={}", roomId);
+            return;
+        }
+
         try {
             // 1. Redis에서 임시 로그 데이터(Player 목록 + 이벤트 목록) 가져오기
             TempGameLogData tempData = gameLogRedisPort.loadGameLog(roomId)
@@ -44,6 +61,30 @@ public class GameResultService {
             GameHistory history = GameHistory.create(roomId, winner, startAt, endAt, playTime);
             GameHistory savedHistory = gameHistorySavePort.save(history);
             Long gameHistoryId = savedHistory.getId().value();
+
+            //추가 게임 참가자 각각 저장
+            List<Participant> participants = tempData.players().stream()
+                    .map(p -> {
+                        boolean isWin;
+                        if (winner == Winner.CITIZEN) {
+                            // 시민팀 승리: 시민, 의사, 경찰
+                            isWin = (p.role() == GameRole.CITIZEN || p.role() == GameRole.DOCTOR || p.role() == GameRole.POLICE);
+                        } else {
+                            // 마피아팀 승리: 마피아
+                            isWin = (p.role() == GameRole.MAFIA);
+                        }
+                        return Participant.create(
+                                UserId.of(p.odUserId()),
+                                savedHistory.getId(),
+                                p.role(),
+                                isWin ? GameResult.WIN : GameResult.LOSE,
+                                p.survived()
+                        );
+                    })
+                    .toList();
+
+            // 2-2. 참가자 목록 따로 저장 (새로 만든 메서드 호출)
+            gameHistorySavePort.saveParticipants(participants, savedHistory.getId());
 
             // 3. GameLog 생성 (gameHistoryId 사용)
             GameLog gameLog = GameLog.create(gameHistoryId, tempData.players(), tempData.startedAt());
