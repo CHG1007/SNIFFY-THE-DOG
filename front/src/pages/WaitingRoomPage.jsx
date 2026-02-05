@@ -49,7 +49,7 @@ const WaitingRoomPage = () => {
   const navigatingToGameRef = useRef(false);
 
   // LiveKit 연결
-  const { tracks: liveTracks, localTrack, toggleMic: lkToggleMic, toggleVideo: lkToggleVideo } = useLiveKit(roomId);
+  const { tracks: liveTracks, localTrack, toggleMic: lkToggleMic, toggleVideo: lkToggleVideo, mutedParticipants } = useLiveKit(roomId);
   const lkReset = useLiveKitStore(state => state.reset);
 
   // ✅ [초기화] 방 생성 직후라면 location state 정보를 우선 사용
@@ -293,8 +293,8 @@ const WaitingRoomPage = () => {
       displayName: p.nickname || p.displayName,
       isHost: p.userId === roomInfo.hostUserId,
       ready: p.ready,
-      isMicOn: isMe ? isMicOn : true, // 상대방은 일단 켜져있다고 가정하거나 별도 싱크 필요
-      isVideoOn: isMe ? isVideoOn : true,
+      isMicOn: isMe ? isMicOn : !mutedParticipants[String(p.userId)]?.audio,
+      isVideoOn: isMe ? isVideoOn : !mutedParticipants[String(p.userId)]?.video,
       photo: p.profileImage,
       track: isMe ? localTrack : liveTracks[String(p.userId)],
     };

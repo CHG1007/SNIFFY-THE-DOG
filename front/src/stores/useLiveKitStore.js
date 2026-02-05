@@ -10,6 +10,7 @@ const useLiveKitStore = create((set) => ({
     localTrack: null,
     roomId: null,
     localTracks: [], // cleanup용
+    mutedParticipants: {}, // { [identity: string]: { audio?: boolean, video?: boolean } }
 
     setRoom: (room) => set({ room }),
     setTracks: (tracks) => set({ tracks }),
@@ -24,6 +25,15 @@ const useLiveKitStore = create((set) => ({
     setLocalTrack: (localTrack) => set({ localTrack }),
     setLocalTracks: (localTracks) => set({ localTracks }),
     setRoomId: (roomId) => set({ roomId }),
+    setMutedState: (identity, kind, muted) => set((state) => ({
+        mutedParticipants: {
+            ...state.mutedParticipants,
+            [identity]: {
+                ...(state.mutedParticipants[identity] || {}),
+                [kind]: muted,
+            }
+        }
+    })),
 
     reset: () => {
         set((state) => {
@@ -37,6 +47,7 @@ const useLiveKitStore = create((set) => ({
                 localTrack: null,
                 roomId: null,
                 localTracks: [],
+                mutedParticipants: {},
             };
         });
     }
