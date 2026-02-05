@@ -74,7 +74,7 @@ function App() {
     <BrowserRouter>
       {/* 배경을 검은색으로 고정하여 애니메이션 효과 극대화 */}
       <div className="min-h-screen overflow-x-hidden bg-black">
-        <BGM />
+        {/* <BGM /> */}
         <AnimatedRoutes />
       </div>
     </BrowserRouter>
