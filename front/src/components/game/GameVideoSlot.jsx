@@ -15,24 +15,24 @@ const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteRequest, size = 
       group`}>
       {/* 비디오 캔버스 */}
       <div className="w-full h-full">
-        <VideoCanvas track={track} isMuted={isMe} isLocal={true} />
+        <VideoCanvas track={track} audioTrack={audioTrack} isMuted={isMe} isLocal={isMe} />
       </div>
 
       {/* 투표 버튼 레이어 */}
       {canVote && player.isAlive && !isMe && (
         <div className={`absolute ${isSmall ? 'top-1 right-1' : 'top-3 right-3'} z-50`}>
-          <button 
+          <button
             onClick={onVoteRequest}
-            disabled={didIVote} 
+            disabled={didIVote}
             className={`rounded-full border-2 transition-all shadow-lg flex items-center justify-center
               ${isSmall ? 'w-8 h-8' : 'w-12 h-12'}
-              ${didIVote 
-                ? "bg-gray-800/80 border-gray-600 cursor-not-allowed" 
+              ${didIVote
+                ? "bg-gray-800/80 border-gray-600 cursor-not-allowed"
                 : "bg-black/60 border-primary hover:scale-110 active:scale-95 shadow-[0_0_15px_rgba(255,138,0,0.3)]"
               }`}
           >
             <span className={`font-black italic ${isSmall ? 'text-[8px]' : 'text-[10px]'} ${didIVote ? "text-gray-400" : "text-primary"}`}>
-              {didIVote ? "DONE" : "VOTE"} 
+              {didIVote ? "DONE" : "VOTE"}
             </span>
           </button>
         </div>
@@ -40,12 +40,12 @@ const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteRequest, size = 
 
       {/* 정보 오버레이 (하단) */}
       <div className={`absolute ${isSmall ? 'bottom-1 left-1 right-1' : 'bottom-2 left-2 right-2'} z-20 flex justify-between items-end`}>
-          <div className="flex flex-col gap-1">
-            <span className={`bg-black/60 px-2 py-0.5 rounded text-white w-fit ${isSmall ? 'text-[9px]' : isBig ? 'text-sm font-bold' : 'text-xs'}`}>
-              {player.nickname} {isMe && "(나)"} {!player.isAlive && "💀"}
-            </span>
-          </div>
-        
+        <div className="flex flex-col gap-1">
+          <span className={`bg-black/60 px-2 py-0.5 rounded text-white w-fit ${isSmall ? 'text-[9px]' : isBig ? 'text-sm font-bold' : 'text-xs'}`}>
+            {player.nickname} {isMe && "(나)"} {!player.isAlive && "💀"}
+          </span>
+        </div>
+
         {/* 오디오 레벨 바 */}
         <div className={`flex items-end gap-[2px] ${isSmall ? 'h-2 mb-0.5' : isBig ? 'h-5 mb-1' : 'h-4 mb-1'}`}>
           {[1, 2, 3, 4, 5].map((i) => (

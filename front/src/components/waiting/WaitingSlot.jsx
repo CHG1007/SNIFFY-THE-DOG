@@ -49,9 +49,10 @@ const WaitingSlot = ({ player, isMe, isHost, onKickRequest }) => {
       <div className="absolute inset-0 z-0">
         <VideoCanvas
           track={player.track}
+          audioTrack={player.audioTrack}
           stream={player.stream}
           isMuted={isMe || !player.isMicOn}
-          isLocal={true}
+          isLocal={isMe}
         />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.8)_100%)] pointer-events-none" />
       </div>
@@ -86,8 +87,8 @@ const WaitingSlot = ({ player, isMe, isHost, onKickRequest }) => {
               <div
                 key={i}
                 className={`w-1 rounded-t-sm transition-all duration-75 ${isSpeaking
-                    ? "bg-primary/90 shadow-[0_0_10px_rgba(234,102,0,0.7)]"
-                    : "bg-emerald-400/80 shadow-[0_0_10px_rgba(52,211,153,0.5)]"
+                  ? "bg-primary/90 shadow-[0_0_10px_rgba(234,102,0,0.7)]"
+                  : "bg-emerald-400/80 shadow-[0_0_10px_rgba(52,211,153,0.5)]"
                   }`}
                 style={{
                   height: `${Math.max(15, currentAudioLevel * (0.2 + i * 0.15))}%`,

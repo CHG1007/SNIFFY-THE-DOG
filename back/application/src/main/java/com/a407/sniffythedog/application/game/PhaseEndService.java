@@ -54,8 +54,7 @@ public class PhaseEndService implements PhaseEndUseCase {
             nightResolveUseCase.execute(new NightResolveCommand(
                     roomCode,
                     command.userId(),
-                    command.requestId()
-            ));
+                    command.requestId()));
             return;
         }
 
@@ -91,8 +90,7 @@ public class PhaseEndService implements PhaseEndUseCase {
                 .map(e -> Map.<String, Object>of(
                         "userId", e.getKey().value(),
                         "nickname", e.getValue().getDisplayName(),
-                        "role", e.getValue().getGameRole() != null ? e.getValue().getGameRole().name() : "CITIZEN"
-                ))
+                        "role", e.getValue().getGameRole() != null ? e.getValue().getGameRole().name() : "CITIZEN"))
                 .collect(Collectors.toList());
 
         log.info("[PhaseEnd] Phase changed: roomCode={}, from={}, to={}, version={}",
@@ -103,6 +101,35 @@ public class PhaseEndService implements PhaseEndUseCase {
     }
 
     private void broadcastPhaseChange(String roomCode, PhaseEndHolder holder) {
+        // 2. Phase별 추가 이벤트 (결과 메시지를 먼저 보내야 프론트에서 페이즈 전환 시 바로 인지 가능)
+        PhaseTransitionResult tr = holder.transition;
+
+        if (tr != null) {
+            // VOTE_1 결과
+            if (tr.accusedUserId() != null) {
+                Map<String, Object> vote1Result = new HashMap<>();
+                vote1Result.put("version", holder.newVersion);
+                vote1Result.put("accusedUserId", tr.accusedUserId().value());
+                vote1Result.put("isTie", false);
+                gameMessagePort.sendToRoom(roomCode, "VOTE1_RESULT", vote1Result);
+            } else if (tr.isTie()) {
+                Map<String, Object> vote1Result = new HashMap<>();
+                vote1Result.put("version", holder.newVersion);
+                vote1Result.put("accusedUserId", null);
+                vote1Result.put("isTie", true);
+                gameMessagePort.sendToRoom(roomCode, "VOTE1_RESULT", vote1Result);
+            }
+
+            // NIGHT 결과 (killedUserId가 있으면)
+            if (tr.killedUserId() != null) {
+                Map<String, Object> nightResult = new HashMap<>();
+                nightResult.put("version", holder.newVersion);
+                nightResult.put("killedUserId", tr.killedUserId().value());
+                nightResult.put("saved", tr.saved());
+                gameMessagePort.sendToRoom(roomCode, "NIGHT_RESULT", nightResult);
+            }
+        }
+
         // 1. PHASE_CHANGED 이벤트
         Map<String, Object> phasePayload = new HashMap<>();
         phasePayload.put("version", holder.newVersion);
@@ -111,35 +138,6 @@ public class PhaseEndService implements PhaseEndUseCase {
         phasePayload.put("round", holder.round);
 
         gameMessagePort.sendToRoom(roomCode, "PHASE_CHANGED", phasePayload);
-
-        // 2. Phase별 추가 이벤트
-        PhaseTransitionResult tr = holder.transition;
-
-        if (tr == null) return;
-
-        // VOTE_1 결과
-        if (tr.accusedUserId() != null) {
-            Map<String, Object> vote1Result = new HashMap<>();
-            vote1Result.put("version", holder.newVersion);
-            vote1Result.put("accusedUserId", tr.accusedUserId().value());
-            vote1Result.put("isTie", false);
-            gameMessagePort.sendToRoom(roomCode, "VOTE1_RESULT", vote1Result);
-        } else if (tr.isTie()) {
-            Map<String, Object> vote1Result = new HashMap<>();
-            vote1Result.put("version", holder.newVersion);
-            vote1Result.put("accusedUserId", null);
-            vote1Result.put("isTie", true);
-            gameMessagePort.sendToRoom(roomCode, "VOTE1_RESULT", vote1Result);
-        }
-
-        // NIGHT 결과 (killedUserId가 있으면)
-        if (tr.killedUserId() != null) {
-            Map<String, Object> nightResult = new HashMap<>();
-            nightResult.put("version", holder.newVersion);
-            nightResult.put("killedUserId", tr.killedUserId().value());
-            nightResult.put("saved", tr.saved());
-            gameMessagePort.sendToRoom(roomCode, "NIGHT_RESULT", nightResult);
-        }
 
         // 게임 종료
         if (tr.winner() != null) {
@@ -150,13 +148,12 @@ public class PhaseEndService implements PhaseEndUseCase {
             gameFinished.put("players", holder.playerRoles);
             gameMessagePort.sendToRoom(roomCode, "GAME_FINISHED", gameFinished);
 
-              // 게임 결과 처리 (비동기) - GameHistory 생성 및 GameLog MongoDB 저장
+            // 게임 결과 처리 (비동기) - GameHistory 생성 및 GameLog MongoDB 저장
             gameResultService.processGameResult(
                     roomCode,
                     tr.winner(),
                     holder.startedAt,
-                    holder.endedAt != null ? holder.endedAt : Instant.now()
-            );
+                    holder.endedAt != null ? holder.endedAt : Instant.now());
         }
 
     }

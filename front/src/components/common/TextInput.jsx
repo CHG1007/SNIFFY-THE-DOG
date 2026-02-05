@@ -1,4 +1,4 @@
-const TextInput = ({ value, onChange, placeholder, errorMsg }) => {
+const TextInput = ({ value, onChange, placeholder, errorMsg, ...rest }) => {
   return (
     <div className="w-full flex flex-col items-center gap-2">
       <input
@@ -7,6 +7,7 @@ const TextInput = ({ value, onChange, placeholder, errorMsg }) => {
         onChange={onChange}
         placeholder={placeholder}
         className="w-full bg-[#1a1a1a] border-1 border-primary rounded-xl px-4 py-4 text-white text-center text-xl outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-gray-600 font-bold"
+        {...rest}
       />
       {/* 에러 메시지가 있을 때만 노출 (닉네임이 별로입니다 등) */}
       <div className="h-4 w-full flex items-center px-2">

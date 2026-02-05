@@ -37,9 +37,9 @@ const MyPage = () => {
           setProfile(profileRes.data);
           setEditNickname(profileRes.data.nickname);
         }
-        
+
         if (badgesRes.success) {
-           // Handle badge response structure: { badges: [...] }
+          // Handle badge response structure: { badges: [...] }
           setBadges(badgesRes.data.badges || []);
         }
 
@@ -70,39 +70,39 @@ const MyPage = () => {
     const trimmedNickname = editNickname.trim();
 
     const validPattern = /^[가-힣a-zA-Z0-9]+$/;
-    
-    if (trimmedNickname.length < 1 || trimmedNickname.length > 20) {
+
+    if (trimmedNickname.length < 1 || trimmedNickname.length > 5) {
       setErrorMsg("닉네임 길이를\n확인해주세요.");
-      setSubMsg("- 1자 이상 20자 이하로 입력\n- 공백은 포함될 수 없습니다.");
+      setSubMsg("- 1자 이상 5자 이하로 입력\n- 공백은 포함될 수 없습니다.");
       return;
     }
-    
+
     if (!validPattern.test(trimmedNickname)) {
       setErrorMsg("사용할 수 없는 문자가\n포함되었습니다.");
       setSubMsg("- 한글, 영문, 숫자만 사용 가능\n- 특수문자 및 초성/모음 불가");
       return;
     }
-    
+
     try {
       const res = await updateNickname(editNickname);
       // 백엔드 응답 포맷이 { success: true, ... } 라고 가정
       if (res.success) {
-          const newNickname = res.data.nickname;
-          
-          // 1. 로컬 상태 업데이트
-          setProfile(prev => ({ ...prev, nickname: newNickname }));
-          setEditNickname(newNickname); // 입력창 상태도 최신화
-          
-          // 2. 전역 상태 및 스토리지 업데이트 (헤더 즉시 반영용)
-          if (user) {
-            const updatedUser = { ...user, nickname: newNickname };
-            setUser(updatedUser);
-            localStorage.setItem('user', JSON.stringify(updatedUser)); // 새로고침 대비
-          }
-          
-          setErrorMsg("닉네임이 성공적으로\n변경되었습니다.");
-          setSubMsg(null); // 성공 시 서브 메시지 비움
-          setIsEditing(false);
+        const newNickname = res.data.nickname;
+
+        // 1. 로컬 상태 업데이트
+        setProfile(prev => ({ ...prev, nickname: newNickname }));
+        setEditNickname(newNickname); // 입력창 상태도 최신화
+
+        // 2. 전역 상태 및 스토리지 업데이트 (헤더 즉시 반영용)
+        if (user) {
+          const updatedUser = { ...user, nickname: newNickname };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser)); // 새로고침 대비
+        }
+
+        setErrorMsg("닉네임이 성공적으로\n변경되었습니다.");
+        setSubMsg(null); // 성공 시 서브 메시지 비움
+        setIsEditing(false);
       } else {
         // success가 false인 경우 (백엔드 에러 메시지 등)
         console.error("Nickname update failed:", res);
@@ -128,27 +128,27 @@ const MyPage = () => {
 
   // 분석 버튼 클릭 시 실행할 핸들러 추가
   // MyPage.jsx의 handleOpenAnalysis 수정
-const handleOpenAnalysis = async (gameId) => {
-  try {
-    const res = await getAiAnalysis(gameId); 
+  const handleOpenAnalysis = async (gameId) => {
+    try {
+      const res = await getAiAnalysis(gameId);
 
-    // 💡 단순히 success만 보지 말고, 진짜 '내용(totalSummary)'이 있는지 확인하세요!
-    if (res.success && res.data && res.data.totalSummary && res.data.totalSummary !== "분석 데이터가 없습니다.") {
-      setSelectedAnalysis(res.data);
-      setIsAiModalOpen(true);
-    } else {
-      // 💡 데이터가 없거나 비어있으면 강제로 분석 요청(POST)을 보냅니다!
-      console.log("🚀 분석 데이터가 없어서 POST 요청을 보냅니다!");
-      await requestAiAnalysis(gameId); 
-      setErrorMsg("AI 분석을 시작했습니다.");
-      setSubMsg("잠시 후 다시 확인해주세요!");
+      // 💡 단순히 success만 보지 말고, 진짜 '내용(totalSummary)'이 있는지 확인하세요!
+      if (res.success && res.data && res.data.totalSummary && res.data.totalSummary !== "분석 데이터가 없습니다.") {
+        setSelectedAnalysis(res.data);
+        setIsAiModalOpen(true);
+      } else {
+        // 💡 데이터가 없거나 비어있으면 강제로 분석 요청(POST)을 보냅니다!
+        console.log("🚀 분석 데이터가 없어서 POST 요청을 보냅니다!");
+        await requestAiAnalysis(gameId);
+        setErrorMsg("AI 분석을 시작했습니다.");
+        setSubMsg("잠시 후 다시 확인해주세요!");
+      }
+    } catch (error) {
+      // 에러가 났을 때도 분석 요청 시도
+      await requestAiAnalysis(gameId);
+      setErrorMsg("리포트가 없어 분석을 요청했습니다.");
     }
-  } catch (error) {
-    // 에러가 났을 때도 분석 요청 시도
-    await requestAiAnalysis(gameId);
-    setErrorMsg("리포트가 없어 분석을 요청했습니다.");
-  }
-};
+  };
 
   // Profile Image Logic: (userId % 4) + 1
   const profileImgIndex = profile ? (profile.userId % 4) + 1 : 1;
@@ -174,12 +174,12 @@ const handleOpenAnalysis = async (gameId) => {
         </section>
 
         <section className="w-full flex-1 min-h-0 overflow-hidden">
-          <UserHistorySection games={games} onReport={handleOpenAnalysis}/>
+          <UserHistorySection games={games} onReport={handleOpenAnalysis} />
         </section>
       </div>
-      <AiAnalyzeModal 
-        isOpen={isAiModalOpen} 
-        onClose={() => setIsAiModalOpen(false)} 
+      <AiAnalyzeModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
         data={selectedAnalysis}
         nickname={profile?.nickname}
       />
@@ -187,7 +187,7 @@ const handleOpenAnalysis = async (gameId) => {
       <LastBeggingModal
         isOpen={!!errorMsg}
         message={errorMsg}
-        subMessage={subMsg} 
+        subMessage={subMsg}
         onClose={() => {
           setErrorMsg(null);
           setSubMsg(null);

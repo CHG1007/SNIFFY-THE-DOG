@@ -24,29 +24,33 @@ const EditNicknameModal = ({ isOpen, onClose }) => {
         </h2>
 
         <div className="w-full">
-          <TextInput 
+          <TextInput
             value={nickname}
             onChange={(e) => {
-              setNickname(e.target.value);
-              if (e.target.value.trim() !== "") setError("");
+              const val = e.target.value;
+              if (val.length <= 5) {
+                setNickname(val);
+                if (val.trim() !== "") setError("");
+              }
             }}
-            placeholder="새 닉네임을 입력해주세요"
+            maxLength={5}
+            placeholder="새 닉네임 (최대 5자)"
             errorMsg={error}
           />
         </div>
 
         {/* 💡 직접 만든 ConfirmBtn 부품을 조립합니다 */}
         <div className="flex w-full gap-4 mt-2">
-          <ConfirmBtn 
-            text="수정" 
-            onClick={handleEdit} 
+          <ConfirmBtn
+            text="수정"
+            onClick={handleEdit}
             className="flex-1 text-xl" // flex-1로 너비를 반반씩!
           />
-          <ConfirmBtn 
-            text="취소" 
-            variant="secondary" 
-            onClick={onClose} 
-            className="flex-1 text-xl" 
+          <ConfirmBtn
+            text="취소"
+            variant="secondary"
+            onClick={onClose}
+            className="flex-1 text-xl"
           />
         </div>
       </div>
