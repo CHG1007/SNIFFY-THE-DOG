@@ -9,6 +9,7 @@ import com.a407.sniffythedog.application.gamelog.out.GameLogRedisPort;
 import com.a407.sniffythedog.application.room.out.RedisRoomPort;
 import com.a407.sniffythedog.domain.game.entity.PlayerState;
 import com.a407.sniffythedog.domain.game.entity.RoomSession;
+import com.a407.sniffythedog.domain.game.enums.GameRole;
 import com.a407.sniffythedog.domain.game.enums.Phase;
 import com.a407.sniffythedog.domain.game.enums.RoomStatus;
 import com.a407.sniffythedog.domain.game.enums.Winner;
@@ -28,7 +29,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase, SetReadyUseCase, KickUserUseCase, RestartGameUseCase {
+public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomUseCase, SetReadyUseCase,
+        KickUserUseCase, RestartGameUseCase {
 
     private final RedisRoomPort redisRoomPort;
     private final GameMessagePort gameMessagePort;
@@ -56,43 +58,40 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                         room.joinPlayer(gameUserId, nickname);
                         return room;
                     });
-            //방입장 성공 개인 응답
+            // 방입장 성공 개인 응답
             RoomState roomState = RoomState.from(updatedRoom);
+            PlayerState me = updatedRoom.getPlayer(gameUserId);
+
             Map<String, Object> ackData = Map.of(
                     "roomState", roomState,
-                    "my", MyInfo.from(updatedRoom.getPlayer(gameUserId))
-            );
+                    "my", MyInfo.from(me));
             gameMessagePort.sendToUser(String.valueOf(userId),
                     roomCode,
                     requestId,
                     "JOIN_ACK",
-                    ackData)
-            ;
+                    ackData);
 
-            //방입장 성공 전체 브로드케스트
+            // 방입장 성공 전체 브로드케스트
             PlayerSummary newPlayer = PlayerSummary.from(updatedRoom.getPlayer(gameUserId));
             Map<String, Object> joinData = Map.of(
                     "version", updatedRoom.getVersion(),
                     "player", newPlayer,
-                    "roomState", roomState
-            );
+                    "roomState", roomState);
             gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_JOINED", joinData);
 
         } catch (ApplicationException e) {
-            //방 입장 실패
+            // 방 입장 실패
             Map<String, Object> rejectData = Map.of(
                     "code", e.getHttpStatusCode(),
                     "message", e.getMessage(),
-                    "retryable", true
-            );
+                    "retryable", true);
 
             gameMessagePort.sendToUser(
                     String.valueOf(userId),
                     roomCode,
                     requestId,
                     "JOIN_REJECTED",
-                    rejectData
-            );
+                    rejectData);
 
         } catch (Exception e) {
             // 기타 예외
@@ -100,16 +99,14 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
             Map<String, Object> errorData = Map.of(
                     "code", "INTERNAL_ERROR",
                     "message", "일시적인 오류가 발생했습니다.",
-                    "retryable", true
-            );
+                    "retryable", true);
 
             gameMessagePort.sendToUser(
                     String.valueOf(userId),
                     roomCode,
                     requestId,
                     "JOIN_REJECTED",
-                    errorData
-            );
+                    errorData);
 
         }
 
@@ -177,8 +174,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                         holder.winnerTeam = winner.name();
                     });
                 }
-            }
-            else {
+            } else {
                 throw ApplicationException.of(ExceptionType.ROOM_NOT_JOINABLE);
             }
 
@@ -201,8 +197,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
         Map<String, Object> leaveMessage = Map.of(
                 "version", updated.getVersion(),
                 "userId", userId,
-                "roomState", roomState
-        );
+                "roomState", roomState);
         gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_LEFT", leaveMessage);
 
         // 2) 게임 중 탈주를 사망 처리했다면 상태 변경 이벤트도 같이
@@ -211,8 +206,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     "version", updated.getVersion(),
                     "userId", holder.killedUserId,
                     "isAlive", false,
-                    "reason", holder.killReason
-            );
+                    "reason", holder.killReason);
             gameMessagePort.sendToRoom(roomCode, "PLAYER_STATUS_CHANGED", statusMsg);
         }
 
@@ -226,8 +220,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     .map(e -> Map.of(
                             "userId", e.getKey().value(),
                             "nickname", e.getValue().getDisplayName(),
-                            "role", e.getValue().getGameRole() != null ? e.getValue().getGameRole().name() : "CITIZEN"
-                    ))
+                            "role", e.getValue().getGameRole() != null ? e.getValue().getGameRole().name() : "CITIZEN"))
                     .collect(Collectors.toList()));
             gameMessagePort.sendToRoom(roomCode, "GAME_FINISHED", finishedMsg);
 
@@ -235,8 +228,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     roomCode,
                     Winner.valueOf(holder.winnerTeam),
                     updated.getStartedAt(),
-                    updated.getEndedAt() != null ? updated.getEndedAt() : Instant.now()
-            );
+                    updated.getEndedAt() != null ? updated.getEndedAt() : Instant.now());
         }
     }
 
@@ -252,7 +244,6 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
         boolean deleteRoom;
     }
-
 
     @Override
     public void execute(SyncRoomCommand command) {
@@ -271,14 +262,22 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
         }
 
         RoomState roomState = RoomState.from(room);
-        RoomSnapshot snapshot = RoomSnapshot.of(roomState, myPlayer);
+
+        List<Long> mafiaMembers = null;
+        if (room.getStatus() == RoomStatus.PLAYING && myPlayer.getGameRole() == GameRole.MAFIA) {
+            mafiaMembers = room.getPlayers().entrySet().stream()
+                    .filter(e -> e.getValue().getGameRole() == GameRole.MAFIA)
+                    .map(e -> e.getKey().value())
+                    .collect(Collectors.toList());
+        }
+
+        RoomSnapshot snapshot = RoomSnapshot.of(roomState, myPlayer, mafiaMembers);
         gameMessagePort.sendToUser(
                 String.valueOf(userId),
                 roomCode,
                 requestId,
                 "ROOM_SNAPSHOT",
-                snapshot
-        );
+                snapshot);
 
     }
 
@@ -297,7 +296,8 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
             RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room -> {
                 PlayerState player = room.getPlayer(gameUserId);
-                if (player == null) throw ApplicationException.of(ExceptionType.FORBIDDEN);
+                if (player == null)
+                    throw ApplicationException.of(ExceptionType.FORBIDDEN);
                 player.setReady(ready);
 
                 // Phase End 방식: 모두 준비되면 즉시 게임 시작 (COUNTDOWN phase)
@@ -314,7 +314,8 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
 
             // 게임이 시작되었으면 역할 배정 및 PHASE_CHANGED 브로드캐스트
             if (startHolder.gameStarted) {
-                log.info("[SetReady] Game started - roomCode={}, phase={}", roomCode, updatedRoom.getGameState().phase());
+                log.info("[SetReady] Game started - roomCode={}, phase={}", roomCode,
+                        updatedRoom.getGameState().phase());
 
                 // 게임 로그 초기화
                 List<PlayerResult> initialPlayers = updatedRoom.getPlayers().values().stream()
@@ -322,8 +323,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                                 p.getUserId().value(),
                                 p.getDisplayName(),
                                 p.getGameRole(),
-                                true
-                        ))
+                                true))
                         .collect(Collectors.toList());
                 gameLogRedisPort.initGameLog(roomCode, initialPlayers, Instant.now());
 
@@ -335,8 +335,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                         "version", updatedRoom.getVersion(),
                         "phase", updatedRoom.getGameState().phase().name(),
                         "phaseEndsAt", updatedRoom.getGameState().phaseEndsAt(),
-                        "round", updatedRoom.getGameState().round()
-                );
+                        "round", updatedRoom.getGameState().round());
                 gameMessagePort.sendToRoom(roomCode, "PHASE_CHANGED", phasePayload);
             }
 
@@ -346,17 +345,15 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     roomCode,
                     requestId,
                     "ERROR",
-                    Map.of("message", e.getMessage())
-            );
-        } catch(Exception e) {
+                    Map.of("message", e.getMessage()));
+        } catch (Exception e) {
             e.printStackTrace();
             gameMessagePort.sendToUser(
                     String.valueOf(userId),
                     roomCode,
                     requestId,
                     "ERROR",
-                    Map.of("message", "Internal Error")
-            );
+                    Map.of("message", "Internal Error"));
         }
 
     }
@@ -371,8 +368,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                 "version", room.getVersion(),
                 "userId", userId,
                 "ready", ready,
-                "roomState", roomState
-        );
+                "roomState", roomState);
         gameMessagePort.sendToRoom(roomCode, "ROOM_READY_UPDATED", readyMessage);
     }
 
@@ -397,13 +393,11 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                 roleData = Map.of(
                         "role", player.getGameRole().name(),
                         "aiChanceRemaining", aiChanceRemaining,
-                        "mafiaMembers", mafiaMembers
-                );
+                        "mafiaMembers", mafiaMembers);
             } else {
                 roleData = Map.of(
                         "role", player.getGameRole().name(),
-                        "aiChanceRemaining", aiChanceRemaining
-                );
+                        "aiChanceRemaining", aiChanceRemaining);
             }
 
             gameMessagePort.sendToUser(
@@ -411,8 +405,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     roomCode,
                     "role-" + System.currentTimeMillis(),
                     "ROLE_ASSIGNED",
-                    roleData
-            );
+                    roleData);
         });
     }
 
@@ -426,9 +419,9 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
         RoomId roomId = new RoomId(roomCode);
         GameUserId hostId = new GameUserId(hostUserId);
         GameUserId targetId = new GameUserId(targetUserId);
-        try{
-            RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room ->{
-                if(!room.getHostUserId().equals(hostId)){
+        try {
+            RoomSession updatedRoom = redisRoomPort.updateRoomAtomically(roomId, room -> {
+                if (!room.getHostUserId().equals(hostId)) {
                     throw ApplicationException.of(ExceptionType.FORBIDDEN, "방장만 강퇴할 수 있습니다");
                 }
                 if (room.getStatus() != RoomStatus.WAITING) {
@@ -448,36 +441,32 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     roomCode,
                     requestId,
                     "KICKED",
-                    Map.of("reason", "방장에 의해 강퇴되었습니다.")
-            );
+                    Map.of("reason", "방장에 의해 강퇴되었습니다."));
             RoomState roomState = RoomState.from(updatedRoom);
             Map<String, Object> leaveMessage = Map.of(
                     "version", updatedRoom.getVersion(),
                     "userId", targetUserId,
-                    "roomState", roomState
-            );
+                    "roomState", roomState);
             gameMessagePort.sendToRoom(roomCode, "ROOM_PLAYER_LEFT", leaveMessage);
 
-        } catch (ApplicationException e){
+        } catch (ApplicationException e) {
             gameMessagePort.sendToUser(
                     String.valueOf(hostUserId),
                     roomCode,
                     requestId,
                     "ERROR",
-                    Map.of("message", e.getMessage())
-            );
+                    Map.of("message", e.getMessage()));
         } catch (Exception e) {
             gameMessagePort.sendToUser(
                     String.valueOf(hostUserId),
                     roomCode,
                     requestId,
                     "ERROR",
-                    Map.of("message", "강퇴 처리 중 오류가 발생했습니다.")
-            );
+                    Map.of("message", "강퇴 처리 중 오류가 발생했습니다."));
         }
     }
 
-    //todo: 게임종료 메서드 추가 게임 종료시 redis에 있는 로그 mongoDB로 로그 전송
+    // todo: 게임종료 메서드 추가 게임 종료시 redis에 있는 로그 mongoDB로 로그 전송
 
     /**
      * 게임 종료 후 대기실로 복귀
@@ -511,8 +500,7 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
             RoomState roomState = RoomState.from(updatedRoom);
             Map<String, Object> restartData = Map.of(
                     "version", updatedRoom.getVersion(),
-                    "roomState", roomState
-            );
+                    "roomState", roomState);
             gameMessagePort.sendToRoom(roomCode, "GAME_RESTARTED", restartData);
 
         } catch (ApplicationException e) {
@@ -521,16 +509,14 @@ public class GameService implements JoinRoomUseCase, LeaveRoomUseCase, SyncRoomU
                     roomCode,
                     requestId,
                     "ERROR",
-                    Map.of("message", e.getMessage())
-            );
+                    Map.of("message", e.getMessage()));
         } catch (Exception e) {
             gameMessagePort.sendToUser(
                     String.valueOf(userId),
                     roomCode,
                     requestId,
                     "ERROR",
-                    Map.of("message", "대기실 복귀 중 오류가 발생했습니다.")
-            );
+                    Map.of("message", "대기실 복귀 중 오류가 발생했습니다."));
         }
     }
 }

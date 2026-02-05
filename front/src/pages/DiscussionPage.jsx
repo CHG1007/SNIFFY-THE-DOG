@@ -1,21 +1,22 @@
 import TimeLine from '../components/game/TimeLine';
 import GameVideoSlot from '../components/game/GameVideoSlot'
 
-const DiscussionPage = ({ roomSession, getTrack, myUserId, onTimeout, onAiAnalyze, isSelectMode, isGuidanceOpen }) => {
+const DiscussionPage = ({ roomSession, getTrack, getAudioTrack, myUserId, onTimeout, onAiAnalyze, isSelectMode, isGuidanceOpen }) => {
+
   // 1. 백엔드 설계(2-3-3)의 TrialState에서 피고인 정보 추출
   const { accusedUserId, finalVote } = roomSession.gameState?.trial || {};
 
   // 2. Map 형태이거나 배열인 플레이어 데이터를 배열로 변환
-  const players = Array.isArray(roomSession.players) 
-    ? roomSession.players 
-    : Object.values(roomSession.players); 
+  const players = Array.isArray(roomSession.players)
+    ? roomSession.players
+    : Object.values(roomSession.players);
 
   // 피고인(accused)과 나머지 생존자 분리
-  const accusedPlayer = players.find(p => p.userId === accusedUserId) || players[0]; 
-  const otherPlayers = players.filter(p => p.userId !== accusedUserId && p.isAlive);
-  
+  const accusedPlayer = players.find(p => String(p.userId) === String(accusedUserId)) || players[0];
+  const otherPlayers = players.filter(p => String(p.userId) !== String(accusedUserId) && p.isAlive);
+
   return (
-   <div className="relative w-full h-full flex flex-col items-center justify-between overflow-hidden pb-6">
+    <div className="relative w-full h-full flex flex-col items-center justify-between overflow-hidden pb-6">
       <div className="h-20 flex-none" />
 
       {/* 메인 섹션 */}
@@ -27,6 +28,7 @@ const DiscussionPage = ({ roomSession, getTrack, myUserId, onTimeout, onAiAnalyz
                 player={accusedPlayer}
                 isMe={String(accusedPlayer.userId) === String(myUserId)}
                 track={getTrack ? getTrack(accusedPlayer) : undefined}
+                audioTrack={getAudioTrack ? getAudioTrack(accusedPlayer) : undefined}
                 canVote={false}
                 size="big"
               />
@@ -64,6 +66,7 @@ const DiscussionPage = ({ roomSession, getTrack, myUserId, onTimeout, onAiAnalyz
                 player={player}
                 isMe={String(player.userId) === String(myUserId)}
                 track={getTrack ? getTrack(player) : undefined}
+                audioTrack={getAudioTrack ? getAudioTrack(player) : undefined}
                 canVote={false}
                 size="small"
               />

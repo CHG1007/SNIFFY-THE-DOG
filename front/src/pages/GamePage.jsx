@@ -99,7 +99,6 @@ const GamePage = () => {
   const myInfoRef = useRef(myInfo);
   const playersRef = useRef(players);
   const gameFinishedPlayersRef = useRef([]);
-  const pendingVote1ResultRef = useRef(false);
 
   // ***** AI *****
   const { startAnalysis, isAnalyzing } = useAnalysis();        // 분석 시작
@@ -212,6 +211,18 @@ const GamePage = () => {
             if (payload.my.role === 'MAFIA') {
               websocketClient.subscribeToMafiaChannel(handleMafiaMessage);
             }
+          }
+          // 마피아 동료 목록 동기화
+          if (Array.isArray(payload.my.mafiaMembers)) {
+            let changed = false;
+            payload.my.mafiaMembers.forEach(id => {
+              const strId = toUserId(id);
+              if (!mafiaMembersRef.current.has(strId)) {
+                mafiaMembersRef.current.add(strId);
+                changed = true;
+              }
+            });
+            if (changed) setMafiaMembers(new Set(mafiaMembersRef.current));
           }
         }
         if (payload.version) setVersion(payload.version);
@@ -535,21 +546,30 @@ const GamePage = () => {
     const isMe = pStrId === mStrId;
     const rawTrack = isMe ? localTrack : liveTracks[pStrId];
 
+    // 1. 관전자(죽은 사람)는 항상 모든 화면을 볼 수 있음
+    if (!amIAlive) return rawTrack;
+
+    // 2. 낮/투표/토론 단계
     if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
       if (isMe) return rawTrack;
-      if (!amIAlive) return rawTrack; // 죽은 사람은 모든 플레이어 관찰 가능
+      // 살아있는 사람의 화면만 보임 (일반적인 게임 시점)
       return player.isAlive ? rawTrack : null;
     }
 
+    // 3. 밤 단계
     if (gamePhase === 'NIGHT') {
-      // 시민팀: 어떤 화면도 보지 못함
-      if (myInfo.role !== 'MAFIA') return null;
-      // 마피아: 본인 + 살아있는 마피아 동료만
-      if (isMe) return rawTrack;
-      return (player.isAlive && mafiaMembers.has(pStrId)) ? rawTrack : null;
+      // 마피아만 특별한 시야를 가짐
+      if (myInfo.role === 'MAFIA') {
+        if (isMe) return rawTrack;
+        // 살아있는 마피아 동료만 보임
+        const isPartnerMafia = mafiaMembers.has(pStrId);
+        return (player.isAlive && isPartnerMafia) ? rawTrack : null;
+      }
+      // 시민팀은 밤에 아무것도 안 보임
+      return null;
     }
 
-    // 기타 단계 (COUNTDOWN, ASSIGN_ROLE, DAY_RESULT 등): 제한 없음
+    // 기타 단계 (대기, 결과 등): 제한 없음
     return rawTrack;
   };
 
@@ -559,20 +579,23 @@ const GamePage = () => {
     const isMe = pStrId === mStrId;
     const rawTrack = isMe ? localAudioTrack : audioTracks[pStrId];
 
-    if (['DAY', 'VOTE_1', 'DEFENSE', 'VOTE_2', 'DAY_RESULT'].includes(gamePhase)) {
-      if (isMe) return null; // 본인 목소리는 직접 듣지 않음
-      if (!amIAlive) return rawTrack; // 죽은 사람은 모든 오디오 청취 가능
-      return player.isAlive ? rawTrack : null;
-    }
+    // 1. 본인은 항상 자신의 트랙을 반환 (UI 레벨 메타용, 실제 재생은 VideoCanvas가 차단)
+    if (isMe) return rawTrack;
 
+    // 2. 관전자(죽은 자)는 모든 소리를 들을 수 있음
+    if (!amIAlive) return rawTrack;
+
+    // 3. 밤 단계
     if (gamePhase === 'NIGHT') {
-      if (isMe) return null;
-      if (!amIAlive) return rawTrack; // 죽은 사람은 모든 오디오 청취 가능
-      if (myInfo.role !== 'MAFIA') return null;
-      return (player.isAlive && mafiaMembers.has(pStrId)) ? rawTrack : null;
+      // 마피아끼리만 소통 가능
+      if (myInfo.role === 'MAFIA' && player.isAlive && mafiaMembers.has(pStrId)) {
+        return rawTrack;
+      }
+      return null;
     }
 
-    return isMe ? null : rawTrack;
+    // 4. 낮/토론 단계: 생존자 목소리만 들림
+    return player.isAlive ? rawTrack : null;
   };
 
 
@@ -820,6 +843,7 @@ const GamePage = () => {
                 players: standardizedPlayers
               }}
               getTrack={getVisibleTrack}
+              getAudioTrack={getVisibleAudioTrack}
               myUserId={myInfo.userId}
               onTimeout={() => { }}
               onAiAnalyze={handleAiChance} 
@@ -929,6 +953,7 @@ const GamePage = () => {
       {/* 1차 투표 결과 모달 */}
       {showVote1ResultModal && (
         <GameAlertModal
+          key={`vote1-result-${vote1.result?.accusedUserId || 'tie'}`}
           title="VOTE RESULT"
           targetPlayer={accusedPlayer}
           message={vote1.result?.isTie

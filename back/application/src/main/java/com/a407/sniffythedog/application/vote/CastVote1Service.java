@@ -100,15 +100,7 @@ public class CastVote1Service implements CastVote1UseCase {
         // 누구 투표했는지 업데이트는 항상 브로드캐스트
         roomEventPort.publishVote1Update(command.roomCode(), updated.getVersion(), command.voterUserId(), true);
 
-        // 전원 투표 완료하여 집계가 이루어진 경우만 결과 브로드캐스트
-        if (vote1ResultHolder.resolved()) {
-            roomEventPort.publishVote1Result(
-                    command.roomCode(),
-                    updated.getVersion(),
-                    vote1ResultHolder.accusedUserId,
-                    vote1ResultHolder.isTie
-            );
-        }
+        // VOTE1_RESULT는 PhaseEndService에서 페이즈 종료 시 발행 (중복 방지)
 
         gameLogRedisPort.saveEvent(command.roomCode(),
                 GameEvent.vote1Cast(vote1ResultHolder.round, command.voterUserId(), command.targetUserId())
