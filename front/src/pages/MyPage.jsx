@@ -5,8 +5,7 @@ import { getMyProfile, getUserBadges, getUserGameHistory, updateNickname } from 
 import useAuthStore from '../stores/useAuthStore';
 import LastBeggingModal from '../components/modals/LastBeggingModal';
 import AiAnalyzeModal from '../components/modals/AiAnalyzeModal';
-import { getAiAnalysis } from '../api/gameApi';
-
+import { getAiAnalysis, requestAiAnalysis } from '../api/gameApi';
 
 const MyPage = () => {
   const { user, setUser } = useAuthStore();
@@ -128,31 +127,28 @@ const MyPage = () => {
   };
 
   // 분석 버튼 클릭 시 실행할 핸들러 추가
-  const handleOpenAnalysis = async (gameId) => {
-    try {
-      // 💡 1. 이제 토큰(token)을 직접 안 보내도 됩니다!
-      // apiClient가 가로채서(Interceptor) 자동으로 붙여줄 거예요.
-      const res = await getAiAnalysis(gameId); 
+  // MyPage.jsx의 handleOpenAnalysis 수정
+const handleOpenAnalysis = async (gameId) => {
+  try {
+    const res = await getAiAnalysis(gameId); 
 
-      if (res.success && res.data) {
-        setSelectedAnalysis(res.data);
-        setIsAiModalOpen(true);
-      } else {
-        // 💡 2. 만약 분석 결과가 없다면 "분석 요청(POST)"을 보냅니다.
-        await requestAiAnalysis(gameId); 
-        setErrorMsg("AI 분석을 시작했습니다.");
-        setSubMsg("잠시 후 다시 확인해주세요!");
-      }
-    } catch (error) {
-      try {
-        await requestAiAnalysis(gameId);
-        setErrorMsg("리포트가 없어 분석을 요청했습니다.");
-        setSubMsg("1분 뒤에 다시 눌러주세요!");
-      } catch (e) {
-        setErrorMsg("서버 통신 오류가 발생했습니다.");
-      }
+    // 💡 단순히 success만 보지 말고, 진짜 '내용(totalSummary)'이 있는지 확인하세요!
+    if (res.success && res.data && res.data.totalSummary && res.data.totalSummary !== "분석 데이터가 없습니다.") {
+      setSelectedAnalysis(res.data);
+      setIsAiModalOpen(true);
+    } else {
+      // 💡 데이터가 없거나 비어있으면 강제로 분석 요청(POST)을 보냅니다!
+      console.log("🚀 분석 데이터가 없어서 POST 요청을 보냅니다!");
+      await requestAiAnalysis(gameId); 
+      setErrorMsg("AI 분석을 시작했습니다.");
+      setSubMsg("잠시 후 다시 확인해주세요!");
     }
-  };
+  } catch (error) {
+    // 에러가 났을 때도 분석 요청 시도
+    await requestAiAnalysis(gameId);
+    setErrorMsg("리포트가 없어 분석을 요청했습니다.");
+  }
+};
 
   // Profile Image Logic: (userId % 4) + 1
   const profileImgIndex = profile ? (profile.userId % 4) + 1 : 1;
