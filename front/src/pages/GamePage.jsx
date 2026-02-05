@@ -596,7 +596,6 @@ const GamePage = () => {
     try {
       // 3. 💡 분석 시작 (딱 한 번만 실행!)
       const result = await startAnalysis(trackBundle, targetId);
-      console.log("분석 완료! 결과:", result);
 
       if (result && result.narrative) {
         // 4. 스토어 업데이트 (targetUserId를 포함해서 예쁘게!)

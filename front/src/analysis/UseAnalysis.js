@@ -64,7 +64,6 @@ export function useAnalysis() {
         const face = await analyzeFace(tempVideo);
         const audio = analyzeAudio();
 
-        console.log(`[${i}초] 수집 데이터:`, { face, audio });
         buffer.push({ second: i, face, audio });
       }
 
@@ -76,7 +75,6 @@ export function useAnalysis() {
       // sendToBackend가 비동기이므로 반드시 await를 붙여 결과를 받습니다.
       const result = await sendToBackend(buffer, targetId, roomId, round);
       
-      console.log("최종 분석 완료 및 결과 반환:", result);
       return result; // GamePage의 const result = await startAnalysis(...) 로 전달됨
 
     } catch (error) {
