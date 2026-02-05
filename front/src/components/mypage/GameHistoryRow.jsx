@@ -1,6 +1,13 @@
+const ROLE_ICONS = {
+  MAFIA: '/assets/images/mypage/mafia.png',
+  POLICE: '/assets/images/mypage/police.png',
+  DOCTOR: '/assets/images/mypage/doctor.png',
+  CITIZEN: '/assets/images/mypage/citizen.png',
+};
+
 const GameHistoryRow = ({ date, role, result, onReport }) => {
-  // 도트 이미지 경로 설정 (Stardew Valley 스타일)
-  const roleIcon = role === 'MAFIA' ? '/assets/images/roles/mafia_dog.png' : '/assets/images/roles/police_dog.png';
+  // 직업별 아이콘 매핑 (기본값: 시민)
+  const roleIcon = ROLE_ICONS[role] || ROLE_ICONS.CITIZEN;
   const isWin = result === 'WIN';
 
   return (
