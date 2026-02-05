@@ -20,10 +20,12 @@ export default function useLiveKit(roomId) {
     tracks, setTracks, updateTrack, removeTrack,
     localTrack, setLocalTrack,
     localTracks, setLocalTracks,
-    roomId: storedRoomId, setRoomId
+    roomId: storedRoomId, setRoomId,
+    mutedParticipants, setMutedState,
   } = useLiveKitStore();
 
   const connectingRef = useRef(false);
+  const audioElementsRef = useRef({}); // { [identity: string]: HTMLAudioElement }
 
   useEffect(() => {
     if (!roomId) return;
@@ -36,6 +38,11 @@ export default function useLiveKit(roomId) {
       setLocalTrack(null);
       setLocalTracks([]);
       setRoom(null);
+      // 기존 오디오 엘리먼트 정리
+      Object.keys(audioElementsRef.current).forEach(id => {
+        audioElementsRef.current[id].remove();
+      });
+      audioElementsRef.current = {};
     }
 
     // 이미 이 방에 연결되어 있으면 아무것도 하지 않음
@@ -82,9 +89,18 @@ export default function useLiveKit(roomId) {
           if (import.meta.env.DEV) console.log('[LiveKit] 연결 성공');
           newRoom.remoteParticipants.forEach(p => {
             p.videoTrackPublications.forEach(pub => {
+              if (pub.track) updateTrack(p.identity, pub.track);
+              if (pub.isMuted) setMutedState(p.identity, 'video', true);
+            });
+            p.audioTrackPublications.forEach(pub => {
               if (pub.track) {
-                updateTrack(p.identity, pub.track);
+                const audioEl = document.createElement('audio');
+                audioEl.autoplay = true;
+                pub.track.attach(audioEl);
+                document.body.appendChild(audioEl);
+                audioElementsRef.current[p.identity] = audioEl;
               }
+              if (pub.isMuted) setMutedState(p.identity, 'audio', true);
             });
           });
         });
@@ -92,23 +108,64 @@ export default function useLiveKit(roomId) {
         newRoom.on(RoomEvent.Disconnected, () => {
           if (import.meta.env.DEV) console.log('[LiveKit] 연결 해제');
           setTracks({});
+          Object.keys(audioElementsRef.current).forEach(id => {
+            audioElementsRef.current[id].remove();
+          });
+          audioElementsRef.current = {};
         });
 
         newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
           if (import.meta.env.DEV) console.log('[LiveKit] 참가자 퇴장:', p.identity);
           removeTrack(p.identity);
+          const audioEl = audioElementsRef.current[p.identity];
+          if (audioEl) {
+            audioEl.remove();
+            delete audioElementsRef.current[p.identity];
+          }
         });
 
-        newRoom.on(RoomEvent.TrackSubscribed, (track, _pub, p) => {
+        newRoom.on(RoomEvent.TrackSubscribed, (track, pub, p) => {
           if (track.kind === Track.Kind.Video) {
             if (import.meta.env.DEV) console.log('[LiveKit] 원격 비디오 구독:', p.identity);
             updateTrack(p.identity, track);
+            if (pub.isMuted) setMutedState(p.identity, 'video', true);
+          } else if (track.kind === Track.Kind.Audio) {
+            if (import.meta.env.DEV) console.log('[LiveKit] 원격 오디오 구독:', p.identity);
+            const audioEl = document.createElement('audio');
+            audioEl.autoplay = true;
+            track.attach(audioEl);
+            document.body.appendChild(audioEl);
+            audioElementsRef.current[p.identity] = audioEl;
+            if (pub.isMuted) setMutedState(p.identity, 'audio', true);
           }
         });
 
         newRoom.on(RoomEvent.TrackUnsubscribed, (track, _pub, p) => {
           if (track.kind === Track.Kind.Video) {
             removeTrack(p.identity);
+          } else if (track.kind === Track.Kind.Audio) {
+            const audioEl = audioElementsRef.current[p.identity];
+            if (audioEl) {
+              track.detach(audioEl);
+              audioEl.remove();
+              delete audioElementsRef.current[p.identity];
+            }
+          }
+        });
+
+        newRoom.on(RoomEvent.TrackMuted, (pub, p) => {
+          if (pub.kind === Track.Kind.Audio) {
+            setMutedState(p.identity, 'audio', true);
+          } else if (pub.kind === Track.Kind.Video) {
+            setMutedState(p.identity, 'video', true);
+          }
+        });
+
+        newRoom.on(RoomEvent.TrackUnmuted, (pub, p) => {
+          if (pub.kind === Track.Kind.Audio) {
+            setMutedState(p.identity, 'audio', false);
+          } else if (pub.kind === Track.Kind.Video) {
+            setMutedState(p.identity, 'video', false);
           }
         });
 
@@ -161,6 +218,6 @@ export default function useLiveKit(roomId) {
     }
   };
 
-  return { tracks, localTrack, room, toggleMic, toggleVideo };
+  return { tracks, localTrack, room, toggleMic, toggleVideo, mutedParticipants };
 }
 

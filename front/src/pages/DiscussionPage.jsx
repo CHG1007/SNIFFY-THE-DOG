@@ -22,7 +22,7 @@ const DiscussionPage = ({ roomSession, onTimeout }) => {
       <div className="flex-1 w-full max-w-5xl flex flex-col items-center justify-center min-h-0 px-4">
         {accusedPlayer ? (
           <div className="w-full h-full flex flex-col items-center justify-center gap-6">
-            <div className="relative w-full aspect-video max-h-[55vh] rounded-2xl overflow-hidden border-2 border-primary/50">
+            <div className="relative w-full aspect-video max-h-[55vh] rounded-2xl overflow-hidden border-2 border-[#ff8a00]/50">
               <GameVideoSlot 
                 player={accusedPlayer} 
                 isMe={false} 
@@ -43,11 +43,11 @@ const DiscussionPage = ({ roomSession, onTimeout }) => {
         <div className="flex gap-4 w-full justify-center overflow-hidden">
           {otherPlayers.map(player => (
             <div key={player.userId} className="w-40 aspect-video flex-shrink-0 transition-all hover:scale-105 duration-300">
-              <GameVideoSlot 
-                player={player} 
-                isMe={false} 
-                canVote={false} 
-                size="small" 
+              <GameVideoSlot
+                player={player}
+                isMe={false}
+                canVote={false}
+                size="small"
               />
             </div>
           ))}

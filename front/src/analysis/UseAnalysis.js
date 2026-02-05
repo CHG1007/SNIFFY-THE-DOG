@@ -7,30 +7,31 @@ export function useAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { initAudio, analyzeOnce: analyzeAudio } = useAudioAnalyzer();
   const { analyzeOnce: analyzeFace, loadModels } = useFaceAnalyzer();
-  const {user} = useAuthStore();
+  const { user } = useAuthStore();
 
-  // 💡 인자를 track 하나가 아니라 tracks(묶음)로 받습니다.
+  /**
+   * startAnalysis
+   * @param {Object} tracks - { video: Track, audio: Track, roomId: string, round: number }
+   * @param {string} targetId - 분석 대상의 identity (예: '1001')
+   */
   const startAnalysis = async (tracks, targetId) => {
-    // tracks.video가 진짜 있는지 확인합니다.
-    if (isAnalyzing || !tracks || !tracks.video) return;
+    // 1. 방어 로직
+    if (isAnalyzing || !tracks || !tracks.video) return null;
+    
     setIsAnalyzing(true);
-
-    // tracks -> roomId, round
     const { roomId, round } = tracks;
 
-    try {
-      // 1. 모델 준비 (표정 분석용)
-      await loadModels();
+    // 임시 비디오 엘리먼트 생성
+    const tempVideo = document.createElement('video');
+    tempVideo.muted = true;
+    tempVideo.playsInline = true;
 
-      // 2. 💡 오디오 분석기 초기화 (묶음 속에 들어있는 오디오 트랙을 꽂아줍니다)
+    try {
+      // 2. 준비 단계 (모델 로드 및 오디오 초기화)
+      await loadModels();
       await initAudio(tracks.audio);
 
-      // 3. 메모리 상의 비디오 객체 생성
-      const tempVideo = document.createElement('video');
-      tempVideo.muted = true;
-      tempVideo.playsInline = true;
-
-      // 묶음에서 비디오 알맹이 추출
+      // 3. 비디오 트랙 연결
       const videoTrack = tracks.video;
       const mediaStreamTrack = videoTrack.mediaStreamTrack || (videoTrack.track && videoTrack.track.mediaStreamTrack);
 
@@ -41,7 +42,7 @@ export function useAnalysis() {
       tempVideo.srcObject = new MediaStream([mediaStreamTrack]);
       await tempVideo.play();
 
-      // 4. 영상 신호 대기 (그림이 보일 때까지)
+      // 4. 영상 신호 대기 (화면이 준비될 때까지)
       await new Promise((resolve) => {
         const checkVideo = () => {
           if (tempVideo.readyState >= 2 && tempVideo.videoWidth > 0) {
@@ -54,62 +55,67 @@ export function useAnalysis() {
       });
 
       const buffer = [];
-      let second = 0;
 
-      // 5. 5초 데이터 수집 시작
-      return await new Promise((resolve) => {
-        const interval = setInterval(async () => {
-          second++;
-          
-          const face = await analyzeFace(tempVideo);
-          const audio = analyzeAudio();
-          
-          console.log(`[${second}초] 수집 데이터:`, { face, audio });
-          buffer.push({ second, face, audio });
+      // 5. 💡 [수정] 5초 데이터 수집 (setInterval 대신 for 루프 사용으로 흐름 제어)
+      for (let i = 1; i <= 5; i++) {
+        // 1초 대기
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          if (second >= 5) {
-            clearInterval(interval);
-            
-            // 정리 작업
-            tempVideo.srcObject = null;
-            tempVideo.load();
-            
-            // 백엔드에 값 주기
-            const result = await sendToBackend(buffer, targetId, roomId, round);
-            setIsAnalyzing(false);
-            resolve(result);
-          }
-        }, 1000);
-      });
+        const face = await analyzeFace(tempVideo);
+        const audio = analyzeAudio();
+
+        buffer.push({ second: i, face, audio });
+      }
+
+      // 6. 정리 작업
+      tempVideo.srcObject = null;
+      tempVideo.pause();
+
+      // 7. 💡 [수정] 백엔드 전송 및 결과 반환
+      // sendToBackend가 비동기이므로 반드시 await를 붙여 결과를 받습니다.
+      const result = await sendToBackend(buffer, targetId, roomId, round);
+      
+      return result; // GamePage의 const result = await startAnalysis(...) 로 전달됨
 
     } catch (error) {
       console.error("분석 실패:", error);
+      return { narrative: "분석 중 오류가 발생했습니다.", isMafia: false };
+    } finally {
+      // 에러가 나든 성공하든 분석 상태는 해제
       setIsAnalyzing(false);
-      return { narrative: "분석 중 오류가 발생했습니다." };
     }
   };
 
+  /**
+   * sendToBackend
+   */
   const sendToBackend = async (frames, targetId, roomId, round) => {
-
-    // ⭐⭐⭐⭐⭐ 나중에 수정하자 ~
     const finalTargetId = (targetId === "Me") ? user?.userId : targetId;
 
     try {
       const res = await fetch("/api/analysis/frames", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           roomId: roomId,
           actorUserId: user?.userId,
-          targetUserId: finalTargetId, // targetId
+          targetUserId: finalTargetId,
           round: round || 1,
-          frames }),
+          frames
+        }),
       });
-      console.log("보내기 직전 체크:", { roomId, targetId, round });
-      console.log("보내기 직전 체크:", user?.userId);
-      return await res.json();
+
+      if (!res.ok) throw new Error("서버 응답 에러");
+
+      const data = await res.json();
+      console.log("백엔드 응답 데이터:", data);
+      
+      // 백엔드 응답이 Wrapper(예: { data: { ... } })에 싸여 있는지 확인 필요
+      // 보통 res.json() 결과가 { narrative: "..." } 형태라면 그대로 return
+      return data.data || data; 
     } catch (e) {
-      return { narrative: "서버 통신 실패" };
+      console.error("백엔드 전송 에러:", e);
+      return { narrative: "서버 통신 실패", isMafia: false };
     }
   };
 
