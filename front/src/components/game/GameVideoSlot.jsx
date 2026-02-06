@@ -15,7 +15,7 @@ const GameVideoSlot = ({ player, isMe, canVote, didIVote, onVoteRequest, size = 
       group`}>
       {/* 비디오 캔버스 */}
       <div className="w-full h-full">
-        <VideoCanvas track={track} audioTrack={audioTrack} isMuted={isMe} isLocal={isMe} />
+        <VideoCanvas track={track} audioTrack={audioTrack} isMuted={isMe || !audioTrack} isLocal={isMe} />
       </div>
 
       {/* 투표 버튼 레이어 */}

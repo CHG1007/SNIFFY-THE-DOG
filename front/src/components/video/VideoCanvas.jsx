@@ -40,6 +40,9 @@ const VideoCanvas = ({ track, audioTrack, stream, isMuted = false, isLocal = fal
     if (audioTrack) {
       audioTrack.attach(el);
       return () => { audioTrack.detach(el); };
+    } else {
+      // audioTrack이 null일 때 오디오 완전히 제거 (밤에 마피아가 다른 사람 목소리 못 들음)
+      el.srcObject = null;
     }
   }, [audioTrack, isLocal]);
 
