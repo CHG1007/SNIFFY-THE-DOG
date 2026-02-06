@@ -120,6 +120,27 @@ public class PhaseEndService implements PhaseEndUseCase {
                 gameMessagePort.sendToRoom(roomCode, "VOTE1_RESULT", vote1Result);
             }
 
+            // VOTE_2 결과 (찬반 투표)
+            if (tr.vote2Approved() != null) {
+                Map<String, Object> vote2Result = new HashMap<>();
+                vote2Result.put("version", holder.newVersion);
+                vote2Result.put("approved", tr.vote2Approved());
+                vote2Result.put("executedUserId", tr.executedUserId() != null ? tr.executedUserId().value() : null);
+                vote2Result.put("agree", tr.vote2YesCount());
+                vote2Result.put("disagree", tr.vote2NoCount());
+                gameMessagePort.sendToRoom(roomCode, "VOTE2_RESULT", vote2Result);
+
+                // 처형 승인 시 플레이어 상태 변경 알림
+                if (tr.vote2Approved() && tr.executedUserId() != null) {
+                    Map<String, Object> statusChanged = new HashMap<>();
+                    statusChanged.put("version", holder.newVersion);
+                    statusChanged.put("userId", tr.executedUserId().value());
+                    statusChanged.put("isAlive", false);
+                    statusChanged.put("reason", "VOTE_EXECUTION");
+                    gameMessagePort.sendToRoom(roomCode, "PLAYER_STATUS_CHANGED", statusChanged);
+                }
+            }
+
             // NIGHT 결과 (killedUserId가 있으면)
             if (tr.killedUserId() != null) {
                 Map<String, Object> nightResult = new HashMap<>();

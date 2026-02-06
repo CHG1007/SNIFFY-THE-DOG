@@ -136,33 +136,14 @@ public class CastVote2Service implements CastVote2UseCase {
                 GameEvent.vote2Cast(holder.round, command.voterUserId(),yes)
         );
 
-        // 판결 결과 알림
+        // VOTE2_RESULT는 PhaseEndService에서 페이즈 종료 시 발행 (중복 방지)
+
         if (holder.resolved()) {
-
-            roomEventPort.publishVote2Result(
-                    command.roomCode(),
-                    updated.getVersion(),
-                    holder.approved,
-                    holder.executedUserId,
-                    holder.yes,
-                    holder.no
-            );
-
             gameLogRedisPort.saveEvent(
                     command.roomCode(),
                     GameEvent.vote2Result(holder.round, holder.approved, holder.executedUserId, holder.executedIsMafia,
                             holder.yes, holder.no)
             );
-
-            if (holder.killed) {
-                roomEventPort.publishPlayerStatusChanged(
-                        command.roomCode(),
-                        updated.getVersion(),
-                        holder.executedUserId,
-                        false,
-                        "VOTE_EXECUTION"
-                );
-            }
 
             if (holder.finished) {
                 gameLogRedisPort.saveEvent(
