@@ -579,23 +579,12 @@ const GamePage = () => {
     const isMe = pStrId === mStrId;
     const rawTrack = isMe ? localAudioTrack : audioTracks[pStrId];
 
-    // 1. 본인은 항상 자신의 트랙을 반환 (UI 레벨 메타용, 실제 재생은 VideoCanvas가 차단)
-    if (isMe) return rawTrack;
+    // ✅ 핵심: 비디오가 보이지 않으면 오디오도 들리지 않아야 함
+    const videoTrack = getVisibleTrack(player);
+    if (!videoTrack) return null;
 
-    // 2. 관전자(죽은 자)는 모든 소리를 들을 수 있음
-    if (!amIAlive) return rawTrack;
-
-    // 3. 밤 단계
-    if (gamePhase === 'NIGHT') {
-      // 마피아끼리만 소통 가능
-      if (myInfo.role === 'MAFIA' && player.isAlive && mafiaMembers.has(pStrId)) {
-        return rawTrack;
-      }
-      return null;
-    }
-
-    // 4. 낮/토론 단계: 생존자 목소리만 들림
-    return player.isAlive ? rawTrack : null;
+    // 비디오가 보이면 오디오도 함께 제공
+    return rawTrack;
   };
 
 
