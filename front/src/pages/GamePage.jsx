@@ -272,7 +272,7 @@ const GamePage = () => {
       case 'PHASE_CHANGED':
         setPhase(payload.phase, payload.phaseEndsAt);
         if (payload.version) setVersion(payload.version);
-        setShowVote2ResultModal(false);
+        // VOTE2 결과 모달은 자체 타이머로 닫힘 (VOTE1과 동일)
         if (payload.role && !myInfoRef.current?.role) {
           setMyRole(payload.role, payload.aiChanceRemaining || 0);
           setShowRoleModal(true);
