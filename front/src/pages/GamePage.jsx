@@ -740,7 +740,7 @@ const GamePage = () => {
 
   // 준비가 안 되어 있을 시 로딩 페이지
   if (!isAssetLoaded || players.length === 0 || !myInfo || !localTrack) {
-    return <LoadingPage message="게임 월드에 접속 중입니다..." />;
+    return <LoadingPage message="게임에 접속 중입니다..." />;
   }
 
   // === 렌더링 ===
