@@ -251,7 +251,32 @@ public class RoomSession {
      */
     private PhaseTransitionResult processVote2End() {
         concludeTrial();
-        return PhaseTransitionResult.simple(Phase.NIGHT);
+
+        // 판결 결과 가져오기
+        TrialState trial = gameState.trial();
+        FinalVoteState finalVote = trial.finalVote();
+        GameUserId accused = trial.accusedUserId();
+
+        boolean approved = finalVote.result() == com.a407.sniffythedog.domain.game.enums.FinalVoteResult.EXECUTE;
+        long yesCount = finalVote.getYesCount();
+        long noCount = finalVote.getNoCount();
+
+        Winner winner = null;
+        Phase nextPhase = Phase.NIGHT;
+
+        // 처형 승인 시 플레이어 죽이기 & 게임 종료 체크
+        if (approved && accused != null) {
+            killPlayer(accused);
+
+            // 처형으로 게임이 끝났는지 확인
+            if (isGameOver()) {
+                winner = isCitizenWin() ? Winner.CITIZEN : Winner.MAFIA;
+                nextPhase = Phase.GAME_END;
+            }
+        }
+
+        // VOTE2 결과와 게임 종료 정보를 모두 포함
+        return new PhaseTransitionResult(nextPhase, null, null, false, false, winner, approved, accused, yesCount, noCount);
     }
 
     /**
