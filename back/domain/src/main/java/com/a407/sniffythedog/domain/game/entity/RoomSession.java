@@ -250,10 +250,15 @@ public class RoomSession {
      * VOTE_2 종료 처리 - 찬반 투표 집계
      */
     private PhaseTransitionResult processVote2End() {
-        concludeTrial();
+        TrialState trial = gameState.trial();
+
+        // 아직 판결이 나지 않았으면 판결 내림 (멱등성 보장)
+        if (!trial.finalVote().isFinalized()) {
+            concludeTrial();
+            trial = gameState.trial(); // 갱신된 상태 가져오기
+        }
 
         // 판결 결과 가져오기
-        TrialState trial = gameState.trial();
         FinalVoteState finalVote = trial.finalVote();
         GameUserId accused = trial.accusedUserId();
 
@@ -264,9 +269,13 @@ public class RoomSession {
         Winner winner = null;
         Phase nextPhase = Phase.NIGHT;
 
-        // 처형 승인 시 플레이어 죽이기 & 게임 종료 체크
+        // 처형 승인 시 플레이어 죽이기 & 게임 종료 체크 (아직 죽지 않았으면)
         if (approved && accused != null) {
-            killPlayer(accused);
+            PlayerState accusedPlayer = players.get(accused);
+            // 아직 살아있으면 죽임 (멱등성 보장)
+            if (accusedPlayer != null && accusedPlayer.isAlive()) {
+                killPlayer(accused);
+            }
 
             // 처형으로 게임이 끝났는지 확인
             if (isGameOver()) {

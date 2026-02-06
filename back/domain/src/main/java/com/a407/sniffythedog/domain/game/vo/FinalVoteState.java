@@ -26,8 +26,9 @@ public record FinalVoteState(Map<GameUserId, YesNo> votes, FinalVoteResult resul
     public FinalVoteState conclude() {
         long yesCount = votes.values().stream().filter(v -> v == YesNo.YES).count();
         long noCount = votes.values().stream().filter(v -> v == YesNo.NO).count();
-        // 동률이면 EXECUTE (처형)
-        FinalVoteResult finalResult = yesCount >= noCount ? FinalVoteResult.EXECUTE : FinalVoteResult.SPARE;
+
+        // 찬성이 반대보다 많아야 처형 (동점이면 생존)
+        FinalVoteResult finalResult = yesCount > noCount ? FinalVoteResult.EXECUTE : FinalVoteResult.SPARE;
         return new FinalVoteState(votes, finalResult);
     }
 
