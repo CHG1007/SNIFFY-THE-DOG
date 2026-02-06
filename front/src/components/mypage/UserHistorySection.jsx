@@ -1,10 +1,25 @@
 import { useState, useEffect } from 'react';
 import Lottie from 'lottie-react';
 import GameHistoryTable from './GameHistoryTable';
+import Pagination from '../common/Pagination';
 
 const UserHistorySection = ({ games, onReport }) => {
   const hasGames = games && games.length > 0;
   const [emptyAnim, setEmptyAnim] = useState(null);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentGames = hasGames ? games.slice(indexOfFirstItem, indexOfLastItem) : [];
+  const totalPages = hasGames ? Math.ceil(games.length / itemsPerPage) : 0;
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   useEffect(() => {
     fetch("/assets/images/roompage/emptyroom.json")
@@ -36,7 +51,14 @@ const UserHistorySection = ({ games, onReport }) => {
         </div>
 
         {hasGames ? (
-          <GameHistoryTable games={games} onReport={onReport} />
+          <>
+            <GameHistoryTable games={currentGames} onReport={onReport} />
+            <Pagination 
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </>
         ) : (
           /* 전적이 없을 때 표시할 Empty State */
           <div className="w-full min-h-[250px] bg-[#FFC19A]/30 backdrop-blur-xl rounded-[10px] p-8 shadow-2xl border border-white/5 flex items-center justify-center">

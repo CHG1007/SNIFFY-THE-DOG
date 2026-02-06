@@ -1,7 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Pagination from '../common/Pagination';
 
-const AdminReportTable = ({ reports, pageInfo, onPageChange }) => {
+const AdminReportTable = ({ reports }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
+  // 클라이언트 사이드 페이지네이션 로직
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentReports = reports ? reports.slice(indexOfFirstItem, indexOfLastItem) : [];
+  const totalPages = reports ? Math.ceil(reports.length / itemsPerPage) : 0;
+
+  // 페이지 변경 핸들러
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   // 상태 뱃지 스타일링 함수
   const getStatusBadge = (status) => {
     switch (status) {
@@ -53,8 +67,8 @@ const AdminReportTable = ({ reports, pageInfo, onPageChange }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
-            {reports && reports.length > 0 ? (
-              reports.map((report) => (
+            {currentReports && currentReports.length > 0 ? (
+              currentReports.map((report) => (
                 <tr
                   key={report.reportId}
                   className="hover:bg-[#252525] transition-colors cursor-pointer"
@@ -88,14 +102,12 @@ const AdminReportTable = ({ reports, pageInfo, onPageChange }) => {
         </table>
       </div>
 
-      {/* 서버 사이드 페이지네이션 컴포넌트 */}
-      {/* 백엔드 currPage는 0부터 시작하므로 +1 해줌 */}
-      {/* Pagination 컴포넌트는 1부터 시작하는 page 번호를 반환하므로 핸들러에서 -1 처리 */}
-      {pageInfo && (
+      {/* 클라이언트 사이드 페이지네이션 컴포넌트 */}
+      {reports && reports.length > 0 && (
         <Pagination
-          currentPage={pageInfo.currPage + 1}
-          totalPages={pageInfo.totalPages}
-          onPageChange={(page) => onPageChange(page - 1)}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
         />
       )}
     </div>

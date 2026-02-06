@@ -3,7 +3,7 @@ import Pagination from '../common/Pagination';
 
 const AdminUserTable = ({ users = [] }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 6;
 
   // 클라이언트 사이드 페이지네이션 로직
   const indexOfLastItem = currentPage * itemsPerPage;
