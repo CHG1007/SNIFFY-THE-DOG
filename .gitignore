@@ -3,6 +3,7 @@
 **/**.md
 !README.md
 !**/README.md
+!**/포팅_메뉴얼.md
 
 .gradle
 build/
